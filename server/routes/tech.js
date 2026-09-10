@@ -17,17 +17,19 @@ const requireTech = (req, res, next) => {
 router.post('/business', authenticate, requireTech, requireFields('prefix', 'number', 'type'), async (req, res) => {
   const client = await db.connect();
   try {
-    const { prefix, number, type } = req.body;
+    const { prefix, number, type, biz_name } = req.body;
     
     // Validate prefix length (3-4 chars)
-    if (prefix.length < 3 || prefix.length > 4) {
+    const cleanPrefix = prefix.toUpperCase().replace(/[^A-Z]/g, '');
+    if (cleanPrefix.length < 3 || cleanPrefix.length > 4) {
       return res.status(400).json({ error: 'Prefix must be exactly 3 or 4 letters.' });
     }
     
     // Pad number to 3 digits (e.g. 1 -> 001)
     const paddedNumber = String(number).padStart(3, '0');
-    const username = `${prefix}${paddedNumber}`.replace(/\s+/g, '');
+    const username = `${cleanPrefix}${paddedNumber}`;
     const setupToken = crypto.randomBytes(32).toString('hex');
+    const companyName = biz_name && biz_name.trim() ? biz_name.trim() : `${cleanPrefix} Business`;
     
     await client.query('BEGIN');
 
@@ -35,16 +37,16 @@ router.post('/business', authenticate, requireTech, requireFields('prefix', 'num
     const sellerResult = await client.query(
       `INSERT INTO sellers (username, role, setup_token, name) 
        VALUES ($1, 'owner', $2, $3) RETURNING id`,
-      [username, setupToken, `Owner of ${prefix} ${number}`]
+      [username, setupToken, companyName]
     );
     const sellerId = sellerResult.rows[0].id;
 
-    // Create Business
-    const slug = `${username}-${type}`;
+    // Create Business — slug is username+type lowercased for uniqueness
+    const slug = `${username.toLowerCase()}-${type}`;
     const businessResult = await client.query(
       `INSERT INTO businesses (owner_id, name, type, slug, pusher_channel)
        VALUES ($1, $2, $3, $4, $5) RETURNING id, slug`,
-      [sellerId, `${prefix} ${number} Business`, type, slug, `channel-${slug}`]
+      [sellerId, companyName, type, slug, `channel-${slug}`]
     );
 
     await client.query('COMMIT');

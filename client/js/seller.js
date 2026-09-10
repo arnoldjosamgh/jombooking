@@ -390,11 +390,11 @@ function showNewBookingAlert(data) {
 
 // ─── Helpers ───────────────────────────────────────────────────
 function statusBadgeClass(status) {
-  if (status === 'pending')   return 'badge-gold';
+  if (status === 'pending')   return 'badge-orange';
   if (status === 'completed') return 'badge-green';
   if (status === 'cancelled') return 'badge-red';
   if (status === 'confirmed') return 'badge-blue';
-  return 'badge-gold';
+  return 'badge-orange';
 }
 
 function timeAgo(isoStr) {

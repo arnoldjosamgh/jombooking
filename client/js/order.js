@@ -240,7 +240,7 @@ function showOrderSuccess(orders) {
           <h3 style="margin-bottom:14px">Order Summary</h3>
           ${summary}
         </div>
-        <button class="btn btn-gold btn-lg mt-20 pulse" id="waiting-btn" onclick="iAmWaiting()">
+        <button class="btn btn-primary btn-lg mt-20 pulse" id="waiting-btn" onclick="iAmWaiting()">
           🔔 I'm Waiting — Notify Seller
         </button>
         <div class="mt-20">

@@ -188,7 +188,7 @@ function injectRegModal() {
             <label for="reg-photo">Profile Photo <span style="color:var(--text-500);font-weight:400;">(optional)</span></label>
             <input type="file" id="reg-photo" accept="image/*">
           </div>
-          <button type="submit" class="btn btn-gold btn-full mt-8" id="reg-submit">Get Started →</button>
+          <button type="submit" class="btn btn-primary btn-full mt-8" id="reg-submit">Get Started →</button>
         </form>
       </div>
     </div>

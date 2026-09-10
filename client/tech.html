@@ -8,182 +8,95 @@
 </head>
 <body class="bg-light">
 
-  <div class="layout-with-sidebar">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-title">Jomish Suite</div>
-        <div class="sidebar-time" id="sidebar-time">--:--:--</div>
-        <div class="sidebar-status">Live Sync Active</div>
+  <header class="top-nav">
+    <div class="brand">
+      <div class="brand-icon" style="font-size:1.5rem">⚙️</div>
+      <div>
+        <div class="brand-name">Tech Dashboard</div>
+        <div class="brand-sub">Company Management</div>
       </div>
+    </div>
+    <div class="flex gap-12">
+      <button class="btn btn-outline" onclick="logout()">Logout</button>
+    </div>
+  </header>
 
-      <nav>
-        <a href="#" class="nav-item active">Dashboard</a>
-        <a href="#" class="nav-item">HR & Employees</a>
-        <a href="#" class="nav-item">Supervision</a>
-        <a href="#" class="nav-item">SME Finance</a>
-        <a href="#" class="nav-item">Point of Sale</a>
-      </nav>
-
-      <div class="sidebar-bottom">
-        <div class="user-info">Logged in as System Technician</div>
-        <button class="btn btn-outline btn-full mb-8" style="background:#f1f5f9;">Light / Dark</button>
-        <button class="btn-logout" onclick="logout()">Logout</button>
-      </div>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main-content">
-      <div class="flex justify-between items-center mb-24">
-        <h2>Jomish Business Suite</h2>
-        <div style="font-weight:700; color:var(--text-dark); font-size:1.2rem; font-family:monospace;" id="top-time">--:--:--</div>
-      </div>
-
-      <!-- Financial Intelligence Section -->
-      <h3 class="mb-16">💰 Financial Intelligence</h3>
-      <div class="grid grid-4 mb-24">
-        <div class="stat-card stat-green">
-          <div class="stat-title">TODAY'S REVENUE</div>
-          <div class="stat-value">UGX 0</div>
-          <div class="stat-details">Expenses: <span class="red">UGX 0</span><br>Net: <span class="green">UGX 0</span></div>
-        </div>
-        <div class="stat-card stat-blue">
-          <div class="stat-title">THIS WEEK</div>
-          <div class="stat-value">UGX 120</div>
-          <div class="stat-details">Expenses: <span class="red">UGX 0</span><br>Net: <span class="green">UGX 120</span></div>
-        </div>
-        <div class="stat-card stat-orange">
-          <div class="stat-title">THIS MONTH</div>
-          <div class="stat-value">UGX 16,240</div>
-          <div class="stat-details">Expenses: <span class="red">UGX 0</span><br>Net: <span class="green">UGX 16,240</span></div>
-        </div>
-        <div class="stat-card stat-pink">
-          <div class="stat-title">ALL-TIME</div>
-          <div class="stat-value" style="color: var(--accent-pink);">UGX<br>3,363,220.38</div>
-          <div class="stat-details">Expenses: <span class="red">UGX 8,949.975</span><br>Net: <span class="red">UGX -5,586,754.62</span></div>
-          <div class="text-xs text-dim text-right mt-8" style="position:absolute; bottom:8px; right:12px;">Updated: 2026-09-10 19:39 EAT</div>
-        </div>
-      </div>
-
-      <!-- Customer Reviews Section -->
-      <h3 class="mb-16">⭐ Customer Reviews</h3>
-      <div class="card mb-24" style="background: transparent; box-shadow: var(--shadow-inset);">
-        <div class="grid grid-3">
-          <div>
-            <div class="flex justify-between mb-8">
-              <span style="color: var(--accent-orange);">★★★★★</span>
-              <span class="text-xs text-dim">9/3/2026</span>
-            </div>
-            <div class="font-bold mb-4">Anonymous</div>
-            <p class="text-sm">"Good"</p>
-          </div>
-          <div>
-            <div class="flex justify-between mb-8">
-              <span style="color: var(--accent-orange);">★★★★★</span>
-              <span class="text-xs text-dim">9/3/2026</span>
-            </div>
-            <div class="font-bold mb-4">Kadi</div>
-            <p class="text-sm">"Great"</p>
-          </div>
-          <div>
-            <div class="flex justify-between mb-8">
-              <span style="color: var(--accent-orange);">★★★★★</span>
-              <span class="text-xs text-dim">9/3/2026</span>
-            </div>
-            <div class="font-bold mb-4">Md</div>
-            <p class="text-sm">"Good"</p>
-          </div>
-        </div>
-      </div>
-
-      <h3 class="mb-16">💼 Company Management</h3>
-      
-      <div class="grid grid-2 mb-24">
-        <!-- Create Company Form -->
-        <div class="card">
-          <h4 class="mb-16">Add New Company</h4>
-          <form id="create-company-form" class="grid grid-2">
-            <div class="form-group">
-              <label class="text-xs text-dim font-bold uppercase">Prefix</label>
-              <input type="text" id="cc-prefix" placeholder="e.g. Jomish" required>
-            </div>
-            <div class="form-group">
-              <label class="text-xs text-dim font-bold uppercase">Number</label>
-              <input type="number" id="cc-number" placeholder="e.g. 1" required>
-            </div>
-            <div class="form-group" style="grid-column: 1/-1">
-              <label class="text-xs text-dim font-bold uppercase">Type</label>
-              <select id="cc-type" required>
-                <option value="product">Product (Ordering)</option>
-                <option value="service">Service (Booking)</option>
-              </select>
-            </div>
-            <div style="grid-column: 1 / -1;">
-              <button type="submit" class="btn btn-primary btn-full mt-8" id="cc-btn">Create Company</button>
-            </div>
-          </form>
-        </div>
-
-        <!-- Links Result -->
-        <div class="card-inset">
-          <h4 class="mb-16">Access Links</h4>
-          <div id="magic-link-result" style="display: none;">
-            <div class="mb-16">
-              <p class="text-xs text-dim font-bold uppercase mb-8">1. Seller Setup Link (Send to owner)</p>
-              <div class="flex gap-8">
-                <input type="text" id="magic-link-url" readonly style="font-size: 0.8rem;">
-                <button class="btn btn-outline" onclick="copyMagicLink('magic-link-url')">Copy</button>
-              </div>
-            </div>
-            <div>
-              <p class="text-xs text-dim font-bold uppercase mb-8">2. Permanent Client Link (For customers)</p>
-              <div class="flex gap-8">
-                <input type="text" id="client-link-url" readonly style="font-size: 0.8rem; color: var(--accent-green);">
-                <button class="btn btn-outline" onclick="copyMagicLink('client-link-url')">Copy</button>
-              </div>
-            </div>
-          </div>
-          <div id="no-links-msg" class="text-dim text-sm text-center mt-24">Create a company to generate access links.</div>
-        </div>
-      </div>
-
-      <!-- Companies List -->
+  <main class="container" style="padding-top: 32px; padding-bottom: 60px;">
+    
+    <div class="grid grid-2 mb-24">
+      <!-- Create Company Form -->
       <div class="card">
-        <h4 class="mb-16">Existing Companies</h4>
-        <div style="overflow-x: auto;">
-          <table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Username</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="companies-list">
-              <tr><td colspan="4" class="text-center">Loading...</td></tr>
-            </tbody>
-          </table>
-        </div>
+        <h3 class="mb-16">Add New Company</h3>
+        <form id="create-company-form" class="grid grid-2">
+          <div class="form-group">
+            <label class="text-xs text-dim font-bold uppercase">Prefix</label>
+            <input type="text" id="cc-prefix" placeholder="e.g. Jomish" required>
+          </div>
+          <div class="form-group">
+            <label class="text-xs text-dim font-bold uppercase">Number</label>
+            <input type="number" id="cc-number" placeholder="e.g. 1" required>
+          </div>
+          <div class="form-group" style="grid-column: 1/-1">
+            <label class="text-xs text-dim font-bold uppercase">Type</label>
+            <select id="cc-type" required>
+              <option value="product">Product (Ordering)</option>
+              <option value="service">Service (Booking)</option>
+            </select>
+          </div>
+          <div style="grid-column: 1 / -1;">
+            <button type="submit" class="btn btn-primary btn-full mt-8" id="cc-btn">Create Company & Generate Links</button>
+          </div>
+        </form>
       </div>
-    </main>
-  </div>
+
+      <!-- Links Result -->
+      <div class="card-inset">
+        <h3 class="mb-16">Access Links</h3>
+        <div id="magic-link-result" style="display: none;">
+          <div class="mb-16">
+            <p class="text-xs text-dim font-bold uppercase mb-8">1. Seller Setup Link (Send to owner)</p>
+            <div class="flex gap-8">
+              <input type="text" id="magic-link-url" readonly style="font-size: 0.8rem;">
+              <button class="btn btn-outline" onclick="copyMagicLink('magic-link-url')">Copy</button>
+            </div>
+          </div>
+          <div>
+            <p class="text-xs text-dim font-bold uppercase mb-8">2. Permanent Client Link (For customers)</p>
+            <div class="flex gap-8">
+              <input type="text" id="client-link-url" readonly style="font-size: 0.8rem; color: var(--accent-green);">
+              <button class="btn btn-outline" onclick="copyMagicLink('client-link-url')">Copy</button>
+            </div>
+          </div>
+        </div>
+        <div id="no-links-msg" class="text-dim text-sm text-center mt-24">Create a company to generate access links.</div>
+      </div>
+    </div>
+
+    <!-- Companies List -->
+    <div class="card">
+      <h3 class="mb-16">Existing Companies</h3>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Username</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="companies-list">
+            <tr><td colspan="4" class="text-center">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
 
   <div id="toast-container"></div>
   <script src="/js/app.js"></script>
   <script src="/js/tech.js"></script>
   <script>
-    // Live clock
-    function updateClock() {
-      const now = new Date();
-      const time = now.toLocaleTimeString('en-US', { hour12: false });
-      document.getElementById('sidebar-time').innerText = time;
-      document.getElementById('top-time').innerText = time;
-    }
-    setInterval(updateClock, 1000);
-    updateClock();
-
-    // Hide placeholder when links show
     const origCreate = document.getElementById('create-company-form').onsubmit;
     document.getElementById('cc-btn').addEventListener('click', () => {
       document.getElementById('no-links-msg').style.display = 'none';

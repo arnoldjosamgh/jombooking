@@ -223,6 +223,28 @@ async function notifySeller(orders) {
 
 // ─── Order Success Screen ──────────────────────────────────────
 function showOrderSuccess(orders) {
+  const orderIds = orders.map(o => o.id);
+  const checkStatus = setInterval(async () => {
+    try {
+      const res = await apiFetch(`/api/orders/list/${business.id}`);
+      const myOrders = res.filter(o => orderIds.includes(o.id));
+      const allCompleted = myOrders.length > 0 && myOrders.every(o => o.status === 'completed');
+      if (allCompleted) {
+        clearInterval(checkStatus);
+        document.getElementById('main-content').innerHTML = `
+          <div class="container-sm" style="padding-top:32px;text-align:center;">
+            <div class="success-screen" style="border: 2px solid var(--accent-green);">
+              <div class="success-icon" style="background:var(--accent-green);">🎉</div>
+              <h2 style="color:var(--accent-green);font-size:2rem;margin-top:16px;">Delivered!</h2>
+              <p class="mt-8">Thank you for your order.</p>
+              <button class="btn btn-outline mt-20" onclick="window.location.reload()">Place Another Order</button>
+            </div>
+          </div>
+        `;
+      }
+    } catch (e) {}
+  }, 5000);
+
   const summary = orders.map(o =>
     `<div class="flex justify-between text-sm" style="padding:6px 0;border-bottom:1px solid var(--glass-border)">
       <span>${o.product_title} ×${o.quantity}</span>

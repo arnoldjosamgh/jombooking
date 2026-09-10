@@ -147,12 +147,14 @@ router.get('/list/:business_id', async (req, res) => {
   try {
     const { date, status, service_id } = req.query;
     let query = `
-      SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id,
+      SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id, b.seller_id,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
-             s.name AS service_name, s.price AS service_price, s.duration_minutes
+             s.name AS service_name, s.price AS service_price, s.duration_minutes,
+             sel.username AS seller_username
       FROM bookings b
       JOIN clients c  ON b.client_id = c.id
       LEFT JOIN services s ON b.service_id = s.id
+      LEFT JOIN sellers sel ON b.seller_id = sel.id
       WHERE b.business_id = $1
     `;
     const params = [req.params.business_id];
@@ -170,15 +172,15 @@ router.get('/list/:business_id', async (req, res) => {
 });
 
 // ─── PATCH /api/bookings/:id/status ───────────────────────────────────────────
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', authenticate, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['confirmed', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(
-      `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING id, status`,
-      [status, req.params.id]
+      `UPDATE bookings SET status = $1, seller_id = $2 WHERE id = $3 RETURNING id, status`,
+      [status, req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
     res.json(result.rows[0]);

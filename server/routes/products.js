@@ -160,9 +160,9 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
       total += price * qty;
 
       const order = await client.query(
-        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, total_price, notes)
-         VALUES ($1, $2, $3, $4, 'completed', $5, $6) RETURNING id`,
-        [business_id, clientId, item.product_id, qty, price * qty, notes || null]
+        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, total_price, notes, seller_id)
+         VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7) RETURNING id`,
+        [business_id, clientId, item.product_id, qty, price * qty, notes || null, req.user.id]
       );
       createdOrders.push({ id: order.rows[0].id, product: stock.rows[0].title, qty, price });
     }
@@ -184,12 +184,14 @@ router.get('/list/:business_id', async (req, res) => {
   try {
     const { status } = req.query;
     let query = `
-      SELECT o.id, o.quantity, o.status, o.created_at, o.total_price, o.notes,
+      SELECT o.id, o.quantity, o.status, o.created_at, o.total_price, o.notes, o.seller_id,
              p.title AS product_title, p.price,
-             c.id AS client_id, c.name AS client_name, c.location AS client_location
+             c.id AS client_id, c.name AS client_name, c.location AS client_location,
+             s.username AS seller_username
       FROM orders o
       JOIN products p ON o.product_id = p.id
       JOIN clients c ON o.client_id = c.id
+      LEFT JOIN sellers s ON o.seller_id = s.id
       WHERE o.business_id = $1
     `;
     const params = [req.params.business_id];
@@ -204,15 +206,15 @@ router.get('/list/:business_id', async (req, res) => {
 });
 
 // ─── PATCH /api/orders/:id/status ─────────────────────────────────────────────
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', authenticate, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['pending', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
     const result = await db.query(
-      `UPDATE orders SET status = $1 WHERE id = $2 RETURNING id, status`,
-      [status, req.params.id]
+      `UPDATE orders SET status = $1, seller_id = $2 WHERE id = $3 RETURNING id, status`,
+      [status, req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     res.json(result.rows[0]);

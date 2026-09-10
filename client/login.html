@@ -10,39 +10,39 @@
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
 </head>
-<body class="bg-gradient flex items-center justify-center" style="min-height: 100vh;">
-
-  <div class="card" style="width: 100%; max-width: 400px; padding: 32px;">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;justify-content:center;">
-      <div class="brand-icon">🧾</div>
-      <span style="font-family:Outfit,sans-serif;font-weight:800;font-size:1.5rem;">Jomish</span>
+<body class="login-body">
+  <div class="login-container">
+    <div class="login-logo">
+      <img src="https://ui-avatars.com/api/?name=J+M&background=1a2461&color=f4a81d&bold=true&rounded=true" alt="Jomish Logo">
     </div>
+    <div class="login-title">Jomish Workforce</div>
+    <div class="login-sub">Enterprise Platform</div>
+    
+    <div class="login-msg">Sign in to your workspace</div>
 
-    <h2 class="text-center mb-20">Welcome Back</h2>
-
-    <!-- Login Form -->
     <form id="login-form">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="e.g. jomish1" required>
-      </div>
-      
-      <!-- Biometric Login Button (Hidden by default, shown if username has biometrics) -->
-      <div id="biometric-section" style="display: none;" class="mb-20 text-center">
-        <button type="button" class="btn btn-outline btn-full" onclick="loginWithBiometrics()" style="margin-bottom: 8px;">
-          <span style="font-size:1.2rem">👆</span> Login with FaceID / TouchID
-        </button>
-        <div class="text-xs text-dim">or use your password below</div>
+      <div class="login-form-group">
+        <label>User ID / User Name</label>
+        <input type="text" id="username" class="login-input" placeholder="Enter User ID or User Name" required>
       </div>
 
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" required>
+      <div class="login-form-group">
+        <label>Password</label>
+        <input type="password" id="password" class="login-input" placeholder="Enter password" required>
       </div>
 
-      <button type="submit" class="btn btn-gold btn-full mt-8" id="login-btn">Log In</button>
+      <button type="submit" class="btn-neon-cyan" id="login-btn">Sign In</button>
+      <button type="button" class="btn-neon-magenta" onclick="toast('Demo Mode', 'Demo not available on this environment.', 'info')">Try Demo</button>
     </form>
     
+    <div style="margin-top: 32px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Jomish Enterprise Workforce Platform</div>
+
+    <!-- Biometric Login Section -->
+    <div id="biometric-section" style="display: none; margin-top: 24px;">
+      <button type="button" class="btn-neon-cyan" style="background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); box-shadow: none;" onclick="loginWithBiometrics()">
+        🔐 Use Biometrics (FaceID / TouchID)
+      </button>
+    </div>
   </div>
 
   <div id="toast-container"></div>

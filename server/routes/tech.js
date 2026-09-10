@@ -18,7 +18,15 @@ router.post('/business', authenticate, requireTech, requireFields('prefix', 'num
   const client = await db.connect();
   try {
     const { prefix, number, type } = req.body;
-    const username = `${prefix}${number}`.replace(/\s+/g, '');
+    
+    // Validate prefix length (3-4 chars)
+    if (prefix.length < 3 || prefix.length > 4) {
+      return res.status(400).json({ error: 'Prefix must be exactly 3 or 4 letters.' });
+    }
+    
+    // Pad number to 3 digits (e.g. 1 -> 001)
+    const paddedNumber = String(number).padStart(3, '0');
+    const username = `${prefix}${paddedNumber}`.replace(/\s+/g, '');
     const setupToken = crypto.randomBytes(32).toString('hex');
     
     await client.query('BEGIN');

@@ -29,12 +29,12 @@
         <h3 class="mb-16">Add New Company</h3>
         <form id="create-company-form" class="grid grid-2">
           <div class="form-group">
-            <label class="text-xs text-dim font-bold uppercase">Prefix</label>
-            <input type="text" id="cc-prefix" placeholder="e.g. Jomish" required>
+            <label class="text-xs text-dim font-bold uppercase">Prefix (3-4 Letters)</label>
+            <input type="text" id="cc-prefix" placeholder="e.g. JOM" minlength="3" maxlength="4" pattern="[a-zA-Z]{3,4}" required>
           </div>
           <div class="form-group">
             <label class="text-xs text-dim font-bold uppercase">Number</label>
-            <input type="number" id="cc-number" placeholder="e.g. 1" required>
+            <input type="number" id="cc-number" placeholder="e.g. 1 (becomes 001)" min="1" required>
           </div>
           <div class="form-group" style="grid-column: 1/-1">
             <label class="text-xs text-dim font-bold uppercase">Type</label>

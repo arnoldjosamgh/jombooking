@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Express + Socket.io Server
+ * Jomish Booking and Delivering Management System — Express + Socket.io Server
  * Entry point for the entire backend
  */
 require('dotenv').config();
@@ -143,7 +143,7 @@ app.get('*', (req, res) => {
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`\n🚀 Jomish Booking System running on http://localhost:${PORT}`);
+  console.log(`\n🚀 Jomish Booking and Delivering Management System running on http://localhost:${PORT}`);
   console.log(`   Order flow:   http://localhost:${PORT}/order/jomish-cafe`);
   console.log(`   Booking flow: http://localhost:${PORT}/book/jomish-salon`);
   console.log(`   Seller view:  http://localhost:${PORT}/seller\n`);

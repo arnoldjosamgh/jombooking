@@ -8,7 +8,7 @@ const { requireFields } = require('../middleware/validate');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_local_dev';
 const RP_ID = process.env.RP_ID || 'localhost'; // Relaying Party ID for WebAuthn (must be localhost or domain)
-const RP_NAME = 'Jomish Booking System';
+const RP_NAME = 'Jomish Booking and Delivering Management System';
 
 // Temporary store for WebAuthn challenges
 const userChallenges = {};

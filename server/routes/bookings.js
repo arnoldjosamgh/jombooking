@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Bookings & Slot Engine Routes
+ * Jomish Booking and Delivering Management System — Bookings & Slot Engine Routes
  */
 const express = require('express');
 const router = express.Router();

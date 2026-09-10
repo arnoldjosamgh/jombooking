@@ -1,5 +1,5 @@
 -- ============================================================
--- Jomish Booking System — PostgreSQL Schema
+-- Jomish Booking and Delivering Management System — PostgreSQL Schema
 -- Run this on your Neon PostgreSQL console to initialize the DB
 -- ============================================================
 

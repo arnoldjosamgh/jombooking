@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Seller Dashboard Logic
+ * Jomish Booking and Delivering Management System — Seller Dashboard Logic
  * Real-time orders, bookings, client notes, and in-app chat
  */
 

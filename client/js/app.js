@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Shared App Utilities
+ * Jomish Booking and Delivering Management System — Shared App Utilities
  * Router, LocalStorage session, API wrapper, Toast notifications
  */
 

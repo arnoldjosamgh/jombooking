@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Input Validation Middleware
+ * Jomish Booking and Delivering Management System — Input Validation Middleware
  */
 
 function requireFields(...fields) {

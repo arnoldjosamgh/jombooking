@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Product Ordering Page Logic
+ * Jomish Booking and Delivering Management System — Product Ordering Page Logic
  * Handles: product listing, cart, order placement, Pusher/Socket.io "I'm Waiting"
  */
 

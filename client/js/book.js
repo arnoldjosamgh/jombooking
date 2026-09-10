@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Service Booking Page Logic
+ * Jomish Booking and Delivering Management System — Service Booking Page Logic
  * Calendar strip, slot matrix, real-time slot locking via Socket.io
  */
 

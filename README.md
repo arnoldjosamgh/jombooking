@@ -1,6 +1,6 @@
-# Jomish Two-Way Ordering & Booking System
+# Jomish Booking and Delivering Management System
 
-A full-stack Point of Sale (POS) style ordering and booking platform built with Node.js, Express, PostgreSQL, Socket.io, and Pusher.
+A full-stack booking and product delivery management platform built with Node.js, Express, PostgreSQL, Socket.io, and Pusher.
 
 ## Features
 - **Product Ordering**: Frictionless client onboarding, real-time inventory decrement, and Pusher-powered "I'm Waiting" notifications.

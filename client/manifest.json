@@ -1,6 +1,6 @@
 {
-  "name": "Jomish Management",
-  "short_name": "Jomish",
+  "name": "Jomish Booking and Delivering Management System",
+  "short_name": "Jomish BDM",
   "description": "Two-way ordering and booking management for sellers.",
   "start_url": "/seller",
   "display": "standalone",

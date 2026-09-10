@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Database Connection
+ * Jomish Booking and Delivering Management System — Database Connection
  * Uses Neon PostgreSQL (or any PostgreSQL) via pg.Pool
  */
 require('dotenv').config();

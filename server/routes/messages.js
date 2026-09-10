@@ -1,5 +1,5 @@
 /**
- * Jomish Booking System — Messages (In-App Chat) Routes
+ * Jomish Booking and Delivering Management System — Messages (In-App Chat) Routes
  * Socket.io integration for real-time bidirectional chat
  */
 const express = require('express');

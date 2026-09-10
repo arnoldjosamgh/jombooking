@@ -453,3 +453,159 @@ td { padding: 16px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.05);
 ::-webkit-scrollbar-track { background: var(--bg-light); }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ================================================================
+   SELLER LAYOUT
+   ================================================================ */
+.seller-layout {
+  height: calc(100vh - 70px);
+  overflow: hidden;
+}
+
+/* ================================================================
+   POS SYSTEM
+   ================================================================ */
+.pos-container {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  height: 100%;
+  overflow: hidden;
+}
+.pos-main {
+  padding: 24px;
+  overflow-y: auto;
+}
+.pos-sidebar {
+  background: #fff;
+  border-left: 1px solid rgba(0,0,0,0.07);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.pos-product-card {
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  padding: 20px 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+}
+.pos-product-card:hover {
+  box-shadow: var(--shadow-inset);
+  transform: scale(0.97);
+}
+.pos-product-name  { font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; color: var(--text-dark); }
+.pos-product-price { font-size: 1.1rem; font-weight: 800; color: var(--accent-blue); margin-bottom: 6px; }
+.pos-product-stock { font-size: 0.75rem; color: var(--text-muted); }
+.pos-empty { grid-column: 1 / -1; text-align: center; padding: 60px; color: var(--text-muted); }
+
+/* Cart */
+.cart-items { overflow-y: auto; flex: 1; }
+.cart-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.cart-item-info { flex: 1; }
+.cart-item-name  { font-weight: 600; font-size: 0.9rem; }
+.cart-item-price { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+.cart-item-qty   { display: flex; align-items: center; gap: 8px; }
+.cart-item-subtotal { font-weight: 700; font-size: 0.9rem; color: var(--accent-blue); min-width: 56px; text-align: right; }
+.pos-totals { border-top: 2px solid rgba(0,0,0,0.07); padding-top: 16px; }
+.btn-lg { padding: 16px; font-size: 1rem; }
+.text-lg { font-size: 1.1rem; }
+.font-bold { font-weight: 700; }
+.ml-8 { margin-left: 8px; }
+.mx-16 { margin: 0 16px; }
+
+/* ================================================================
+   SERVICE CALENDAR
+   ================================================================ */
+.calendar-container { height: 100%; }
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+}
+.cal-day-col {
+  background: var(--bg-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raised);
+  overflow: hidden;
+}
+.cal-day-header {
+  background: var(--accent-blue);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 10px 8px;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.cal-slot {
+  padding: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  cursor: default;
+  border-bottom: 1px solid rgba(0,0,0,0.04);
+  transition: background 0.15s;
+}
+.cal-slot-free   { color: var(--accent-green); }
+.cal-slot-booked { color: var(--accent-red); background: rgba(248,113,113,0.08); cursor: pointer; }
+.cal-slot-booked:hover { background: rgba(248,113,113,0.18); }
+.cal-closed { padding: 16px 8px; text-align: center; font-size: 0.75rem; color: var(--text-muted); }
+
+/* ================================================================
+   ONBOARDING / MODAL (Fix display + animation)
+   ================================================================ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(0,0,0,0.45); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal-content {
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 500px;
+  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes popIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ── Misc helpers ─────── */
+.btn-outline {
+  background: transparent;
+  border: 2px solid var(--accent-blue);
+  color: var(--accent-blue);
+  box-shadow: none;
+}
+.btn-outline:hover { background: var(--accent-blue); color: #fff; box-shadow: none; }
+.text-red { color: var(--accent-red) !important; }
+.items-center { align-items: center; }
+.flex-col { display: flex; flex-direction: column; }
+
+@media (max-width: 768px) {
+  .pos-container { grid-template-columns: 1fr; }
+  .pos-sidebar { border-left: none; border-top: 1px solid rgba(0,0,0,0.07); height: 300px; }
+  .calendar-grid { grid-template-columns: repeat(3, 1fr); }
+  .top-nav { padding: 12px 16px; }
+}

@@ -1,4 +1,4 @@
-// Setup Logic (Magic Link)
+// Setup Logic (Magic Link) — Password setup + auto biometric registration
 
 const { startRegistration } = SimpleWebAuthnBrowser;
 let setupToken = '';
@@ -22,7 +22,7 @@ window.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     const btn = document.getElementById('setup-btn');
     btn.disabled = true;
-    btn.textContent = 'Setting password...';
+    btn.textContent = 'Setting password…';
 
     const password = document.getElementById('password').value;
 
@@ -32,21 +32,21 @@ window.addEventListener('DOMContentLoaded', () => {
         body: { token: setupToken, password }
       });
 
-      // Store full session — same as login
+      // Store full session
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('last_username', data.seller.username);
       localStorage.setItem('role', data.seller.role);
       if (data.business_slug) {
         localStorage.setItem('business_slug', data.business_slug);
-        // Mark as first login so seller.html shows onboarding
         localStorage.setItem('first_login_' + data.business_slug, '1');
       }
 
-      toast('Success', 'Password set! Setting up biometrics...', 'success');
-
-      // Move to Step 2
+      // Move to biometric step — auto-trigger
       document.getElementById('step-password').style.display = 'none';
       document.getElementById('step-biometrics').style.display = 'block';
+
+      // Auto-trigger biometric setup after a short delay (feels natural)
+      setTimeout(() => autoSetupBiometrics(data.seller.username), 800);
 
     } catch (err) {
       toast('Error', err.message, 'error');
@@ -56,38 +56,55 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-async function setupBiometrics() {
-  const btn = document.querySelector('#step-biometrics .btn-primary');
-  if (btn) { btn.disabled = true; btn.textContent = 'Setting up...'; }
+// ─── AUTO-TRIGGER BIOMETRICS ──────────────────────────────────────────────────
+async function autoSetupBiometrics(username) {
+  // Show the "setting up" state
+  const bioBtn   = document.querySelector('#step-biometrics .btn-primary');
+  const statusEl = document.getElementById('bio-status');
+  if (bioBtn)   { bioBtn.disabled = true; bioBtn.textContent = 'Waiting for your device…'; }
+  if (statusEl) statusEl.textContent = 'Your device will prompt you to scan your face or fingerprint.';
 
   try {
-    // 1. Get options from server (token must be set in localStorage already)
-    const options = await apiFetch('/api/auth/webauthn/register-options', {
-      method: 'POST'
-    });
+    if (!window.PublicKeyCredential) throw new Error('not_supported');
 
-    // 2. Start browser registration
-    let attResp;
-    try {
-      attResp = await startRegistration(options);
-    } catch (err) {
-      throw new Error(err.name === 'NotAllowedError' ? 'Registration cancelled or not supported on this device' : err.message);
-    }
+    const options = await apiFetch('/api/auth/webauthn/register-options', { method: 'POST' });
+    const attResp = await startRegistration(options);
 
-    // 3. Send response to server to verify
     const verification = await apiFetch('/api/auth/webauthn/register-verify', {
       method: 'POST',
       body: attResp
     });
 
     if (verification.verified) {
-      toast('Success', 'Biometrics enabled! Taking you to your dashboard...', 'success');
+      localStorage.setItem('bio_registered_' + username, '1');
+      toast('Biometrics Enabled!', 'You can now log in with your face or fingerprint.', 'success');
       setTimeout(finishSetup, 1500);
+    } else {
+      throw new Error('Verification failed');
     }
   } catch (err) {
-    toast('Biometric Setup Failed', err.message + ' — You can skip and set up later.', 'error');
-    if (btn) { btn.disabled = false; btn.textContent = 'Yes, Enable Biometrics'; }
+    // Device doesn't support it, or user declined — that's fine, proceed to dashboard
+    const retryBtn = document.getElementById('bio-retry-btn');
+    const spinner  = document.getElementById('bio-spinner');
+    if (bioBtn)    { bioBtn.style.display = 'none'; }
+    if (retryBtn)  { retryBtn.style.display = 'block'; }
+    if (spinner)   { spinner.style.display = 'none'; }
+    if (statusEl) {
+      if (err.message === 'not_supported') {
+        statusEl.textContent = 'Biometrics not supported on this device. You can skip.';
+      } else if (err.name === 'NotAllowedError') {
+        statusEl.textContent = 'Biometric setup was cancelled. Tap Try Again or Skip.';
+      } else {
+        statusEl.textContent = 'Could not set up biometrics. Tap Try Again or Skip.';
+      }
+    }
   }
+}
+
+// Called by "Try Again" button or "Skip" button
+function setupBiometrics() {
+  const username = localStorage.getItem('last_username') || '';
+  autoSetupBiometrics(username);
 }
 
 function finishSetup() {

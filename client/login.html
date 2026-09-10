@@ -12,21 +12,26 @@
 <body class="login-body">
   <div class="login-container">
     <div class="login-logo">
-      <!-- Simple neon icon, no company logo here -->
       <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#1a2461,#0f1222);border:2px solid rgba(244,168,29,0.5);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 0 24px rgba(244,168,29,0.3);">⚙️</div>
     </div>
     <div class="login-title">Jomish Tech Hub</div>
     <div class="login-sub">Booking & Delivery Management</div>
-    
-    <div class="login-msg">Sign in to your workspace</div>
+
+    <!-- Biometric auto-attempt spinner (shown while trying silently) -->
+    <div id="bio-attempting" style="display:none; margin-bottom:24px;">
+      <div class="spinner" style="border-top-color:var(--neon-cyan); margin:0 auto 12px;"></div>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Checking biometrics…</p>
+    </div>
+
+    <div class="login-msg" id="login-msg">Sign in to your workspace</div>
 
     <form id="login-form">
       <div class="login-form-group">
         <label>User ID</label>
-        <input 
-          type="text" 
-          id="username" 
-          class="login-input" 
+        <input
+          type="text"
+          id="username"
+          class="login-input"
           placeholder="e.g. TECH or JOM001"
           autocomplete="username"
           autocapitalize="characters"
@@ -37,20 +42,13 @@
 
       <div class="login-form-group">
         <label>Password</label>
-        <input type="password" id="password" class="login-input" placeholder="Enter password" required>
+        <input type="password" id="password" class="login-input" placeholder="Enter password" autocomplete="current-password" required>
       </div>
 
       <button type="submit" class="btn-neon-cyan" id="login-btn">Sign In</button>
     </form>
-    
-    <div style="margin-top: 32px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing:0.05em;">JOMISH ENTERPRISE WORKFORCE PLATFORM</div>
 
-    <!-- Biometric Login Section -->
-    <div id="biometric-section" style="display: none; margin-top: 24px;">
-      <button type="button" class="btn-neon-cyan" style="background: transparent; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); box-shadow: none;" onclick="loginWithBiometrics()">
-        🔐 Use Biometrics (FaceID / TouchID)
-      </button>
-    </div>
+    <div style="margin-top: 32px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing:0.05em;">JOMISH ENTERPRISE WORKFORCE PLATFORM</div>
   </div>
 
   <div id="toast-container"></div>

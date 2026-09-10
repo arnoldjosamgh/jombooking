@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Setup Account | Jomish</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔑</text></svg>">
+  <link rel="icon" href="/img/logo.png">
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
 </head>
@@ -12,30 +12,37 @@
 
   <!-- Step 1: Set Password -->
   <div class="card" id="step-password" style="width: 100%; max-width: 400px; padding: 32px;">
-    <h2 class="text-center mb-8">Welcome to Jomish</h2>
-    <p class="text-center text-dim mb-24 text-sm">Please set a secure password to activate your seller account.</p>
+    <h2 class="text-center mb-8">Welcome to Jomish 👋</h2>
+    <p class="text-center text-dim mb-24 text-sm">Set a secure password to activate your account.</p>
 
     <form id="setup-form">
       <div class="form-group">
         <label for="password">New Password</label>
-        <input type="password" id="password" required minlength="6">
+        <input type="password" id="password" required minlength="6" placeholder="At least 6 characters">
       </div>
-      <button type="submit" class="btn btn-primary btn-full mt-8" id="setup-btn">Set Password</button>
+      <button type="submit" class="btn btn-primary btn-full mt-8" id="setup-btn">Set Password & Continue</button>
     </form>
   </div>
 
-  <!-- Step 2: Set Biometrics (FaceID/Fingerprint) -->
+  <!-- Step 2: Auto Biometrics -->
   <div class="card" id="step-biometrics" style="display: none; width: 100%; max-width: 400px; padding: 32px; text-align: center;">
-    <div style="font-size: 3rem; margin-bottom: 16px;">👆</div>
-    <h2 class="mb-8">Enable Quick Login</h2>
-    <p class="text-dim mb-24 text-sm">Would you like to use FaceID or TouchID to log into your dashboard in the future?</p>
+    <div style="font-size: 3rem; margin-bottom: 16px;">🔐</div>
+    <h2 class="mb-8">Quick Login Setup</h2>
+    <p class="text-dim mb-8 text-sm">We're setting up fingerprint or face login for your device.</p>
+    <p class="text-dim mb-24 text-sm font-bold" id="bio-status">Your device will prompt you shortly…</p>
 
-    <button class="btn btn-primary btn-full mb-12" onclick="setupBiometrics()">Yes, Enable Biometrics</button>
-    <button class="btn btn-outline btn-full" onclick="finishSetup()">Skip for now</button>
+    <div class="spinner" style="margin: 0 auto 24px;" id="bio-spinner"></div>
+
+    <button class="btn btn-primary btn-full mb-12" onclick="setupBiometrics()" id="bio-retry-btn" style="display:none;">Try Again</button>
+    <button class="btn btn-outline btn-full" onclick="finishSetup()">Skip — Go to Dashboard</button>
   </div>
 
   <div id="toast-container"></div>
   <script src="/js/app.js"></script>
   <script src="/js/setup.js"></script>
+  <script>
+    // Show retry button if auto-setup fails
+    const origAutoSetup = window.autoSetupBiometrics;
+  </script>
 </body>
 </html>

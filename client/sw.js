@@ -1,6 +1,6 @@
 // Jomish Service Worker
 
-const CACHE_NAME = 'jomish-cache-v5';
+const CACHE_NAME = 'jomish-cache-v6';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/js/app.js',

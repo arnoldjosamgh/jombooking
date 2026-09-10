@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Login | Jomish</title>
   <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#f4a81d">
-  <link rel="icon" href="/img/logo.png">
+  <meta name="theme-color" content="#0f1222">
   <link rel="stylesheet" href="/css/style.css">
   <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
 </head>
 <body class="login-body">
   <div class="login-container">
     <div class="login-logo">
-      <img src="/img/logo.png" alt="Jomish Logo" style="width:130px; height:130px; object-fit:contain; filter: drop-shadow(0 0 18px rgba(244,168,29,0.5));">
+      <!-- Simple neon icon, no company logo here -->
+      <div style="width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,#1a2461,#0f1222);border:2px solid rgba(244,168,29,0.5);display:flex;align-items:center;justify-content:center;font-size:2rem;box-shadow:0 0 24px rgba(244,168,29,0.3);">⚙️</div>
     </div>
     <div class="login-title">Jomish Tech Hub</div>
     <div class="login-sub">Booking & Delivery Management</div>
@@ -22,15 +22,15 @@
 
     <form id="login-form">
       <div class="login-form-group">
-        <label>User ID / User Name</label>
+        <label>User ID</label>
         <input 
           type="text" 
           id="username" 
           class="login-input" 
-          placeholder="Enter User ID or User Name" 
+          placeholder="e.g. TECH or JOM001"
           autocomplete="username"
           autocapitalize="characters"
-          style="text-transform: uppercase; letter-spacing: 0.05em;"
+          style="text-transform: uppercase; letter-spacing: 0.08em;"
           required
         >
       </div>
@@ -43,7 +43,7 @@
       <button type="submit" class="btn-neon-cyan" id="login-btn">Sign In</button>
     </form>
     
-    <div style="margin-top: 32px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600;">Jomish Enterprise Workforce Platform</div>
+    <div style="margin-top: 32px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing:0.05em;">JOMISH ENTERPRISE WORKFORCE PLATFORM</div>
 
     <!-- Biometric Login Section -->
     <div id="biometric-section" style="display: none; margin-top: 24px;">

@@ -312,20 +312,190 @@ async function addProduct(e) {
 }
 
 // ─── SERVICE CALENDAR ──────────────────────────────────────────────────────────
-function renderCalendar() {
+let allServices    = [];   // services for this business
+let selectedSvcId  = null; // currently-viewed service
+
+async function renderCalendar() {
   const main = document.getElementById('seller-content');
-  const tpl = document.getElementById('tpl-calendar');
+  const tpl  = document.getElementById('tpl-calendar');
   main.innerHTML = '';
   main.appendChild(tpl.content.cloneNode(true));
 
   currentWeekStart = getMonday(new Date());
+
+  // Load services first
+  await loadServices();
+}
+
+async function loadServices() {
+  try {
+    allServices = await apiFetch(`/api/services/${selectedBiz.slug}`);
+  } catch(e) { allServices = []; }
+
+  renderServicePanel();
+
+  if (allServices.length > 0) {
+    selectedSvcId = allServices[0].id;
+    renderServicePicker();
+    loadWeek();
+  } else {
+    // No services yet — show empty-state inside calendar
+    const grid = document.getElementById('calendar-grid');
+    if (grid) grid.innerHTML = `<div class="cal-no-services">No services yet. Add your first service above.</div>`;
+  }
+}
+
+function renderServicePanel() {
+  // Insert service management UI above the calendar grid
+  const calendarContainer = document.querySelector('.calendar-container');
+  if (!calendarContainer) return;
+
+  // Remove old panel if exists
+  const old = document.getElementById('service-mgmt-panel');
+  if (old) old.remove();
+
+  const panel = document.createElement('div');
+  panel.id = 'service-mgmt-panel';
+  panel.className = 'service-mgmt-panel';
+  panel.innerHTML = `
+    <div class="service-mgmt-header">
+      <h3>Your Services</h3>
+      <button class="btn btn-primary" onclick="openAddServiceModal()">+ Add Service</button>
+    </div>
+    <div class="service-chips" id="service-chips">
+      ${allServices.length === 0
+        ? '<span class="text-dim text-sm">No services yet</span>'
+        : allServices.map(s => `
+            <div class="service-chip" id="chip-${s.id}">
+              <strong>${s.name}</strong>
+              <span>${formatCurrency(s.price)} &bull; ${s.duration_minutes} min</span>
+              <button class="chip-del" onclick="deleteService(${s.id}, event)">×</button>
+            </div>
+          `).join('')
+      }
+    </div>
+  `;
+
+  // Insert BEFORE the calendar week nav
+  calendarContainer.insertBefore(panel, calendarContainer.firstChild);
+}
+
+function openAddServiceModal() {
+  // Build modal inline
+  let modal = document.getElementById('add-service-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'add-service-modal';
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <h3 class="mb-16">Add New Service</h3>
+        <form id="add-service-form">
+          <div class="form-group">
+            <label>Service Name</label>
+            <input type="text" id="as-name" placeholder="e.g. Hair Cut" required>
+          </div>
+          <div class="form-group">
+            <label>Price</label>
+            <input type="number" step="0.01" id="as-price" placeholder="e.g. 25.00" required>
+          </div>
+          <div class="form-group">
+            <label>Duration per Session (minutes)</label>
+            <input type="number" id="as-duration" value="30" min="5" step="5" required>
+          </div>
+          <div class="flex justify-end gap-8 mt-24">
+            <button type="button" class="btn btn-outline" onclick="closeModal('add-service-modal')">Cancel</button>
+            <button type="submit" class="btn btn-primary">Add Service</button>
+          </div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    modal.querySelector('#add-service-form').addEventListener('submit', submitAddService);
+  }
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+}
+
+async function submitAddService(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true; btn.textContent = 'Adding...';
+  try {
+    const svc = await apiFetch('/api/services', {
+      method: 'POST',
+      body: {
+        business_id:      selectedBiz.id,
+        name:             document.getElementById('as-name').value,
+        price:            document.getElementById('as-price').value,
+        duration_minutes: document.getElementById('as-duration').value
+      }
+    });
+    allServices.push(svc);
+    closeModal('add-service-modal');
+    e.target.reset();
+    renderServicePanel();
+    renderServicePicker();
+    if (!selectedSvcId) { selectedSvcId = svc.id; loadWeek(); }
+    toast('Added!', svc.name + ' service added', 'success');
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Add Service';
+  }
+}
+
+async function deleteService(id, e) {
+  e.stopPropagation();
+  if (!confirm('Delete this service?')) return;
+  try {
+    await apiFetch(`/api/services/${id}`, { method: 'DELETE' });
+    allServices = allServices.filter(s => s.id !== id);
+    if (selectedSvcId === id) selectedSvcId = allServices[0]?.id || null;
+    renderServicePanel();
+    renderServicePicker();
+    if (selectedSvcId) loadWeek(); else {
+      const grid = document.getElementById('calendar-grid');
+      if (grid) grid.innerHTML = `<div class="cal-no-services">No services. Add one above.</div>`;
+    }
+    toast('Deleted', 'Service removed', 'success');
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  }
+}
+
+function renderServicePicker() {
+  if (allServices.length === 0) return;
+  let picker = document.getElementById('service-picker');
+  if (!picker) {
+    picker = document.createElement('div');
+    picker.id = 'service-picker';
+    picker.className = 'service-picker-bar';
+    // Insert before calendar-grid
+    const grid = document.getElementById('calendar-grid');
+    if (grid) grid.parentNode.insertBefore(picker, grid);
+  }
+  picker.innerHTML = `
+    <span class="text-sm text-dim font-bold mr-8">Viewing slots for:</span>
+    <div class="service-picker-tabs">
+      ${allServices.map(s =>
+        `<button class="svc-tab ${s.id === selectedSvcId ? 'active' : ''}" onclick="switchService(${s.id})"
+          title="${s.duration_minutes} min — ${formatCurrency(s.price)}">${s.name}</button>`
+      ).join('')}
+    </div>
+  `;
+}
+
+function switchService(id) {
+  selectedSvcId = id;
+  renderServicePicker();
   loadWeek();
 }
 
 function getMonday(d) {
-  const day = d.getDay();
+  const day  = d.getDay();
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  const m = new Date(d);
+  const m    = new Date(d);
   m.setDate(diff);
   m.setHours(0, 0, 0, 0);
   return m;
@@ -336,8 +506,9 @@ function nextWeek() { currentWeekStart.setDate(currentWeekStart.getDate() + 7); 
 
 async function loadWeek() {
   const label = document.getElementById('calendar-week-label');
-  const grid = document.getElementById('calendar-grid');
+  const grid  = document.getElementById('calendar-grid');
   if (!label || !grid) return;
+  if (!selectedSvcId) return;
 
   const days = [];
   for (let i = 0; i < 7; i++) {
@@ -345,44 +516,51 @@ async function loadWeek() {
     d.setDate(d.getDate() + i);
     days.push(d);
   }
+  label.textContent = `${days[0].toLocaleDateString('en-GB',{day:'2-digit',month:'short'})} – ${days[6].toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}`;
 
-  const endDate = days[6];
-  label.textContent = `${days[0].toLocaleDateString('en-GB', { day:'2-digit', month:'short' })} – ${endDate.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}`;
-
-  grid.innerHTML = `<div class="loading-center"><div class="spinner"></div></div>`;
-
-  // Fetch bookings for the whole week
-  const startStr = days[0].toISOString().split('T')[0];
-  const endStr   = days[6].toISOString().split('T')[0];
+  grid.innerHTML = `<div class="loading-center" style="grid-column:1/-1"><div class="spinner"></div></div>`;
 
   try {
-    // Fetch slots and bookings for each day in parallel
     const slotPromises = days.map(d => {
       const dateStr = d.toISOString().split('T')[0];
-      return apiFetch(`/api/slots/${selectedBiz.slug}?date=${dateStr}`).catch(() => ({ date: dateStr, slots: [] }));
+      return apiFetch(`/api/slots/${selectedBiz.slug}?date=${dateStr}&service_id=${selectedSvcId}`)
+        .catch(() => ({ date: dateStr, slots: [] }));
     });
     const weekData = await Promise.all(slotPromises);
 
     grid.innerHTML = '';
     weekData.forEach(dayData => {
-      const dayCol = document.createElement('div');
+      const dayCol  = document.createElement('div');
       dayCol.className = 'cal-day-col';
-
       const dateObj = new Date(dayData.date + 'T12:00:00');
-      dayCol.innerHTML = `<div class="cal-day-header">${dateObj.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short' })}</div>`;
+      dayCol.innerHTML = `<div class="cal-day-header">${dateObj.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>`;
 
       if (!dayData.slots || dayData.slots.length === 0) {
         dayCol.innerHTML += `<div class="cal-closed">Closed</div>`;
       } else {
         dayData.slots.forEach(slot => {
-          const time = new Date(slot.time + 'Z');
-          const timeStr = time.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
-          const el = document.createElement('div');
-          el.className = `cal-slot ${slot.available ? 'cal-slot-free' : 'cal-slot-booked'}`;
-          el.textContent = timeStr + (slot.available ? '' : ' 🔒');
-          if (!slot.available) {
-            el.title = 'Booked';
-            el.onclick = () => showBookingAtTime(slot.time);
+          const time    = new Date(slot.time + 'Z');
+          const timeStr = time.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+          const el      = document.createElement('div');
+
+          if (!slot.available && !slot.blocked_by_seller) {
+            // Booked by a client
+            el.className = 'cal-slot cal-slot-booked';
+            el.innerHTML = `${timeStr} 🔒`;
+            el.title     = 'Booked by client — click for details';
+            el.onclick   = () => showBookingAtTime(slot.time);
+          } else if (slot.blocked_by_seller) {
+            // Manually blocked — can unblock
+            el.className = 'cal-slot cal-slot-blocked';
+            el.innerHTML = `${timeStr} 🚫`;
+            el.title     = 'Blocked by you — click to unblock';
+            el.onclick   = () => toggleBlockSlot(slot.time, true);
+          } else {
+            // Free slot — seller can block it
+            el.className = 'cal-slot cal-slot-free';
+            el.innerHTML = `${timeStr}`;
+            el.title     = 'Available — click to block';
+            el.onclick   = () => toggleBlockSlot(slot.time, false);
           }
           dayCol.appendChild(el);
         });
@@ -390,22 +568,41 @@ async function loadWeek() {
       grid.appendChild(dayCol);
     });
   } catch (err) {
-    grid.innerHTML = `<div class="loading-center"><p style="color:red">Error loading calendar: ${err.message}</p></div>`;
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:red">Error loading calendar: ${err.message}</div>`;
+  }
+}
+
+async function toggleBlockSlot(slotTime, currentlyBlocked) {
+  if (!selectedSvcId) return;
+  try {
+    if (currentlyBlocked) {
+      await apiFetch('/api/services/block', { method: 'DELETE', body: { business_id: selectedBiz.id, service_id: selectedSvcId, slot_time: slotTime } });
+      toast('Unblocked', 'Slot is now available', 'success');
+    } else {
+      if (!confirm('Block this slot? Clients won\'t be able to book it.')) return;
+      await apiFetch('/api/services/block', { method: 'POST', body: { business_id: selectedBiz.id, service_id: selectedSvcId, slot_time: slotTime } });
+      toast('Blocked', 'Slot marked as unavailable', 'success');
+    }
+    loadWeek(); // refresh
+  } catch (err) {
+    toast('Error', err.message, 'error');
   }
 }
 
 async function showBookingAtTime(slotTime) {
   try {
     const bookings = await apiFetch(`/api/bookings/list/${selectedBiz.id}`);
-    const match = bookings.find(b => b.booking_time === slotTime || b.booking_time.startsWith(slotTime));
-    if (!match) { toast('Info', 'Could not find booking details', 'info'); return; }
+    const match = bookings.find(b => b.booking_time === slotTime || (slotTime && b.booking_time && b.booking_time.startsWith(slotTime.substring(0,16))));
+    if (!match) { toast('Info', 'No booking details found for this slot', 'info'); return; }
 
     document.getElementById('booking-details-content').innerHTML = `
       <table style="width:100%">
-        <tr><td class="text-dim text-sm">Client</td><td><strong>${match.client_name}</strong></td></tr>
-        <tr><td class="text-dim text-sm">Location</td><td>${match.client_location || '—'}</td></tr>
-        <tr><td class="text-dim text-sm">Time</td><td>${new Date(match.booking_time).toLocaleString()}</td></tr>
-        <tr><td class="text-dim text-sm">Status</td><td><span class="badge badge-${match.status === 'confirmed' ? 'blue' : 'green'}">${match.status}</span></td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Client</td><td><strong>${match.client_name}</strong></td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Service</td><td>${match.service_name || '—'}</td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Price</td><td>${match.service_price ? formatCurrency(match.service_price) : '—'}</td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Location</td><td>${match.client_location || '—'}</td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Time</td><td>${new Date(match.booking_time).toLocaleString()}</td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Status</td><td><span class="badge badge-${match.status === 'confirmed' ? 'blue' : 'green'}">${match.status}</span></td></tr>
       </table>
     `;
     const completeBtn = document.getElementById('complete-booking-btn');
@@ -420,7 +617,6 @@ async function showBookingAtTime(slotTime) {
     } else {
       completeBtn.style.display = 'none';
     }
-
     const modal = document.getElementById('booking-modal');
     modal.style.display = 'flex';
     setTimeout(() => modal.classList.add('active'), 10);

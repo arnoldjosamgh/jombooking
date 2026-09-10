@@ -53,6 +53,7 @@ app.use('/api/businesses', require('./routes/businesses'));
 app.use('/api/clients',    require('./routes/clients'));
 app.use('/api/products',   require('./routes/products'));
 app.use('/api/orders',     require('./routes/products'));   // products router handles both
+app.use('/api/services',   require('./routes/services'));   // service catalog + slot blocking
 app.use('/api/slots',      require('./routes/bookings'));
 app.use('/api/bookings',   require('./routes/bookings'));
 app.use('/api/messages',   require('./routes/messages'));

@@ -1,18 +1,22 @@
 /**
- * Jomish Booking and Delivering Management System — Bookings & Slot Engine Routes
+ * Jomish — Bookings & Slot Engine Routes
+ * Slot engine is now per-service: each service can have its own duration_minutes.
+ * Also supports manually blocked slots.
  */
 const express = require('express');
-const router = express.Router();
-const db = require('../db');
-const { requireFields } = require('../middleware/validate');
+const router  = express.Router();
+const db      = require('../db');
+const { requireFields }  = require('../middleware/validate');
+const { authenticate }   = require('./auth');
 const { sendPushToSeller } = require('./push');
 
 /**
- * Slot Engine — generates time slots for a given date and business
- * Filters out already-booked slots from the database
+ * generateSlots(businessId, dateStr, serviceId)
+ * Uses the service's duration_minutes if provided, else falls back to business default.
+ * Filters out already-booked AND manually-blocked slots.
  */
-async function generateSlots(businessId, dateStr) {
-  // Get business config
+async function generateSlots(businessId, dateStr, serviceId) {
+  // Get business hours
   const bizResult = await db.query(
     `SELECT open_time, close_time, session_duration_minutes, open_days
      FROM businesses WHERE id = $1`,
@@ -21,64 +25,72 @@ async function generateSlots(businessId, dateStr) {
   if (bizResult.rows.length === 0) throw new Error('Business not found');
   const { open_time, close_time, session_duration_minutes, open_days } = bizResult.rows[0];
 
-  // Check if business is open on the requested day
+  // Check if business is open on this day
   const date = new Date(dateStr + 'T00:00:00');
-  const dayOfWeek = date.getDay(); // 0=Sun, 6=Sat
-  if (!open_days.includes(dayOfWeek)) {
-    return []; // Closed this day
+  const dayOfWeek = date.getDay();
+  if (!open_days.includes(dayOfWeek)) return [];
+
+  // Use the service's own duration if we have a service, else the business default
+  let duration = session_duration_minutes;
+  if (serviceId) {
+    const svcRes = await db.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
+    if (svcRes.rows.length > 0) duration = svcRes.rows[0].duration_minutes;
   }
 
-  // Parse open/close times
   const [openH, openM] = open_time.split(':').map(Number);
   const [closeH, closeM] = close_time.split(':').map(Number);
-  const openMinutes = openH * 60 + openM;
+  const openMinutes  = openH * 60 + openM;
   const closeMinutes = closeH * 60 + closeM;
-  const duration = session_duration_minutes;
 
-  // Generate all possible slots
+  // Build all possible slot timestamps
   const allSlots = [];
   for (let m = openMinutes; m + duration <= closeMinutes; m += duration) {
-    const h = Math.floor(m / 60);
+    const h   = Math.floor(m / 60);
     const min = m % 60;
-    const slotTime = `${dateStr}T${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}:00`;
-    allSlots.push(slotTime);
+    allSlots.push(`${dateStr}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`);
   }
 
-  // Get already-booked slots
-  const bookedResult = await db.query(
+  // Booked slots for this service on this date
+  const bookedRes = await db.query(
     `SELECT TO_CHAR(booking_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot
      FROM bookings
      WHERE business_id = $1
-       AND DATE(booking_time) = $2::date
+       AND ($2::int IS NULL OR service_id = $2)
+       AND DATE(booking_time) = $3::date
        AND status != 'cancelled'`,
-    [businessId, dateStr]
+    [businessId, serviceId || null, dateStr]
   );
-  const bookedSet = new Set(bookedResult.rows.map(r => r.slot));
+  const bookedSet = new Set(bookedRes.rows.map(r => r.slot));
 
-  // Mark slots as available or booked
+  // Manually blocked slots for this service on this date
+  const blockedRes = await db.query(
+    `SELECT TO_CHAR(slot_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot
+     FROM blocked_slots
+     WHERE business_id = $1
+       AND ($2::int IS NULL OR service_id = $2)
+       AND DATE(slot_time) = $3::date`,
+    [businessId, serviceId || null, dateStr]
+  );
+  const blockedSet = new Set(blockedRes.rows.map(r => r.slot));
+
   return allSlots.map(slot => ({
     time: slot,
-    available: !bookedSet.has(slot),
+    available: !bookedSet.has(slot) && !blockedSet.has(slot),
+    blocked_by_seller: blockedSet.has(slot),
   }));
 }
 
-// GET /api/slots/:business_slug?date=YYYY-MM-DD — Slot engine
+// ─── GET /api/slots/:business_slug?date=&service_id= ─────────────────────────
 router.get('/:business_slug', async (req, res) => {
   try {
-    const { date } = req.query;
+    const { date, service_id } = req.query;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: 'Query param ?date=YYYY-MM-DD is required' });
     }
+    const bizResult = await db.query('SELECT id FROM businesses WHERE slug = $1', [req.params.business_slug]);
+    if (bizResult.rows.length === 0) return res.status(404).json({ error: 'Business not found' });
 
-    const bizResult = await db.query(
-      'SELECT id FROM businesses WHERE slug = $1',
-      [req.params.business_slug]
-    );
-    if (bizResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Business not found' });
-    }
-
-    const slots = await generateSlots(bizResult.rows[0].id, date);
+    const slots = await generateSlots(bizResult.rows[0].id, date, service_id || null);
     res.json({ date, slots });
   } catch (err) {
     console.error('[slots] GET error:', err.message);
@@ -86,37 +98,36 @@ router.get('/:business_slug', async (req, res) => {
   }
 });
 
-// POST /api/bookings — Lock a slot (UNIQUE constraint handles double-booking)
+// ─── POST /api/bookings ───────────────────────────────────────────────────────
 router.post('/', requireFields('business_id', 'client_id', 'booking_time'), async (req, res) => {
   try {
-    const { business_id, client_id, booking_time } = req.body;
+    const { business_id, client_id, booking_time, service_id } = req.body;
 
     const result = await db.query(
-      `INSERT INTO bookings (business_id, client_id, booking_time, status)
-       VALUES ($1, $2, $3, 'confirmed')
-       RETURNING *`,
-      [business_id, client_id, booking_time]
+      `INSERT INTO bookings (business_id, client_id, booking_time, service_id, status)
+       VALUES ($1, $2, $3, $4, 'confirmed') RETURNING *`,
+      [business_id, client_id, booking_time, service_id || null]
     );
 
-    // Return full booking with client info
     const full = await db.query(
       `SELECT b.id, b.booking_time, b.status, b.created_at,
               c.name AS client_name, c.location AS client_location,
-              biz.owner_id, biz.name AS business_name
+              biz.owner_id, biz.name AS business_name,
+              s.name AS service_name, s.price AS service_price
        FROM bookings b
-       JOIN clients c ON b.client_id = c.id
+       JOIN clients c   ON b.client_id = c.id
        JOIN businesses biz ON b.business_id = biz.id
+       LEFT JOIN services s ON b.service_id = s.id
        WHERE b.id = $1`,
       [result.rows[0].id]
     );
 
     const bookingData = full.rows[0];
 
-    // Trigger Web Push Notification to the Seller
     if (bookingData.owner_id) {
       sendPushToSeller(bookingData.owner_id, {
-        title: `📅 New Booking at ${bookingData.business_name}`,
-        body: `${bookingData.client_name} booked a slot for ${new Date(bookingData.booking_time).toLocaleString()}.`,
+        title: `📅 New Booking — ${bookingData.business_name}`,
+        body: `${bookingData.client_name} booked ${bookingData.service_name || 'a slot'} for ${new Date(bookingData.booking_time).toLocaleString()}.`,
         url: '/seller.html'
       });
     }
@@ -124,35 +135,32 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
     res.status(201).json(bookingData);
   } catch (err) {
     if (err.code === '23505') {
-      // Unique violation — slot already taken
       return res.status(409).json({ error: 'This time slot is already booked. Please choose another.' });
     }
-    console.error('[bookings] POST / error:', err.message);
+    console.error('[bookings] POST error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// GET /api/bookings/list/:business_id — Get all bookings for seller dashboard
+// ─── GET /api/bookings/list/:business_id ──────────────────────────────────────
 router.get('/list/:business_id', async (req, res) => {
   try {
-    const { date, status } = req.query;
+    const { date, status, service_id } = req.query;
     let query = `
-      SELECT b.id, b.booking_time, b.status, b.created_at,
-             c.id AS client_id, c.name AS client_name, c.location AS client_location
+      SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id,
+             c.id AS client_id, c.name AS client_name, c.location AS client_location,
+             s.name AS service_name, s.price AS service_price, s.duration_minutes
       FROM bookings b
-      JOIN clients c ON b.client_id = c.id
+      JOIN clients c  ON b.client_id = c.id
+      LEFT JOIN services s ON b.service_id = s.id
       WHERE b.business_id = $1
     `;
     const params = [req.params.business_id];
-    if (date) {
-      params.push(date);
-      query += ` AND DATE(b.booking_time) = $${params.length}::date`;
-    }
-    if (status) {
-      params.push(status);
-      query += ` AND b.status = $${params.length}`;
-    }
-    query += ' ORDER BY b.booking_time ASC LIMIT 200';
+    if (date)       { params.push(date);       query += ` AND DATE(b.booking_time) = $${params.length}::date`; }
+    if (status)     { params.push(status);     query += ` AND b.status = $${params.length}`; }
+    if (service_id) { params.push(service_id); query += ` AND b.service_id = $${params.length}`; }
+    query += ' ORDER BY b.booking_time ASC LIMIT 300';
+
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -161,23 +169,20 @@ router.get('/list/:business_id', async (req, res) => {
   }
 });
 
-// PATCH /api/bookings/:id/status — Update booking status
+// ─── PATCH /api/bookings/:id/status ───────────────────────────────────────────
 router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
     if (!['confirmed', 'completed', 'cancelled'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
+      return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(
       `UPDATE bookings SET status = $1 WHERE id = $2 RETURNING id, status`,
       [status, req.params.id]
     );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Booking not found' });
-    }
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
     res.json(result.rows[0]);
   } catch (err) {
-    console.error('[bookings] PATCH /:id/status error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

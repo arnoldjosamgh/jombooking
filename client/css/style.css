@@ -609,3 +609,145 @@ td { padding: 16px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.05);
   .calendar-grid { grid-template-columns: repeat(3, 1fr); }
   .top-nav { padding: 12px 16px; }
 }
+
+/* ================================================================
+   SERVICE MANAGEMENT PANEL (Seller Dashboard)
+   ================================================================ */
+.service-mgmt-panel {
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+.service-mgmt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.service-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.service-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-light);
+  border-radius: 30px;
+  padding: 10px 18px;
+  box-shadow: var(--shadow-raised);
+  font-size: 0.85rem;
+}
+.service-chip strong { color: var(--text-dark); }
+.service-chip span   { color: var(--text-muted); font-size: 0.78rem; }
+.chip-del {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.chip-del:hover { opacity: 1; }
+
+/* Service picker tabs (above calendar) */
+.service-picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--bg-light);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-raised);
+}
+.service-picker-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.svc-tab {
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 2px solid transparent;
+  background: var(--bg-light);
+  color: var(--text-muted);
+  box-shadow: var(--shadow-raised);
+  transition: all 0.15s;
+}
+.svc-tab.active {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+  box-shadow: 0 4px 12px rgba(91,103,246,0.35);
+}
+.svc-tab:hover:not(.active) { color: var(--accent-blue); }
+
+/* Blocked slot style */
+.cal-slot-blocked {
+  color: var(--text-muted);
+  background: rgba(100,116,139,0.1);
+  cursor: pointer;
+  text-decoration: line-through;
+}
+.cal-slot-blocked:hover { background: rgba(100,116,139,0.2); }
+
+/* No services placeholder */
+.cal-no-services {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* ================================================================
+   CLIENT BOOKING — SERVICE PICKER CARDS
+   ================================================================ */
+.service-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.service-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-raised);
+  padding: 18px 20px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: 2px solid transparent;
+}
+.service-card:hover {
+  border-color: var(--accent-blue);
+  box-shadow: 0 4px 20px rgba(91,103,246,0.15);
+  transform: translateY(-2px);
+}
+.service-card-info { flex: 1; }
+.service-card-name { font-weight: 700; font-size: 1rem; color: var(--text-dark); margin-bottom: 4px; }
+.service-card-meta { font-size: 0.8rem; color: var(--text-muted); }
+.service-card-price {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--accent-blue);
+  white-space: nowrap;
+}
+.service-card-arrow {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  transition: transform 0.15s;
+}
+.service-card:hover .service-card-arrow { transform: translateX(4px); color: var(--accent-blue); }
+
+/* mr-8 helper */
+.mr-8 { margin-right: 8px; }
+

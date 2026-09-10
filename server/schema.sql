@@ -3,8 +3,12 @@
 -- Run this on your Neon PostgreSQL console to initialize the DB
 -- ============================================================
 
--- Business type enum
-CREATE TYPE IF NOT EXISTS business_type AS ENUM ('product', 'service');
+-- Business type enum (safely create only if it doesn't exist)
+DO $$ BEGIN
+  CREATE TYPE business_type AS ENUM ('product', 'service');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Sellers (Admin/Tech and Business Owners)
 CREATE TABLE IF NOT EXISTS sellers (

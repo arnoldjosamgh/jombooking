@@ -17,7 +17,7 @@ const userChallenges = {};
 router.post('/login', requireFields('username', 'password'), async (req, res) => {
   try {
     const { username, password } = req.body;
-    const result = await db.query('SELECT * FROM sellers WHERE username = $1', [username]);
+    const result = await db.query('SELECT * FROM sellers WHERE LOWER(username) = LOWER($1)', [username]);
     
     if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -191,7 +191,7 @@ router.post('/webauthn/auth-options', async (req, res) => {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: 'Username required' });
 
-    const result = await db.query('SELECT id, webauthn_cred_id FROM sellers WHERE username = $1', [username]);
+    const result = await db.query('SELECT id, webauthn_cred_id FROM sellers WHERE LOWER(username) = LOWER($1)', [username]);
     if (result.rows.length === 0 || !result.rows[0].webauthn_cred_id) {
       return res.status(400).json({ error: 'Biometrics not set up for this user' });
     }
@@ -218,7 +218,7 @@ router.post('/webauthn/auth-options', async (req, res) => {
 router.post('/webauthn/auth-verify', async (req, res) => {
   try {
     const { username, response } = req.body;
-    const result = await db.query('SELECT * FROM sellers WHERE username = $1', [username]);
+    const result = await db.query('SELECT * FROM sellers WHERE LOWER(username) = LOWER($1)', [username]);
     if (result.rows.length === 0) return res.status(400).json({ error: 'User not found' });
     
     const seller = result.rows[0];

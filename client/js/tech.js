@@ -154,17 +154,17 @@ async function loadCompanies() {
           </td>
           <td>${statusBadge}</td>
           <td>
-            <div class="action-btns">
-              <button class="btn-sm btn-links" onclick="viewSetupLinks(${b.id})">
+            <div class="action-btns" style="display:flex;gap:6px">
+              <button class="btn btn-outline" style="padding:6px 12px;font-size:0.75rem;display:flex;align-items:center;gap:4px" onclick="viewSetupLinks(${b.id})">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
                 Links
               </button>
-              <button class="btn-sm btn-pause" onclick="togglePause(${b.id}, '${b.status}')">
+              <button class="btn btn-outline" style="padding:6px 12px;font-size:0.75rem;display:flex;align-items:center;gap:4px;color:#ca8a04;border-color:#ca8a04" onclick="togglePause(${b.id}, '${b.status}')">
                 ${b.status === 'paused'
                   ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> Unpause`
                   : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`}
               </button>
-              <button class="btn-sm btn-delete" onclick="deleteCompany(${b.id}, '${b.name.replace(/'/g,"\\'")}')">
+              <button class="btn btn-outline" style="padding:6px 12px;font-size:0.75rem;display:flex;align-items:center;gap:4px;color:#dc2626;border-color:#dc2626" onclick="deleteCompany(${b.id}, '${b.name.replace(/'/g,"\\'")}')">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
                 Delete
               </button>

@@ -145,12 +145,33 @@ router.delete('/business/:id', authenticate, requireTech, async (req, res) => {
   try {
     const { id } = req.params;
     await client.query('BEGIN');
-    // sellers.business_id has ON DELETE SET NULL (we must null it first to avoid FK issues with owner_id)
-    await client.query('UPDATE sellers SET business_id = NULL WHERE business_id = $1', [id]);
+
+    // Get all seller IDs linked to this business before we touch anything
+    const sellerRows = await client.query(
+      'SELECT id FROM sellers WHERE business_id = $1 OR (business_id IS NULL AND id = (SELECT owner_id FROM businesses WHERE id = $1 LIMIT 1))',
+      [id]
+    );
+    const sellerIds = sellerRows.rows.map(r => r.id);
+
+    // Null out business_id on sellers so FK constraint is satisfied
+    if (sellerIds.length > 0) {
+      await client.query(
+        `UPDATE sellers SET business_id = NULL WHERE id = ANY($1::int[])`,
+        [sellerIds]
+      );
+    }
+
     // Delete business — cascades to products, orders, bookings, messages, services, blocked_slots
     await client.query('DELETE FROM businesses WHERE id = $1', [id]);
-    // Delete all sellers that no longer have a business
-    await client.query(`DELETE FROM sellers WHERE business_id IS NULL AND role = 'owner'`);
+
+    // Now delete only the sellers that belonged to THIS business (not unrelated sellers)
+    if (sellerIds.length > 0) {
+      await client.query(
+        `DELETE FROM sellers WHERE id = ANY($1::int[]) AND role = 'owner'`,
+        [sellerIds]
+      );
+    }
+
     await client.query('COMMIT');
     res.json({ message: 'Company deleted successfully' });
   } catch (err) {

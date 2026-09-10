@@ -39,12 +39,21 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
     // If owner, fetch their business (via seller.business_id or owner_id)
     let business_slug = null;
     if (role !== 'tech') {
-      const bizRes = await db.query(
-        `SELECT slug, status FROM businesses
-         WHERE id = $1 OR owner_id = $2
-         ORDER BY id LIMIT 1`,
-        [seller.business_id || -1, seller.id]
-      );
+      let bizRes;
+      if (seller.business_id) {
+        // Preferred: direct business_id link (multi-seller companies)
+        bizRes = await db.query(
+          `SELECT slug, status FROM businesses WHERE id = $1 LIMIT 1`,
+          [seller.business_id]
+        );
+      }
+      if (!bizRes || bizRes.rows.length === 0) {
+        // Fallback: check if this seller is the owner of a business
+        bizRes = await db.query(
+          `SELECT slug, status FROM businesses WHERE owner_id = $1 ORDER BY id LIMIT 1`,
+          [seller.id]
+        );
+      }
       if (bizRes.rows.length > 0) {
         if (bizRes.rows[0].status === 'paused') {
           return res.status(403).json({ error: 'This business account is currently paused. Please contact support.' });
@@ -83,12 +92,21 @@ router.post('/setup-password', requireFields('token', 'password'), async (req, r
 
     const role = seller.role || 'owner';
 
-    // Fetch business slug for this seller (via business_id or owner_id)
+    // Fetch business slug for this seller (prefer business_id, fallback to owner_id)
     let business_slug = null;
-    const bizRes = await db.query(
-      `SELECT slug FROM businesses WHERE id = $1 OR owner_id = $2 ORDER BY id LIMIT 1`,
-      [seller.business_id || -1, seller.id]
-    );
+    let bizRes;
+    if (seller.business_id) {
+      bizRes = await db.query(
+        `SELECT slug FROM businesses WHERE id = $1 LIMIT 1`,
+        [seller.business_id]
+      );
+    }
+    if (!bizRes || bizRes.rows.length === 0) {
+      bizRes = await db.query(
+        `SELECT slug FROM businesses WHERE owner_id = $1 ORDER BY id LIMIT 1`,
+        [seller.id]
+      );
+    }
     if (bizRes.rows.length > 0) business_slug = bizRes.rows[0].slug;
 
     const jwtToken = jwt.sign({ id: seller.id, role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });

@@ -1,0 +1,21 @@
+{
+  "name": "Jomish Management",
+  "short_name": "Jomish",
+  "description": "Two-way ordering and booking management for sellers.",
+  "start_url": "/seller",
+  "display": "standalone",
+  "background_color": "#050c1a",
+  "theme_color": "#f4a81d",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%' y='65%' font-size='60' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>J</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%' y='65%' font-size='60' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>J</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

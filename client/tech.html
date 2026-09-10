@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tech Admin | Jomish</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚙️</text></svg>">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-gradient">
+
+  <header class="top-nav">
+    <div class="brand">
+      <div class="brand-icon">⚙️</div>
+      <div>
+        <div class="brand-name">Tech Dashboard</div>
+        <div class="brand-sub">Jomish Admin</div>
+      </div>
+    </div>
+    <button class="btn btn-outline" onclick="logout()">Logout</button>
+  </header>
+
+  <main class="container" style="padding-top: 24px; padding-bottom: 60px;">
+    
+    <div class="card mb-24">
+      <h2 class="mb-16">Add New Company</h2>
+      <form id="create-company-form" class="grid grid-3">
+        <div class="form-group">
+          <label>Prefix</label>
+          <input type="text" id="cc-prefix" placeholder="e.g. Jomish" required>
+        </div>
+        <div class="form-group">
+          <label>Number</label>
+          <input type="number" id="cc-number" placeholder="e.g. 1" required>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <select id="cc-type" required>
+            <option value="product">Product (Ordering)</option>
+            <option value="service">Service (Booking)</option>
+          </select>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <button type="submit" class="btn btn-gold" id="cc-btn">Create Company & Generate Link</button>
+        </div>
+      </form>
+
+      <!-- Magic Link Result -->
+      <div id="magic-link-result" style="display: none; margin-top: 24px; padding: 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px;">
+        <h3 class="text-blue-400 mb-8">Company Created Successfully!</h3>
+        <p class="text-sm mb-8">Send this secure setup link to the seller. They will use it to set their password and setup biometrics.</p>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="magic-link-url" readonly style="flex: 1; background: var(--bg-dark); color: var(--gold-400); border: 1px solid var(--border-color);">
+          <button class="btn btn-outline" onclick="copyMagicLink()">Copy</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="mb-16">Existing Companies</h2>
+      <div style="overflow-x: auto;">
+        <table style="width: 100%; text-align: left; border-collapse: collapse;">
+          <thead>
+            <tr style="border-bottom: 1px solid var(--border-color);">
+              <th style="padding: 12px 8px; color: var(--text-500);">Name</th>
+              <th style="padding: 12px 8px; color: var(--text-500);">Type</th>
+              <th style="padding: 12px 8px; color: var(--text-500);">Username</th>
+              <th style="padding: 12px 8px; color: var(--text-500);">Status</th>
+            </tr>
+          </thead>
+          <tbody id="companies-list">
+            <tr><td colspan="4" style="padding: 12px 8px; text-align: center;">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="toast-container"></div>
+  <script src="/js/app.js"></script>
+  <script src="/js/tech.js"></script>
+</body>
+</html>

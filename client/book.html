@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Book | Jomish</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="top-nav">
+    <a href="/" class="brand">
+      <div class="brand-icon">🧾</div>
+      <div>
+        <div class="brand-name" id="biz-name">Loading...</div>
+        <div class="brand-sub" id="biz-sub">Booking</div>
+      </div>
+    </a>
+  </header>
+
+  <!-- Main View -->
+  <main id="booking-view">
+    <div class="container-sm" style="padding-top: 24px;">
+      
+      <div class="card" style="padding: 24px;">
+        <h3 style="margin-bottom: 16px;">1. Select Date</h3>
+        <div class="calendar-strip" id="calendar-strip">
+          <!-- Calendar days injected here -->
+        </div>
+
+        <hr class="divider">
+        
+        <h3 style="margin-bottom: 16px;">2. Select Time</h3>
+        <div id="slots-container">
+          <!-- Slots injected here -->
+        </div>
+      </div>
+
+      <!-- Confirmation Panel (Hidden by default) -->
+      <div class="card mt-20" id="confirm-panel" style="display: none; padding: 24px;">
+        <h3 style="margin-bottom: 16px;">3. Confirm Booking</h3>
+        <div class="flex justify-between items-center mb-16 text-sm">
+          <span class="text-dim">Time</span>
+          <span class="font-bold" id="confirm-time"></span>
+        </div>
+        <div class="flex justify-between items-center mb-24 text-sm">
+          <span class="text-dim">Details</span>
+          <span class="font-bold" id="confirm-duration"></span>
+        </div>
+        <button class="btn btn-gold btn-full" id="confirm-btn" onclick="confirmBooking()">Confirm Booking →</button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Terms and Conditions Modal -->
+  <div class="modal-overlay" id="tc-modal">
+    <div class="modal">
+      <h2 class="modal-title">Terms & Conditions</h2>
+      <p class="modal-sub">Please review our booking policy.</p>
+      
+      <div class="card" style="background: rgba(255,0,0,0.05); border: 1px solid rgba(255,0,0,0.2); padding: 16px; margin: 24px 0;">
+        <p style="font-size: 0.95rem; line-height: 1.5;">
+          <strong>Late Arrival Policy:</strong><br>
+          If you are late by <span id="tc-late-mins" class="font-bold text-red-400"></span> minutes (<span id="tc-late-pct">25%</span> of your session), your session will be automatically canceled and you will have to book a new slot.
+        </p>
+      </div>
+
+      <div class="flex justify-between items-center mt-24">
+        <button class="btn btn-outline" onclick="closeModal('tc-modal')">Cancel</button>
+        <button class="btn btn-gold" id="tc-agree-btn" onclick="finalizeBooking()">I Agree — Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toasts & Scripts -->
+  <div id="toast-container"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/book.js"></script>
+</body>
+</html>

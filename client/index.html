@@ -2,111 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jomish — Booking & Ordering System</title>
-  <meta name="description" content="Jomish two-way ordering and booking system. Scan a QR code or use a direct link to order products or book appointments.">
-  <link rel="manifest" href="/manifest.json">
-  <meta name="theme-color" content="#f4a81d">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧾</text></svg>">
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 24px;
-    }
-    .hero-inner { max-width: 480px; }
-    .hero-logo {
-      width: 80px; height: 80px;
-      background: linear-gradient(135deg, #f4a81d, #fbd07a);
-      border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2.5rem;
-      margin: 0 auto 24px;
-      box-shadow: 0 12px 40px rgba(244,168,29,0.3);
-    }
-    .hero h1 { font-size: 2.5rem; margin-bottom: 12px; }
-    .hero p   { font-size: 1rem; margin-bottom: 32px; }
-    .demo-links { display: flex; flex-direction: column; gap: 12px; margin-top: 32px; }
-    .demo-link-btn {
-      display: block;
-      padding: 16px 24px;
-      border-radius: 14px;
-      text-decoration: none;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      border: 1.5px solid;
-      font-family: 'Inter', sans-serif;
-      font-size: 0.95rem;
-    }
-    .demo-link-btn.product {
-      background: rgba(244,168,29,0.08);
-      border-color: rgba(244,168,29,0.3);
-      color: #f4a81d;
-    }
-    .demo-link-btn.service {
-      background: rgba(59,130,246,0.08);
-      border-color: rgba(59,130,246,0.3);
-      color: #93c5fd;
-    }
-    .demo-link-btn.seller {
-      background: rgba(34,197,94,0.08);
-      border-color: rgba(34,197,94,0.3);
-      color: #4ade80;
-    }
-    .demo-link-btn:hover { transform: translateY(-2px); filter: brightness(1.15); }
-    .badge-row { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
-  </style>
-</head>
-<body class="bg-gradient">
-
-  <div class="hero">
-    <div class="hero-inner">
-      <div class="hero-logo">🧾</div>
-      <h1>Jomish Booking</h1>
-      <p>Two-way ordering and appointment booking system. Scan your business QR code to get started.</p>
-      <div class="badge-row">
-        <span class="badge badge-gold">🛍️ Product Ordering</span>
-        <span class="badge badge-blue">📅 Service Booking</span>
-        <span class="badge badge-green">💬 Live Chat</span>
-      </div>
-
-      <div class="demo-links">
-        <a href="/order/jomish-cafe" class="demo-link-btn product">
-          ☕ Demo — Jomish Café (Product Order)
-        </a>
-        <a href="/book/jomish-salon" class="demo-link-btn service">
-          💈 Demo — Jomish Salon (Service Booking)
-        </a>
-        <a href="/seller" class="demo-link-btn seller">
-          📊 Seller Dashboard
-        </a>
-      </div>
-
-      <p style="margin-top:32px;font-size:0.75rem;color:var(--text-500)">
-        Access via your business QR code: <code style="color:var(--gold-500)">/order/:slug</code> or <code style="color:var(--gold-500)">/book/:slug</code>
-      </p>
-    </div>
-  </div>
-
-  <div id="toast-container"></div>
-  <script src="/js/app.js"></script>
+  <title>Jomish Business Suite</title>
   <script>
-    // Handle direct path routes (e.g. /order/slug, /book/slug, /seller)
+    // Handle direct path routes (e.g. /order/slug, /book/slug)
     const path = window.location.pathname;
+    
     if (path.startsWith('/order/') && path.length > 7) {
       const slug = path.slice(7);
       window.location.replace(`/order.html?slug=${slug}`);
     } else if (path.startsWith('/book/') && path.length > 6) {
       const slug = path.slice(6);
       window.location.replace(`/book.html?slug=${slug}`);
-    } else if (path === '/seller' || path === '/seller/') {
-      window.location.replace('/seller.html');
+    } else if (path.startsWith('/c/') && path.length > 3) {
+      const slug = path.slice(3);
+      window.location.replace(`/c.html?slug=${slug}`);
+    } else {
+      // Default: Go to Login
+      window.location.replace('/login.html');
     }
 
     if ('serviceWorker' in navigator) {
@@ -115,5 +27,7 @@
       });
     }
   </script>
+</head>
+<body style="background: #0f1222;">
 </body>
 </html>

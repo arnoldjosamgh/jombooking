@@ -49,6 +49,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     const count    = parseInt(document.getElementById('cc-count').value) || 1;
     const type     = typeRadio.value;
     const bizName  = document.getElementById('cc-name').value.trim();
+    const logoFile = document.getElementById('cc-logo').files[0];
 
     if (prefix.length < 3 || prefix.length > 4) {
       toast('Invalid Prefix', 'Prefix must be 3 or 4 letters', 'error');
@@ -57,9 +58,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     try {
+      let logo_url = null;
+      if (logoFile) {
+        logo_url = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = e => resolve(e.target.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(logoFile);
+        });
+      }
+
       const data = await apiFetch('/api/tech/business', {
         method: 'POST',
-        body: { prefix, count, type, biz_name: bizName || null }
+        body: { prefix, count, type, biz_name: bizName || null, logo_url }
       });
 
       // Show result

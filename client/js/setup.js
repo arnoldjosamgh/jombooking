@@ -7,6 +7,9 @@ window.addEventListener('DOMContentLoaded', () => {
   const urlParams = new URLSearchParams(window.location.search);
   setupToken = urlParams.get('token');
 
+  // Initialize password toggle
+  pwEye('password');
+
   if (!setupToken) {
     document.getElementById('step-password').innerHTML = `
       <div class="text-center">

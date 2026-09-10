@@ -59,6 +59,13 @@ function setupBiz(biz) {
   document.getElementById('seller-content').style.display = 'block';
   document.getElementById('dashboard-title').textContent = biz.name;
 
+  if (biz.logo_url) {
+    const brandIconContainer = document.querySelector('.brand-icon');
+    if (brandIconContainer) {
+      brandIconContainer.innerHTML = `<img src="${biz.logo_url}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`;
+    }
+  }
+
   const type = biz.type;
   document.getElementById('dashboard-type').textContent = type === 'product' ? '🛍️ Point of Sale' : '📅 Service Calendar';
 
@@ -105,6 +112,36 @@ function closeOnboarding() {
 function copyObLink() {
   const val = document.getElementById('ob-client-link').value;
   navigator.clipboard.writeText(val).then(() => toast('Copied!', 'Client link copied to clipboard', 'success'));
+}
+
+async function uploadSellerLogo() {
+  const fileInput = document.getElementById('ob-logo');
+  if (!fileInput.files.length) {
+    toast('No file', 'Please select an image first', 'error');
+    return;
+  }
+  
+  try {
+    const file = fileInput.files[0];
+    const logo_url = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
+    await apiFetch(`/api/businesses/${selectedBiz.slug}/logo`, {
+      method: 'PUT',
+      body: { logo_url }
+    });
+    
+    // Update local state and UI
+    selectedBiz.logo_url = logo_url;
+    setupBiz(selectedBiz);
+    toast('Success', 'Logo updated successfully', 'success');
+  } catch (err) {
+    toast('Error', 'Failed to upload logo: ' + err.message, 'error');
+  }
 }
 
 // ─── POS SYSTEM ────────────────────────────────────────────────────────────────

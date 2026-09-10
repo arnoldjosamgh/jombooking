@@ -147,7 +147,11 @@
 
       <div class="mb-24" style="display:flex;flex-direction:column;align-items:center">
         <label class="text-xs text-dim font-bold uppercase block mb-8">QR Code for Customers</label>
-        <div id="ob-qrcode" style="padding:12px;background:white;border-radius:8px;display:inline-block;border:1px solid #e2e8f0"></div>
+        <div id="ob-qrcode" style="padding:12px;background:white;border-radius:8px;display:inline-block;border:1px solid #e2e8f0;margin-bottom:20px;"></div>
+        
+        <label class="text-xs text-dim font-bold uppercase block mb-8">Upload Logo (Optional)</label>
+        <input type="file" id="ob-logo" accept="image/*" style="font-size:0.8rem;padding:6px;width:100%;max-width:250px;border:1px dashed #cbd5e1;border-radius:6px;">
+        <button class="btn btn-outline" style="margin-top:8px;padding:6px 12px;font-size:0.75rem;" onclick="uploadSellerLogo()">Save Logo</button>
       </div>
 
       <button class="btn btn-primary btn-full" onclick="closeOnboarding()">Done</button>

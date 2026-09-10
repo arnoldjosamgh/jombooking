@@ -15,6 +15,9 @@ const { startAuthentication, startRegistration } = SimpleWebAuthnBrowser;
 window.addEventListener('DOMContentLoaded', async () => {
   const lastUser = localStorage.getItem('last_username');
 
+  // Initialize password toggle
+  pwEye('password');
+
   if (lastUser) {
     // Pre-fill the username so the form is ready if biometrics fail
     document.getElementById('username').value = lastUser;

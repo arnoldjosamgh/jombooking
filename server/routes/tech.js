@@ -17,7 +17,7 @@ router.post('/business', authenticate, requireTech,
   requireFields('prefix', 'count', 'type'), async (req, res) => {
   const client = await db.connect();
   try {
-    const { prefix, count, type, biz_name } = req.body;
+    const { prefix, count, type, biz_name, logo_url } = req.body;
 
     const cleanPrefix = prefix.toUpperCase().replace(/[^A-Z]/g, '');
     if (cleanPrefix.length < 3 || cleanPrefix.length > 4) {
@@ -32,9 +32,9 @@ router.post('/business', authenticate, requireTech,
 
     // Create the shared business first (owner_id = null initially)
     const bizResult = await client.query(
-      `INSERT INTO businesses (owner_id, name, type, slug, pusher_channel, status)
-       VALUES (NULL, $1, $2, $3, $4, 'active') RETURNING id, slug`,
-      [companyName, type, slug, `channel-${slug}`]
+      `INSERT INTO businesses (owner_id, name, type, slug, pusher_channel, status, logo_url)
+       VALUES (NULL, $1, $2, $3, $4, 'active', $5) RETURNING id, slug`,
+      [companyName, type, slug, `channel-${slug}`, logo_url || null]
     );
     const businessId = bizResult.rows[0].id;
     const finalSlug = bizResult.rows[0].slug;

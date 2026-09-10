@@ -34,7 +34,88 @@
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
+
+  /* Night mode tokens (these get overridden in [data-theme="dark"]) */
+  --page-bg:    var(--bg-light);
+  --card-bg:    #ffffff;
+  --card-border:#e2e8f0;
+  --text-primary: var(--text-dark);
+  --text-sub:   var(--text-muted);
+  --nav-bg:     #ffffff;
+  --nav-border: #f1f5f9;
+  --input-bg:   #f8fafc;
+  --input-border:#e2e8f0;
 }
+
+/* ── Night Mode (persisted via localStorage → data-theme="dark" on <html>) ── */
+[data-theme="dark"] {
+  --page-bg:    #0d1117;
+  --card-bg:    #161b27;
+  --card-border:#2d3748;
+  --text-primary:#e2e8f0;
+  --text-sub:   #8892a4;
+  --nav-bg:     #111827;
+  --nav-border: #1f2937;
+  --input-bg:   #1f2937;
+  --input-border:#374151;
+  --shadow-raised: 8px 8px 16px #0a0e18, -8px -8px 16px #1c2234;
+  --shadow-inset: inset 4px 4px 10px #0a0e18, inset -4px -4px 10px #1c2234;
+  --bg-light:   #0d1117;
+  --text-dark:  #e2e8f0;
+  --text-muted: #8892a4;
+}
+[data-theme="dark"] body { background: var(--page-bg); color: var(--text-primary); }
+[data-theme="dark"] .card { background: var(--card-bg); border-color: var(--card-border); }
+[data-theme="dark"] .top-nav { background: var(--nav-bg); border-color: var(--nav-border); }
+[data-theme="dark"] .form-card { background: var(--card-bg); }
+[data-theme="dark"] .form-group input,
+[data-theme="dark"] .form-group select,
+[data-theme="dark"] .form-group textarea { background: var(--input-bg); border-color: var(--input-border); color: var(--text-primary); }
+[data-theme="dark"] h1, [data-theme="dark"] h2, [data-theme="dark"] h3, [data-theme="dark"] h4 { color: var(--text-primary); }
+[data-theme="dark"] p { color: var(--text-sub); }
+[data-theme="dark"] .companies-card { background: var(--card-bg); }
+[data-theme="dark"] thead th { color: #8892a4; border-color: var(--card-border); }
+[data-theme="dark"] tbody tr { border-color: #1f2937; }
+[data-theme="dark"] tbody tr:hover { background: #1a2030; }
+[data-theme="dark"] tbody td { color: var(--text-primary); }
+[data-theme="dark"] .login-body { background: #07090f; }
+[data-theme="dark"] .pos-panel, [data-theme="dark"] .sidebar-panel { background: #111827; }
+[data-theme="dark"] .product-card { background: #1a2030; border-color: #2d3748; }
+[data-theme="dark"] .modal { background: var(--card-bg); }
+[data-theme="dark"] .link-input { background: rgba(255,255,255,0.04); color: #e2e8f0; }
+
+/* ── Dark Mode Toggle Button (floating, every page) ────────────── */
+.dark-toggle {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  background: #1f2937;
+  color: #f4a81d;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.dark-toggle:hover { transform: scale(1.1); box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+[data-theme="dark"] .dark-toggle { background: #f4a81d; color: #0f1222; }
+
+/* ── Password Eye Toggle ──────────────────────────────────────── */
+.pw-wrapper { position: relative; display: flex; align-items: center; }
+.pw-wrapper input { flex: 1; padding-right: 44px !important; }
+.pw-eye {
+  position: absolute; right: 12px;
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); padding: 4px; line-height: 1;
+}
+.pw-eye:hover { color: var(--accent-blue); }
+
 
 /* ── Reset & Base ────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }

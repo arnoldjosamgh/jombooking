@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Jomish BDM — Redirecting...</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    window.addEventListener('DOMContentLoaded', async () => {
+      // The URL will be /c.html?slug=SOMETHING or if we configure express /c/SOMETHING
+      // For now let's assume /c.html?slug=
+      const params = new URLSearchParams(window.location.search);
+      const slug = params.get('slug');
+      if (!slug) {
+        document.body.innerHTML = '<h2>Invalid Link</h2>';
+        return;
+      }
+      try {
+        const res = await fetch(`/api/businesses/${slug}`);
+        const biz = await res.json();
+        if (biz.type === 'product') {
+          window.location.replace(`/order.html?slug=${biz.slug}`);
+        } else {
+          window.location.replace(`/book.html?slug=${biz.slug}`);
+        }
+      } catch (err) {
+        document.body.innerHTML = '<h2>Business Not Found</h2>';
+      }
+    });
+  </script>
+</head>
+<body class="bg-gradient flex items-center justify-center">
+  <div class="loading-center">
+    <div class="spinner"></div>
+    <p>Loading your Jomish portal...</p>
+  </div>
+</body>
+</html>

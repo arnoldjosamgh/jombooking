@@ -20,11 +20,29 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   try {
-    businesses = await apiFetch('/api/businesses');
-    renderBizSelector();
+    const role = localStorage.getItem('role');
+    const slug = localStorage.getItem('business_slug');
+
+    if (role === 'tech') {
+      // Tech sees the dropdown
+      businesses = await apiFetch('/api/businesses');
+      renderBizSelector();
+    } else if (role === 'owner' && slug) {
+      // Owner automatically gets their business loaded
+      document.getElementById('biz-select').style.display = 'none';
+      const biz = await apiFetch(`/api/businesses/${slug}`);
+      businesses = [biz];
+      selectedBiz = biz;
+      onBizChange(biz);
+    } else {
+      // Fallback
+      businesses = await apiFetch('/api/businesses');
+      renderBizSelector();
+    }
+
     initPushNotifications();
   } catch (err) {
-    toast('Error', 'Could not load businesses', 'error');
+    toast('Error', 'Could not load business data', 'error');
   }
 });
 
@@ -35,27 +53,37 @@ function renderBizSelector() {
     businesses.map(b => `<option value="${b.id}" data-slug="${b.slug}" data-type="${b.type}">${b.name}</option>`).join('');
 }
 
-function onBizChange() {
-  const sel   = document.getElementById('biz-select');
-  const opt   = sel.options[sel.selectedIndex];
-  if (!opt.value) return;
-  selectedBiz = businesses.find(b => b.id === parseInt(opt.value));
+function onBizChange(directBiz = null) {
+  if (directBiz) {
+    selectedBiz = directBiz;
+  } else {
+    const sel = document.getElementById('biz-select');
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt.value) return;
+    selectedBiz = businesses.find(b => b.id === parseInt(opt.value));
+  }
   if (!selectedBiz) return;
 
-  // Fetch full business config
-  apiFetch(`/api/businesses/${selectedBiz.slug}`).then(biz => {
-    selectedBiz = biz;
-    document.getElementById('dashboard-title').textContent = biz.name;
-    document.getElementById('dashboard-type').textContent  = biz.type === 'product' ? '🛍️ Product Business' : '📅 Service Business';
-    document.getElementById('seller-content').style.display = 'grid';
-    document.getElementById('no-biz').style.display = 'none';
+  // If we don't have full config (just the list), fetch it
+  if (!selectedBiz.type) {
+    apiFetch(`/api/businesses/${selectedBiz.slug}`).then(biz => setupBiz(biz));
+  } else {
+    setupBiz(selectedBiz);
+  }
+}
 
-    // Set tab based on business type
-    currentMode = biz.type === 'product' ? 'orders' : 'bookings';
-    updateTabs();
-    loadList();
-    initSocket(biz);
-  });
+function setupBiz(biz) {
+  selectedBiz = biz;
+  document.getElementById('dashboard-title').textContent = biz.name;
+  document.getElementById('dashboard-type').textContent  = biz.type === 'product' ? '🛍️ Product Business' : '📅 Service Business';
+  document.getElementById('seller-content').style.display = 'grid';
+  document.getElementById('no-biz').style.display = 'none';
+
+  // Set tab based on business type
+  currentMode = biz.type === 'product' ? 'orders' : 'bookings';
+  updateTabs();
+  loadList();
+  initSocket(biz);
 }
 
 function switchTab(mode) {

@@ -46,12 +46,23 @@
       </form>
 
       <!-- Magic Link Result -->
-      <div id="magic-link-result" style="display: none; margin-top: 24px; padding: 16px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 12px;">
-        <h3 class="text-blue-400 mb-8">Company Created Successfully!</h3>
-        <p class="text-sm mb-8">Send this secure setup link to the seller. They will use it to set their password and setup biometrics.</p>
-        <div style="display: flex; gap: 8px;">
-          <input type="text" id="magic-link-url" readonly style="flex: 1; background: var(--bg-dark); color: var(--gold-400); border: 1px solid var(--border-color);">
-          <button class="btn btn-outline" onclick="copyMagicLink()">Copy</button>
+      <div id="magic-link-result" style="display: none; margin-top: 24px; padding: 16px; background: rgba(244, 168, 29, 0.1); border: 1px solid rgba(244, 168, 29, 0.3); border-radius: 12px;">
+        <h3 class="text-gold mb-8">Company Created Successfully!</h3>
+        
+        <div class="mb-16">
+          <p class="text-sm mb-4"><strong>1. Seller Setup Link (Send to owner)</strong></p>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="magic-link-url" readonly style="flex: 1; background: rgba(0,0,0,0.3); color: var(--gold-400); border: 1px solid rgba(255,255,255,0.1);">
+            <button class="btn btn-outline" onclick="copyMagicLink('magic-link-url')">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <p class="text-sm mb-4"><strong>2. Permanent Client Link (For customers)</strong></p>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="client-link-url" readonly style="flex: 1; background: rgba(0,0,0,0.3); color: #4ade80; border: 1px solid rgba(255,255,255,0.1);">
+            <button class="btn btn-outline" onclick="copyMagicLink('client-link-url')">Copy</button>
+          </div>
         </div>
       </div>
     </div>

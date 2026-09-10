@@ -27,9 +27,12 @@ window.addEventListener('DOMContentLoaded', async () => {
 
       toast('Success', `Company ${data.username} created`, 'success');
       
-      // Show magic link
+      // Show links
       document.getElementById('magic-link-result').style.display = 'block';
       document.getElementById('magic-link-url').value = data.magicLink;
+      
+      const slug = prefix.toLowerCase() + number;
+      document.getElementById('client-link-url').value = `${window.location.origin}/c.html?slug=${slug}`;
 
       // Reset form
       document.getElementById('cc-prefix').value = '';
@@ -76,11 +79,11 @@ async function loadCompanies() {
   }
 }
 
-function copyMagicLink() {
-  const input = document.getElementById('magic-link-url');
+function copyMagicLink(id = 'magic-link-url') {
+  const input = document.getElementById(id);
   input.select();
   document.execCommand('copy');
-  toast('Copied', 'Magic link copied to clipboard', 'info');
+  toast('Copied', 'Link copied to clipboard', 'info');
 }
 
 function logout() {

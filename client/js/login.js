@@ -86,6 +86,10 @@ async function loginWithBiometrics() {
 function handleLoginSuccess(data) {
   localStorage.setItem('auth_token', data.token);
   localStorage.setItem('last_username', data.seller.username);
+  localStorage.setItem('role', data.seller.role);
+  if (data.business_slug) {
+    localStorage.setItem('business_slug', data.business_slug);
+  }
   
   toast('Success', 'Logged in successfully', 'success');
   

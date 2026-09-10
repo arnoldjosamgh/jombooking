@@ -33,8 +33,19 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const token = jwt.sign({ id: seller.id, role: seller.role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, seller: { id: seller.id, username: seller.username, role: seller.role, name: seller.name } });
+    // Set role
+    const role = seller.is_admin ? 'tech' : 'owner';
+
+    // If owner, fetch their primary business slug
+    let business_slug = null;
+    if (!seller.is_admin) {
+      const bizRes = await db.query('SELECT slug FROM businesses WHERE owner_id = $1 LIMIT 1', [seller.id]);
+      if (bizRes.rows.length > 0) business_slug = bizRes.rows[0].slug;
+    }
+
+    // Success — generate token
+    const token = jwt.sign({ id: seller.id, role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, seller: { id: seller.id, username: seller.username, role, name: seller.name }, business_slug });
   } catch (err) {
     console.error('[auth] Login error:', err.message);
     res.status(500).json({ error: 'Server error' });

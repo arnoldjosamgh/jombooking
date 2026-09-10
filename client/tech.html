@@ -4,108 +4,108 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Tech Dashboard | Jomish</title>
+  <link rel="icon" type="image/png" href="/img/logo.png">
+  <meta name="description" content="Jomish Tech Admin — manage companies, onboard new sellers, pause or remove accounts.">
   <link rel="stylesheet" href="/css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- Lucide icons via CDN -->
-  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <style>
-    body { font-family: 'Inter', sans-serif; background: #f8fafc; }
-    lucide-icon, .icon { width:18px; height:18px; display:inline-block; vertical-align:middle; }
+    body { font-family: 'Inter', sans-serif; background: #f0f4ff; min-height:100vh; }
+
+    /* ── Header ── */
     .tech-header { background:#0f1222; border-bottom:1px solid rgba(255,255,255,0.06); }
     .tech-header .brand-name { color:#f4a81d; font-size:1.05rem; font-weight:800; }
     .tech-header .brand-sub  { color:rgba(255,255,255,0.45); font-size:0.75rem; }
     .tech-header .btn-logout {
-      background: rgba(255,255,255,0.06);
-      border: 1px solid rgba(255,255,255,0.12);
-      color: rgba(255,255,255,0.7);
-      padding: 8px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.15s;
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12);
+      color:rgba(255,255,255,0.7); padding:8px 16px; border-radius:8px; cursor:pointer;
+      font-size:0.85rem; font-weight:600; display:flex; align-items:center; gap:6px; transition:all 0.15s;
     }
-    .tech-header .btn-logout:hover { background: rgba(255,255,255,0.12); color: #fff; }
+    .tech-header .btn-logout:hover { background:rgba(255,255,255,0.12); color:#fff; }
 
-    .section-title {
-      font-size: 0.7rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: #94a3b8;
-      margin-bottom: 12px;
+    /* ── Form card ── */
+    .form-card { background:#fff; border-radius:16px; box-shadow:0 2px 20px rgba(15,18,34,0.08); padding:28px; }
+    .form-card h3 { margin:0 0 20px; font-size:1.1rem; font-weight:700; display:flex; align-items:center; gap:8px; }
+
+    /* ── Type toggles ── */
+    .type-toggle-group { display:flex; gap:8px; flex-wrap:wrap; }
+    .type-toggle { display:none; }
+    .type-toggle + label {
+      flex:1; min-width:120px; cursor:pointer; padding:12px 10px; border-radius:10px;
+      border:2px solid #e2e8f0; text-align:center; font-size:0.82rem; font-weight:600;
+      color:#64748b; transition:all 0.15s; user-select:none;
     }
-    .result-box {
-      background: #0f1222;
-      border-radius: 10px;
-      padding: 20px 24px;
-    }
-    .result-username {
-      font-family: monospace;
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: #f4a81d;
-      letter-spacing: 0.12em;
-      margin-bottom: 16px;
-    }
-    .link-group { margin-bottom: 16px; }
-    .link-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #64748b; margin-bottom: 6px; }
-    .link-row { display: flex; gap: 8px; }
+    .type-toggle:checked + label { border-color:#5b67f6; background:#eef0ff; color:#3730a3; }
+    #type-both:checked + label { border-color:#f4a81d; background:#fffbeb; color:#92400e; }
+
+    /* ── Result panel ── */
+    .result-box { background:#0f1222; border-radius:12px; padding:20px; }
+    .result-username { font-family:monospace; font-size:1.3rem; font-weight:700; color:#f4a81d; letter-spacing:0.12em; }
+    .link-label { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#64748b; margin-bottom:6px; }
+    .link-row { display:flex; gap:8px; }
     .link-input {
-      flex: 1;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: #e2e8f0;
-      font-size: 0.8rem;
-      font-family: monospace;
+      flex:1; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+      border-radius:8px; padding:10px 12px; color:#e2e8f0; font-size:0.78rem; font-family:monospace;
     }
     .link-copy-btn {
-      background: rgba(91,103,246,0.15);
-      border: 1px solid rgba(91,103,246,0.3);
-      color: #818cf8;
-      border-radius: 8px;
-      padding: 8px 14px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      white-space: nowrap;
-      transition: all 0.15s;
+      background:rgba(91,103,246,0.15); border:1px solid rgba(91,103,246,0.3); color:#818cf8;
+      border-radius:8px; padding:8px 12px; cursor:pointer; font-size:0.78rem; font-weight:600;
+      display:flex; align-items:center; gap:5px; white-space:nowrap; transition:all 0.15s;
     }
-    .link-copy-btn:hover { background: rgba(91,103,246,0.3); color: #a5b4fc; }
-    .link-copy-btn.green {
-      background: rgba(16,185,129,0.12);
-      border-color: rgba(16,185,129,0.25);
-      color: #34d399;
-    }
-    .link-copy-btn.green:hover { background: rgba(16,185,129,0.25); }
+    .link-copy-btn:hover { background:rgba(91,103,246,0.3); }
 
-    .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px; }
-    .status-dot.active  { background:#10b981; box-shadow:0 0 6px #10b981; }
-    .status-dot.pending { background:#94a3b8; }
-
-    table { width:100%; border-collapse: collapse; }
-    thead th {
-      padding: 10px 12px;
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-      color: #94a3b8;
-      border-bottom: 1px solid #e2e8f0;
-      text-align: left;
+    /* ── Seller cards inside result ── */
+    .seller-result-list { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+    .seller-card {
+      background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1);
+      border-radius:10px; padding:12px 14px;
     }
-    tbody tr { border-bottom: 1px solid #f1f5f9; transition: background 0.1s; }
-    tbody tr:hover { background: #f8fafc; }
-    tbody td { padding: 14px 12px; font-size: 0.875rem; }
+    .seller-card .s-username { font-family:monospace; color:#f4a81d; font-size:1rem; font-weight:700; }
+    .seller-card .s-link-row { display:flex; gap:8px; margin-top:8px; align-items:center; }
+    .seller-card input { flex:1; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:6px; padding:8px 10px; color:#cbd5e1; font-size:0.75rem; font-family:monospace; }
+    .seller-card .copy-btn { background:rgba(91,103,246,0.2); border:none; border-radius:6px; color:#818cf8; padding:8px 12px; cursor:pointer; font-size:0.8rem; font-weight:600; white-space:nowrap; }
+
+    /* ── Companies table ── */
+    .companies-card { background:#fff; border-radius:16px; box-shadow:0 2px 20px rgba(15,18,34,0.08); overflow:hidden; margin-top:24px; }
+    .companies-header { padding:18px 24px; border-bottom:1px solid #f1f5f9; display:flex; align-items:center; gap:10px; }
+    table { width:100%; border-collapse:collapse; }
+    thead th { padding:10px 14px; font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#94a3b8; border-bottom:1px solid #f1f5f9; text-align:left; }
+    tbody tr { border-bottom:1px solid #f8fafc; transition:background 0.1s; }
+    tbody tr:hover { background:#f8fafc; }
+    tbody td { padding:13px 14px; font-size:0.875rem; vertical-align:middle; }
+
+    .status-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; }
+    .status-badge.active { background:#dcfce7; color:#166534; }
+    .status-badge.paused { background:#fef9c3; color:#854d0e; }
+    .status-badge.pending { background:#f1f5f9; color:#475569; }
+    .type-badge { display:inline-block; padding:3px 8px; border-radius:6px; font-size:0.72rem; font-weight:700; }
+    .type-product { background:#fef3c7; color:#92400e; }
+    .type-service { background:#ede9fe; color:#4c1d95; }
+    .type-both    { background:#e0f2fe; color:#0c4a6e; }
+
+    .action-btns { display:flex; gap:6px; flex-wrap:wrap; }
+    .btn-sm { padding:5px 10px; border-radius:7px; font-size:0.75rem; font-weight:600; border:none; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.15s; }
+    .btn-pause  { background:#fef9c3; color:#854d0e; }
+    .btn-pause:hover  { background:#fde68a; }
+    .btn-delete { background:#fee2e2; color:#991b1b; }
+    .btn-delete:hover { background:#fca5a5; }
+    .btn-links  { background:#ede9fe; color:#4c1d95; }
+    .btn-links:hover  { background:#ddd6fe; }
+
+    .sellers-list { font-family:monospace; font-size:0.8rem; color:#334155; }
+    .sellers-list span { display:inline-block; margin-right:6px; background:#f1f5f9; border-radius:4px; padding:1px 6px; }
+    .sellers-list .setup-pending { color:#94a3b8; font-style:italic; }
+
+    /* ── Confirm modal ── */
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; z-index:1000; align-items:center; justify-content:center; }
+    .modal-overlay.show { display:flex; }
+    .modal-box { background:#fff; border-radius:16px; padding:28px; max-width:380px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3); }
+    .modal-box h3 { color:#dc2626; margin:0 0 12px; }
+    .modal-box p { color:#475569; font-size:0.9rem; margin-bottom:20px; }
+    .modal-actions { display:flex; gap:10px; }
+    .modal-actions button { flex:1; padding:12px; border-radius:10px; font-weight:700; font-size:0.9rem; cursor:pointer; border:none; }
+    .modal-cancel { background:#f1f5f9; color:#475569; }
+    .modal-confirm { background:#dc2626; color:#fff; }
   </style>
 </head>
 <body>
@@ -113,9 +113,7 @@
   <!-- Header -->
   <header class="top-nav tech-header">
     <div class="brand">
-      <div style="width:36px;height:36px;background:linear-gradient(135deg,#1a2461,#0f1222);border-radius:10px;border:1px solid rgba(244,168,29,0.4);display:flex;align-items:center;justify-content:center;">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f4a81d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      </div>
+      <img src="/img/logo.png" alt="Jomish" style="width:36px;height:36px;border-radius:10px;object-fit:cover;" onerror="this.style.display='none'">
       <div style="margin-left:10px">
         <div class="brand-name">Tech Dashboard</div>
         <div class="brand-sub">Jomish Company Management</div>
@@ -129,14 +127,14 @@
 
   <main class="container" style="padding-top:32px;padding-bottom:60px;max-width:1100px">
 
-    <div class="grid grid-2 mb-24" style="align-items:start">
+    <div class="grid grid-2 mb-0" style="align-items:start;gap:20px">
 
-      <!-- Create Company Form -->
-      <div class="card" style="padding:28px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          <h3 style="margin:0">Onboard New Company</h3>
-        </div>
+      <!-- ── Create Company Form ── -->
+      <div class="form-card">
+        <h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Onboard New Company
+        </h3>
 
         <form id="create-company-form">
           <div class="form-group">
@@ -144,96 +142,83 @@
             <input type="text" id="cc-name" placeholder="e.g. Jomish Saloon" style="text-transform:capitalize">
           </div>
 
-          <div class="grid grid-2" style="gap:12px">
-            <div class="form-group" style="margin-bottom:0">
-              <label>Prefix <span class="text-dim text-xs">(3–4 letters)</span></label>
-              <input type="text" id="cc-prefix" placeholder="JOM" minlength="3" maxlength="4" required
-                style="text-transform:uppercase;letter-spacing:0.1em;font-weight:700"
-                autocapitalize="characters">
-            </div>
-            <div class="form-group" style="margin-bottom:0">
-              <label>Number <span class="text-dim text-xs">(auto-padded)</span></label>
-              <input type="number" id="cc-number" placeholder="1 → 001" min="1" max="999" required>
+          <div class="form-group">
+            <label>Prefix <span class="text-dim text-xs">(3–4 letters)</span></label>
+            <input type="text" id="cc-prefix" placeholder="JOM" minlength="3" maxlength="4" required
+              style="text-transform:uppercase;letter-spacing:0.1em;font-weight:700;font-size:1.2rem"
+              autocapitalize="characters">
+          </div>
+
+          <div class="form-group">
+            <label>Number of Seller Accounts
+              <span class="text-dim text-xs">(CAM001, CAM002… all share 1 business)</span>
+            </label>
+            <input type="number" id="cc-count" placeholder="e.g. 3 → creates CAM001, CAM002, CAM003" min="1" max="50" value="1" required>
+          </div>
+
+          <div class="form-group">
+            <label>Business Type <span class="text-dim text-xs">(select one or both)</span></label>
+            <div class="type-toggle-group">
+              <input type="radio" name="cc-type" id="type-product" value="product" class="type-toggle">
+              <label for="type-product">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:4px;display:block;margin:0 auto 4px"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>
+                Product (POS)
+              </label>
+
+              <input type="radio" name="cc-type" id="type-service" value="service" class="type-toggle">
+              <label for="type-service">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:block;margin:0 auto 4px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Service (Calendar)
+              </label>
+
+              <input type="radio" name="cc-type" id="type-both" value="both" class="type-toggle">
+              <label for="type-both">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:block;margin:0 auto 4px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                Both
+              </label>
             </div>
           </div>
 
-          <div class="form-group mt-12">
-            <label>Business Type</label>
-            <select id="cc-type" required>
-              <option value="product">
-                Product — Point of Sale (ordering)
-              </option>
-              <option value="service">
-                Service — Booking & Calendar
-              </option>
-            </select>
-          </div>
-
-          <button type="submit" class="btn btn-primary btn-full mt-8" id="cc-btn"
+          <button type="submit" class="btn btn-primary btn-full mt-16" id="cc-btn"
             style="display:flex;align-items:center;justify-content:center;gap:8px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Create Company & Generate Links
+            Create Company &amp; Generate Links
           </button>
         </form>
       </div>
 
-      <!-- Links Result Panel -->
+      <!-- ── Setup Link Results Panel ── -->
       <div>
-        <div id="no-links-msg" class="card" style="padding:32px;text-align:center;color:#94a3b8">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin:0 auto 12px;display:block"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          <p class="text-sm">Create a company to generate access links.</p>
+        <div id="no-links-msg" class="form-card" style="text-align:center;color:#94a3b8;padding:40px 28px">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.5" style="margin:0 auto 14px;display:block"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+          <p class="text-sm">Create a company to see the seller setup links here.</p>
         </div>
 
         <div id="magic-link-result" style="display:none">
-          <div class="result-box mb-16">
-            <div class="text-xs" style="color:#64748b;margin-bottom:4px">USER ID CREATED</div>
+          <div class="result-box">
+            <div class="text-xs" style="color:#64748b;margin-bottom:4px">COMPANY CREATED</div>
             <div class="result-username" id="result-username">—</div>
-
-            <div class="link-group">
-              <div class="link-label">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f4a81d" stroke-width="2" style="margin-right:4px;vertical-align:middle"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-                1. Seller Setup Link <span style="color:#f4a81d">(Send to owner)</span>
-              </div>
-              <div class="link-row">
-                <input type="text" id="magic-link-url" class="link-input" readonly>
-                <button class="link-copy-btn" onclick="copyLink('magic-link-url')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Copy
-                </button>
-              </div>
-            </div>
-
-            <div class="link-group" style="margin-bottom:0">
-              <div class="link-label">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" style="margin-right:4px;vertical-align:middle"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                2. Permanent Client Link <span style="color:#34d399">(Share with customers)</span>
-              </div>
-              <div class="link-row">
-                <input type="text" id="client-link-url" class="link-input" readonly style="color:#34d399">
-                <button class="link-copy-btn green" onclick="copyLink('client-link-url')">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Copy
-                </button>
-              </div>
-            </div>
+            <div class="text-xs" style="color:#64748b;margin-top:4px;margin-bottom:16px" id="result-subtext"></div>
+            <div class="text-xs" style="color:#94a3b8;margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.07em">Seller Setup Links — send each to the respective account holder</div>
+            <div class="seller-result-list" id="seller-result-list"></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Companies Table -->
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="padding:20px 24px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:10px">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
-        <h3 style="margin:0">Registered Companies</h3>
+    <!-- ── Companies Table ── -->
+    <div class="companies-card">
+      <div class="companies-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+        <h3 style="margin:0;font-size:1rem;font-weight:700">Registered Companies</h3>
       </div>
       <div style="overflow-x:auto">
         <table>
           <thead>
             <tr>
-              <th>Company Name</th>
+              <th>Company</th>
               <th>Type</th>
-              <th>User ID</th>
+              <th>Seller Accounts</th>
               <th>Status</th>
               <th>Actions</th>
             </tr>
@@ -246,6 +231,19 @@
     </div>
 
   </main>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="delete-modal">
+    <div class="modal-box">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" style="margin:0 auto 12px;display:block"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      <h3>Delete Company?</h3>
+      <p id="delete-modal-msg">This will permanently remove the company, all seller accounts, products, orders, and bookings. This cannot be undone.</p>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+        <button class="modal-confirm" id="delete-confirm-btn" onclick="confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast-container"></div>
   <script src="/js/app.js"></script>

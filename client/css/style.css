@@ -751,3 +751,4 @@ td { padding: 16px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.05);
 /* mr-8 helper */
 .mr-8 { margin-right: 8px; }
 
+@keyframes spin { to { transform: rotate(360deg); } }

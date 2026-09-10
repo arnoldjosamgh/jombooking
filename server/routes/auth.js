@@ -36,11 +36,21 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
     // Set role from DB column
     const role = seller.role === 'tech' ? 'tech' : 'owner';
 
-    // If owner, fetch their primary business slug
+    // If owner, fetch their business (via seller.business_id or owner_id)
     let business_slug = null;
     if (role !== 'tech') {
-      const bizRes = await db.query('SELECT slug FROM businesses WHERE owner_id = $1 LIMIT 1', [seller.id]);
-      if (bizRes.rows.length > 0) business_slug = bizRes.rows[0].slug;
+      const bizRes = await db.query(
+        `SELECT slug, status FROM businesses
+         WHERE id = $1 OR owner_id = $2
+         ORDER BY id LIMIT 1`,
+        [seller.business_id || -1, seller.id]
+      );
+      if (bizRes.rows.length > 0) {
+        if (bizRes.rows[0].status === 'paused') {
+          return res.status(403).json({ error: 'This business account is currently paused. Please contact support.' });
+        }
+        business_slug = bizRes.rows[0].slug;
+      }
     }
 
     // Success — generate token
@@ -73,9 +83,12 @@ router.post('/setup-password', requireFields('token', 'password'), async (req, r
 
     const role = seller.role || 'owner';
 
-    // Fetch business slug for this seller
+    // Fetch business slug for this seller (via business_id or owner_id)
     let business_slug = null;
-    const bizRes = await db.query('SELECT slug FROM businesses WHERE owner_id = $1 LIMIT 1', [seller.id]);
+    const bizRes = await db.query(
+      `SELECT slug FROM businesses WHERE id = $1 OR owner_id = $2 ORDER BY id LIMIT 1`,
+      [seller.business_id || -1, seller.id]
+    );
     if (bizRes.rows.length > 0) business_slug = bizRes.rows[0].slug;
 
     const jwtToken = jwt.sign({ id: seller.id, role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });

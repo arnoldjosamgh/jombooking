@@ -18,7 +18,7 @@ router.post('/business', authenticate, requireTech, requireFields('prefix', 'num
   const client = await db.connect();
   try {
     const { prefix, number, type } = req.body;
-    const username = `${prefix}${number}`.toLowerCase().replace(/\s+/g, '');
+    const username = `${prefix}${number}`.replace(/\s+/g, '');
     const setupToken = crypto.randomBytes(32).toString('hex');
     
     await client.query('BEGIN');

@@ -118,7 +118,7 @@ CREATE INDEX IF NOT EXISTS idx_push_subs       ON push_subscriptions(seller_id);
 -- Tech user (password is Jomish9!! -> hashed)
 -- bcrypt hash of Jomish9!! is $2b$10$tZ2.K9wE3w2vQ1e.3D.eOu5I4Q9F7G4xH4F6t/mB6wTzU9X5J1Xm2
 INSERT INTO sellers (username, password_hash, name, role)
-VALUES ('tech', '$2b$10$tZ2.K9wE3w2vQ1e.3D.eOu5I4Q9F7G4xH4F6t/mB6wTzU9X5J1Xm2', 'Tech Admin', 'tech')
+VALUES ('TECH', '$2b$10$tZ2.K9wE3w2vQ1e.3D.eOu5I4Q9F7G4xH4F6t/mB6wTzU9X5J1Xm2', 'Tech Admin', 'tech')
 ON CONFLICT (username) DO NOTHING;
 
 INSERT INTO sellers (username, password_hash, name, role)

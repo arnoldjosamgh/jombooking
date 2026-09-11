@@ -976,7 +976,6 @@ async function pollPending() {
   } catch(e) {
     console.error('Error polling pending:', e);
   }
-  }
 }
 
 // Poll every 30 seconds

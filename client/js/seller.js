@@ -100,6 +100,12 @@ function setupBiz(biz) {
   initSocket(biz);
   checkFirstLogin(biz);
   pollPending(); // Initial poll for pending orders
+
+  // Show floating chat button
+  const floatChatBtn = document.getElementById('seller-float-chat-btn');
+  if (floatChatBtn) floatChatBtn.style.display = 'flex';
+  // Poll unread counts every 30s
+  renderSellerChatThreads();
   
   // Show first-login setup prompts if not seen
   setTimeout(showSetupPrompts, 2000);
@@ -857,8 +863,9 @@ async function renderSellerChatThreads() {
     // Update badge with total unread threads
     const totalUnread = threads.reduce((sum, t) => sum + (t.unread_count > 0 ? 1 : 0), 0);
     const badge = document.getElementById('seller-chat-badge');
+    const panel = document.getElementById('seller-chat-panel');
     if (badge) {
-      if (totalUnread > 0 && panel.style.display === 'none') {
+      if (totalUnread > 0 && panel && panel.style.display === 'none') {
         badge.style.display = 'flex';
         badge.textContent = totalUnread;
       } else {
@@ -1119,16 +1126,17 @@ async function renderHistory() {
       return;
     }
     
-    list.innerHTML = `<div class="list-group">` + items.map(i => `
+    list.innerHTML = `<div class="list-group">` + items.map((i, idx) => `
       <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
         <div>
           <strong>${i.title}</strong> <span class="badge" style="background:#e2e8f0;color:#475569;font-size:0.7rem">${i.type}</span><br>
-          <span class="text-dim text-sm">Client: ${i.client} • ${i.date.toLocaleString()}</span>
+          <span class="text-dim text-sm">Client: ${i.client} • ${i.date.toLocaleString()}</span><br>
+          <span class="text-xs" style="color:#94a3b8;">${i.raw.receipt_number || ('#' + i.raw.id)}</span>
         </div>
         <div style="text-align:right">
           <div class="font-bold">${formatCurrency(i.price || 0)}</div>
-          <div class="text-xs" style="color:var(--accent-green);font-weight:bold;margin-bottom:6px;">Sold by: ${i.seller}</div>
-          <button class="btn btn-outline" style="padding:4px 8px;font-size:0.7rem;" onclick="showReceipt(${i.raw.id}, '${i.type === 'Product' ? 'order' : 'booking'}')">Receipt</button>
+          <div class="text-xs" style="color:var(--accent-green);font-weight:bold;margin-bottom:6px;">Sold by: ${i.seller || '—'}</div>
+          <button class="btn btn-outline" style="padding:6px 14px;font-size:0.78rem;" onclick="showReceipt(${idx})">🧾 Receipt</button>
         </div>
       </div>
     `).join('') + '</div>';
@@ -1137,6 +1145,73 @@ async function renderHistory() {
     list.innerHTML = `<div class="text-red">Error loading history: ${e.message}</div>`;
   }
 }
+
+function showReceipt(idx) {
+  const items = window._historyData;
+  if (!items || !items[idx]) return;
+  const i = items[idx];
+  const r = i.raw;
+  
+  const receiptNum = r.receipt_number || (i.type === 'Product' ? `ORD-${String(r.id).padStart(5,'0')}` : `BKG-${String(r.id).padStart(5,'0')}`);
+  const bizName = r.business_name || selectedBiz?.name || '—';
+  const bizLocation = r.business_location || selectedBiz?.location || '';
+  const bizPhone = r.business_phone || selectedBiz?.phone_number || '';
+  const bizLogo = r.business_logo || selectedBiz?.logo_url || '';
+
+  const content = document.getElementById('seller-receipt-content');
+  content.innerHTML = `
+    <div style="text-align:center; padding-bottom:20px; border-bottom:2px dashed #e2e8f0; margin-bottom:20px;">
+      ${bizLogo ? `<img src="${bizLogo}" alt="Logo" style="height:60px; object-fit:contain; margin-bottom:8px; display:block; margin-left:auto; margin-right:auto;">` : ''}
+      <h2 style="font-size:1.3rem; font-weight:700; color:#1a2461; margin:0 0 4px;">${bizName}</h2>
+      ${bizLocation ? `<p style="font-size:0.8rem; color:#64748b; margin:2px 0;">${bizLocation}</p>` : ''}
+      ${bizPhone ? `<p style="font-size:0.8rem; color:#64748b; margin:2px 0;">📞 ${bizPhone}</p>` : ''}
+    </div>
+
+    <div style="background:#f8fafc; border-radius:8px; padding:14px; margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.78rem; color:#64748b; font-weight:600;">RECEIPT NO.</span>
+        <span style="font-size:0.78rem; font-weight:700; color:#1a2461;">${receiptNum}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.78rem; color:#64748b; font-weight:600;">DATE</span>
+        <span style="font-size:0.78rem; color:#1a2461;">${i.date.toLocaleString()}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.78rem; color:#64748b; font-weight:600;">CLIENT</span>
+        <span style="font-size:0.78rem; color:#1a2461;">${i.client}</span>
+      </div>
+      ${r.client_location ? `
+      <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+        <span style="font-size:0.78rem; color:#64748b; font-weight:600;">CLIENT LOCATION</span>
+        <span style="font-size:0.78rem; color:#1a2461;">${r.client_location}</span>
+      </div>` : ''}
+    </div>
+
+    <div style="border-top:1px solid #e2e8f0; padding-top:14px; margin-bottom:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed #f1f5f9;">
+        <div>
+          <div style="font-weight:600; font-size:0.9rem; color:#1a2461;">${i.type === 'Product' ? r.product_title : (r.service_name || 'Service')}</div>
+          ${i.type === 'Product' ? `<div style="font-size:0.75rem; color:#64748b;">Qty: ${r.quantity}</div>` : `<div style="font-size:0.75rem; color:#64748b;">${new Date(r.booking_time || r.created_at).toLocaleString()}</div>`}
+        </div>
+        <div style="font-weight:700; color:#1a2461;">${formatCurrency(i.price || 0)}</div>
+      </div>
+      <div style="display:flex; justify-content:space-between; padding-top:12px;">
+        <span style="font-size:1rem; font-weight:700; color:#1a2461;">TOTAL</span>
+        <span style="font-size:1.1rem; font-weight:700; color:#5b67f6;">${formatCurrency(i.price || 0)}</span>
+      </div>
+    </div>
+
+    <div style="text-align:center; border-top:2px dashed #e2e8f0; padding-top:16px;">
+      <div style="font-size:0.75rem; color:#94a3b8;">Thank you for choosing <strong>${bizName}</strong></div>
+      <div style="font-size:0.7rem; color:#cbd5e1; margin-top:4px;">Powered by Jomish Business Suite</div>
+    </div>
+  `;
+
+  const modal = document.getElementById('seller-receipt-modal');
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+}
+
 
 async function completeOrder(orderId) {
   try {
@@ -1216,6 +1291,7 @@ function openSettings() {
   document.getElementById('s-duration').value = selectedBiz.session_duration_minutes || 30;
   document.getElementById('s-currency').value = selectedBiz.currency_symbol || 'UGX';
   document.getElementById('s-phone').value = selectedBiz.phone_number || '';
+  document.getElementById('s-location').value = selectedBiz.location || '';
   
   // open_days can be an array of ints or strings — normalize
   const days = (selectedBiz.open_days || []).map(d => parseInt(d));
@@ -1243,9 +1319,10 @@ async function saveSettings(e) {
       close_time: document.getElementById('s-close-time').value,
       lunch_start: document.getElementById('s-lunch-start').value,
       lunch_end: document.getElementById('s-lunch-end').value,
-      session_duration_minutes: document.getElementById('s-duration').value,
+      session_duration_minutes: document.getElementById('s-duration').value || null,
       currency_symbol: document.getElementById('s-currency').value,
       phone_number: document.getElementById('s-phone').value,
+      location: document.getElementById('s-location').value,
       open_days: days
     };
 

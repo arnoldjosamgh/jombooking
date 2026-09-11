@@ -100,7 +100,14 @@ router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quanti
       [business_id, client_id, product_id, qty]
     );
 
+    // Auto-generate receipt number
+    await client.query(
+      `UPDATE orders SET receipt_number = 'ORD-' || LPAD(id::text, 5, '0') WHERE id = $1`,
+      [orderResult.rows[0].id]
+    );
+
     await client.query('COMMIT');
+
 
     const fullOrder = await db.query(
       `SELECT o.id, o.quantity, o.status, o.created_at,
@@ -193,12 +200,16 @@ router.get('/list/:business_id', async (req, res) => {
 
     let query = `
       SELECT o.id, o.quantity, o.status, o.created_at, o.total_price, o.notes, o.seller_id,
+             o.receipt_number,
              p.title AS product_title, p.price,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
-             s.username AS seller_username
+             s.username AS seller_username,
+             biz.name AS business_name, biz.location AS business_location,
+             biz.phone_number AS business_phone, biz.logo_url AS business_logo
       FROM orders o
       JOIN products p ON o.product_id = p.id
       JOIN clients c ON o.client_id = c.id
+      JOIN businesses biz ON o.business_id = biz.id
       LEFT JOIN sellers s ON o.seller_id = s.id
       WHERE ${bizFilter}
     `;

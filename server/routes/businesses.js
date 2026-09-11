@@ -13,7 +13,7 @@ router.get('/:slug', async (req, res) => {
     const result = await db.query(
       `SELECT id, name, type, slug, logo_url, open_time, close_time,
               open_days, session_duration_minutes, currency_symbol, pusher_channel,
-              lunch_start, lunch_end, status, phone_number
+              lunch_start, lunch_end, status, phone_number, location
        FROM businesses WHERE slug = $1`,
       [slug]
     );
@@ -46,7 +46,7 @@ router.put('/:slug/logo', async (req, res) => {
   }
 });
 
-// PUT /api/businesses/:slug/settings — Update working hours, lunch, currency, phone
+// PUT /api/businesses/:slug/settings — Update working hours, lunch, currency, phone, location
 router.put('/:slug/settings', authenticate, async (req, res) => {
   try {
     const { slug } = req.params;
@@ -58,8 +58,12 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
       lunch_start,
       lunch_end,
       currency_symbol,
-      phone_number
+      phone_number,
+      location
     } = req.body;
+
+    // Parse duration — empty string or 0 should keep existing
+    const duration = session_duration_minutes ? parseInt(session_duration_minutes) : null;
 
     const result = await db.query(
       `UPDATE businesses SET
@@ -70,18 +74,20 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
          lunch_start = $5,
          lunch_end = $6,
          currency_symbol = COALESCE($7, currency_symbol),
-         phone_number = $9
+         phone_number = $9,
+         location = $10
        WHERE slug = $8 RETURNING id, slug`,
       [
         open_time || null,
         close_time || null,
         open_days ? open_days : null,
-        session_duration_minutes ? parseInt(session_duration_minutes) : null,
+        duration,
         lunch_start || null,
         lunch_end || null,
         currency_symbol || null,
         slug,
-        phone_number || null
+        phone_number || null,
+        location || null
       ]
     );
     if (result.rows.length === 0) {

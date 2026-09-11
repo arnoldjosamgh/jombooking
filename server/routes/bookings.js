@@ -120,6 +120,12 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
       [business_id, client_id, booking_time, service_id || null]
     );
 
+    // Auto-generate receipt number
+    await db.query(
+      `UPDATE bookings SET receipt_number = 'BKG-' || LPAD(id::text, 5, '0') WHERE id = $1`,
+      [result.rows[0].id]
+    );
+
     const full = await db.query(
       `SELECT b.id, b.booking_time, b.status, b.created_at,
               c.name AS client_name, c.location AS client_location,
@@ -166,11 +172,15 @@ router.get('/list/:business_id', async (req, res) => {
 
     let query = `
       SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id, b.seller_id,
+             b.receipt_number,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
              s.name AS service_name, s.price AS service_price, s.duration_minutes,
-             sel.username AS seller_username
+             sel.username AS seller_username,
+             biz.name AS business_name, biz.location AS business_location,
+             biz.phone_number AS business_phone, biz.logo_url AS business_logo
       FROM bookings b
       JOIN clients c  ON b.client_id = c.id
+      JOIN businesses biz ON b.business_id = biz.id
       LEFT JOIN services s ON b.service_id = s.id
       LEFT JOIN sellers sel ON b.seller_id = sel.id
       WHERE ${bizFilter}

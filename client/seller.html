@@ -287,6 +287,10 @@
           <input type="tel" id="s-phone" class="login-input" placeholder="e.g. +256 700 123456" style="background:#f8fafc;color:#1a2461;border:1px solid #e2e8f0;">
         </div>
         <div class="form-group">
+          <label>Business Location / Address <span class="text-dim text-xs">(shown on receipts)</span></label>
+          <input type="text" id="s-location" class="login-input" placeholder="e.g. Kampala Road, Plot 12, Kampala" style="background:#f8fafc;color:#1a2461;border:1px solid #e2e8f0;">
+        </div>
+        <div class="form-group">
           <label>Open Days</label>
           <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;" id="s-open-days">
             <label style="display:flex;align-items:center;gap:4px;cursor:pointer;"><input type="checkbox" value="0"> Sun</label>
@@ -338,15 +342,15 @@
     </div>
   </div>
 
-  <!-- ── Receipt Modal ── -->
-  <div id="receipt-modal" class="modal-overlay" style="display:none">
-    <div class="modal-content" style="max-width:400px">
-      <div id="receipt-content"></div>
-      <div class="flex justify-end gap-8 mt-16">
-        <button class="btn btn-outline" onclick="closeModal('receipt-modal')">Close</button>
+  <!-- ── Seller Receipt Modal ── -->
+  <div id="seller-receipt-modal" class="modal-overlay" style="display:none">
+    <div class="modal-content" style="max-width:420px; padding:28px 24px;">
+      <div id="seller-receipt-content"><!-- populated by JS --></div>
+      <div class="flex justify-end gap-8 mt-20" style="border-top:1px solid #e2e8f0; padding-top:16px;">
+        <button class="btn btn-outline" onclick="closeModal('seller-receipt-modal')">Close</button>
         <button class="btn btn-primary" onclick="window.print()">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          Print Receipt
+          Print
         </button>
       </div>
     </div>

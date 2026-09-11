@@ -1,6 +1,6 @@
 // Jomish Service Worker
 
-const CACHE_NAME = 'jomish-cache-v8';
+const CACHE_NAME = 'jomish-cache-v9';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/js/app.js',
@@ -36,25 +36,26 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first for API, Cache-first for static assets
+// Network-first for everything — always try fresh from server, fall back to cache if offline
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.pathname.startsWith('/api/') || event.request.method !== 'GET') {
-    return; // Don't cache API requests or POST/PUT
+    return; // Don't cache API requests or non-GET
   }
-  
+
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request).then((networkResponse) => {
+    fetch(event.request)
+      .then((networkResponse) => {
+        // Cache the fresh response
         return caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, networkResponse.clone());
           return networkResponse;
         });
-      });
-    })
+      })
+      .catch(() => {
+        // Network failed — serve from cache (offline fallback)
+        return caches.match(event.request);
+      })
   );
 });
 

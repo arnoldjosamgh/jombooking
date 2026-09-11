@@ -766,6 +766,7 @@ function renderTabs(type) {
   }
   html += `<button class="btn btn-outline" id="tab-pending" onclick="renderPending()">Pending</button>`;
   html += `<button class="btn btn-outline" id="tab-history" onclick="renderHistory()">History</button>`;
+  html += `<button class="btn btn-outline" id="tab-settings" onclick="openSettings()" style="margin-left:auto;">⚙️ Settings</button>`;
   
   tabs.innerHTML = html;
 }
@@ -976,14 +977,23 @@ setInterval(pollPending, 30000);
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
 function openSettings() {
-  document.getElementById('s-open-time').value = selectedBiz.open_time || '';
-  document.getElementById('s-close-time').value = selectedBiz.close_time || '';
-  document.getElementById('s-lunch-start').value = selectedBiz.lunch_start || '';
-  document.getElementById('s-lunch-end').value = selectedBiz.lunch_end || '';
+  if (!selectedBiz) {
+    toast('Not Ready', 'Business data is still loading. Please wait.', 'error');
+    return;
+  }
+
+  // open_time may come as '08:00:00' — strip seconds for <input type=time>
+  const trimTime = (t) => t ? t.substring(0, 5) : '';
+
+  document.getElementById('s-open-time').value = trimTime(selectedBiz.open_time);
+  document.getElementById('s-close-time').value = trimTime(selectedBiz.close_time);
+  document.getElementById('s-lunch-start').value = trimTime(selectedBiz.lunch_start);
+  document.getElementById('s-lunch-end').value = trimTime(selectedBiz.lunch_end);
   document.getElementById('s-duration').value = selectedBiz.session_duration_minutes || 30;
   document.getElementById('s-currency').value = selectedBiz.currency_symbol || 'UGX';
   
-  const days = selectedBiz.open_days || [];
+  // open_days can be an array of ints or strings — normalize
+  const days = (selectedBiz.open_days || []).map(d => parseInt(d));
   document.querySelectorAll('#s-open-days input[type="checkbox"]').forEach(cb => {
     cb.checked = days.includes(parseInt(cb.value));
   });

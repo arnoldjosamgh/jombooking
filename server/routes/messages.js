@@ -13,7 +13,7 @@ router.get('/threads/:business_id', async (req, res) => {
     const { business_id } = req.params;
     const result = await db.query(
       `SELECT DISTINCT ON (m.client_id)
-         m.client_id, c.name AS client_name, c.phone AS client_phone,
+         m.client_id, c.name AS client_name,
          m.content AS last_message, m.sender AS last_sender, m.created_at AS last_at,
          (SELECT COUNT(*) FROM messages
           WHERE business_id = $1 AND client_id = m.client_id AND sender = 'client' AND read_at IS NULL
@@ -24,7 +24,8 @@ router.get('/threads/:business_id', async (req, res) => {
        ORDER BY m.client_id, m.created_at DESC`,
       [business_id]
     );
-    res.json(result.rows);
+    // Sort threads by latest message
+    res.json(result.rows.sort((a, b) => new Date(b.last_at) - new Date(a.last_at)));
   } catch (err) {
     console.error('[messages] threads error:', err.message);
     res.status(500).json({ error: 'Server error' });
@@ -76,6 +77,22 @@ router.post('/', requireFields('business_id', 'client_id', 'sender', 'content'),
     res.status(201).json(msg);
   } catch (err) {
     console.error('[messages] POST error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/messages/read — Mark messages as read
+router.post('/read', async (req, res) => {
+  try {
+    const { business_id, client_id } = req.body;
+    await db.query(
+      `UPDATE messages SET read_at = NOW()
+       WHERE business_id = $1 AND client_id = $2 AND sender = 'client' AND read_at IS NULL`,
+      [business_id, client_id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[messages] read error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

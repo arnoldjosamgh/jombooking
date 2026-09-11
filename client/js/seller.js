@@ -1510,6 +1510,13 @@ async function openChat(clientId, clientName) {
   try {
     const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${clientId}`);
     renderChatMessages(messages);
+    
+    // Mark as read in background
+    apiFetch('/api/messages/read', {
+      method: 'POST',
+      body: { business_id: selectedBiz.id, client_id: clientId }
+    }).catch(e => console.error('Failed to mark read', e));
+    
   } catch (err) {
     document.getElementById('chat-messages').innerHTML = `<div class="text-red">Failed to load chat: ${err.message}</div>`;
   }

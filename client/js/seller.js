@@ -30,6 +30,13 @@ window.addEventListener('DOMContentLoaded', async () => {
       sel.style.display = 'block';
       sel.innerHTML = '<option value="">-- Select Business --</option>' +
         businesses.map(b => `<option value="${b.slug}" data-type="${b.type}">${b.name}</option>`).join('');
+        
+      // Hide the spinner and show a prompt to select a business
+      document.getElementById('no-biz').innerHTML = `
+        <div style="font-size:2rem;margin-bottom:12px">🏢</div>
+        <p>Welcome, Tech Admin.</p>
+        <p class="text-dim">Please select a business from the top menu.</p>
+      `;
     } else if (slug) {
       const biz = await apiFetch(`/api/businesses/${slug}`);
       setupBiz(biz);

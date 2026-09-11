@@ -144,9 +144,12 @@ function showDateSlotStep() {
         <h3 style="margin-bottom:16px">2. Pick a Day</h3>
         <select id="day-select" onchange="onDaySelect(this.value)" class="login-input" style="background:#f8fafc;color:#1a2461;border:1px solid #e2e8f0;margin-bottom:0;cursor:pointer;">
           <option value="">— Choose a day —</option>
-          ${days.map(d => {
+          ${days.map((d, idx) => {
             const str = dateStr(d);
-            return `<option value="${str}">${dayNames[d.getDay()]}, ${d.getDate()} ${shortMonths[d.getMonth()]}</option>`;
+            let label = `${dayNames[d.getDay()]}, ${d.getDate()} ${shortMonths[d.getMonth()]}`;
+            if (idx === 0) label = `Today — ${label}`;
+            else if (idx === 1) label = `Tomorrow — ${label}`;
+            return `<option value="${str}">${label}</option>`;
           }).join('')}
         </select>
 
@@ -204,7 +207,16 @@ async function onDaySelect(dateString) {
 
   try {
     const data = await apiFetch(`/api/slots/${business.slug}?date=${dateString}&service_id=${selectedSvc.id}`);
-    const available = (data.slots || []).filter(s => s.available);
+    const now = new Date();
+    
+    // Filter: only available, and if today's date, must be in the future (with 5 min buffer)
+    const available = (data.slots || []).filter(s => {
+      if (!s.available) return false;
+      // For today, hide slots that have already passed (add 5 min buffer)
+      const slotTime = new Date(s.time + 'Z');
+      if (dateString === dateStr(now) && slotTime <= new Date(now.getTime() + 5 * 60000)) return false;
+      return true;
+    });
 
     if (!available.length) {
       slotSelect.innerHTML = '<option value="">No available slots this day</option>';

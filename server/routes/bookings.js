@@ -61,14 +61,14 @@ async function generateSlots(businessId, dateStr, serviceId) {
     allSlots.push(`${dateStr}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`);
   }
 
-  // Booked slots for this service on this date
+  // Only 'confirmed' bookings block a slot — completed ones free it up for rebooking
   const bookedRes = await db.query(
     `SELECT TO_CHAR(booking_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot
      FROM bookings
      WHERE business_id = $1
        AND ($2::int IS NULL OR service_id = $2)
        AND DATE(booking_time) = $3::date
-       AND status != 'cancelled'`,
+       AND status = 'confirmed'`,
     [businessId, serviceId || null, dateStr]
   );
   const bookedSet = new Set(bookedRes.rows.map(r => r.slot));

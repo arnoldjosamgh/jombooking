@@ -72,13 +72,35 @@ router.post('/block', authenticate, requireFields('business_id', 'service_id', '
 router.post('/unblock', authenticate, async (req, res) => {
   try {
     const { business_id, service_id, slot_time } = req.body;
-    await db.query(
-      `DELETE FROM blocked_slots WHERE business_id=$1 AND service_id=$2 AND slot_time=$3`,
-      [business_id, service_id, slot_time]
-    );
+
+    if (!business_id || !slot_time) {
+      return res.status(400).json({ error: 'business_id and slot_time are required' });
+    }
+
+    // Cast slot_time consistently — stored as timestamptz, compare via UTC cast
+    let result;
+    if (service_id) {
+      result = await db.query(
+        `DELETE FROM blocked_slots
+         WHERE business_id = $1
+           AND (service_id = $2 OR service_id IS NULL)
+           AND TO_CHAR(slot_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') = $3`,
+        [business_id, service_id, slot_time]
+      );
+    } else {
+      result = await db.query(
+        `DELETE FROM blocked_slots
+         WHERE business_id = $1
+           AND TO_CHAR(slot_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') = $2`,
+        [business_id, slot_time]
+      );
+    }
+
+    console.log(`[services] unblock: deleted ${result.rowCount} row(s) for biz=${business_id} slot=${slot_time}`);
     res.json({ ok: true, blocked: false });
   } catch (err) {
-    res.status(500).json({ error: 'Server error' });
+    console.error('[services] POST /unblock error:', err.message, err.stack);
+    res.status(500).json({ error: err.message });
   }
 });
 

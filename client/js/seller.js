@@ -786,7 +786,6 @@ function renderTabs(type) {
   }
   html += `<button class="btn btn-outline" id="tab-pending" onclick="renderPending()">Pending</button>`;
   html += `<button class="btn btn-outline" id="tab-history" onclick="renderHistory()">History</button>`;
-  html += `<button class="btn btn-outline" id="tab-settings" onclick="openSettings()" style="margin-left:auto;">⚙️ Settings</button>`;
   
   tabs.innerHTML = html;
 }

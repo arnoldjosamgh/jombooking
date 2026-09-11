@@ -9,18 +9,22 @@
   <meta charset="UTF-8">
   <title>Jomish Business Suite</title>
   <script>
-    // Handle direct path routes (e.g. /order/slug, /book/slug)
-    const path = window.location.pathname;
+    // Handle direct path routes (e.g. /order/slug, /book/slug, /c/slug)
+    const pathSegments = window.location.pathname.split('/').filter(Boolean);
     
-    if (path.startsWith('/order/') && path.length > 7) {
-      const slug = path.slice(7);
-      window.location.replace(`/order.html?slug=${slug}`);
-    } else if (path.startsWith('/book/') && path.length > 6) {
-      const slug = path.slice(6);
-      window.location.replace(`/book.html?slug=${slug}`);
-    } else if (path.startsWith('/c/') && path.length > 3) {
-      const slug = path.slice(3);
-      window.location.replace(`/c.html?slug=${slug}`);
+    if (pathSegments.length >= 2) {
+      const type = pathSegments[0];
+      const slug = pathSegments[1];
+      
+      if (type === 'order') {
+        window.location.replace(`/order.html?slug=${slug}`);
+      } else if (type === 'book') {
+        window.location.replace(`/book.html?slug=${slug}`);
+      } else if (type === 'c') {
+        window.location.replace(`/c.html?slug=${slug}`);
+      } else {
+        window.location.replace('/login.html');
+      }
     } else {
       // Default: Go to Login
       window.location.replace('/login.html');

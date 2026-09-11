@@ -139,8 +139,18 @@ function toast(title, body = '', type = 'info', duration = 4000) {
 }
 
 // ─── Modal Helper ─────────────────────────────────────────────
-function openModal(id)  { document.getElementById(id)?.classList.add('active'); }
-function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+function openModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.display = 'flex';
+  setTimeout(() => el.classList.add('active'), 10);
+}
+function closeModal(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('active');
+  setTimeout(() => el.style.display = 'none', 200);
+}
 
 // ─── Format Helpers ────────────────────────────────────────────
 function formatTime(isoStr) {

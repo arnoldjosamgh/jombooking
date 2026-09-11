@@ -1017,7 +1017,7 @@ function openSettings() {
     cb.checked = days.includes(parseInt(cb.value));
   });
 
-  document.getElementById('settings-modal').style.display = 'flex';
+  openModal('settings-modal');
 }
 
 async function saveSettings(e) {

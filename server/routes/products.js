@@ -180,9 +180,17 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
 });
 
 // ─── GET /api/orders/list/:business_id ────────────────────────────────────────
+// Accepts business_id (numeric) OR business slug
 router.get('/list/:business_id', async (req, res) => {
   try {
     const { status } = req.query;
+    const bizParam = req.params.business_id;
+    // Determine if it's a slug or numeric id
+    const isNumeric = /^\d+$/.test(bizParam);
+    const bizFilter = isNumeric
+      ? 'o.business_id = $1'
+      : 'o.business_id = (SELECT id FROM businesses WHERE slug = $1 LIMIT 1)';
+
     let query = `
       SELECT o.id, o.quantity, o.status, o.created_at, o.total_price, o.notes, o.seller_id,
              p.title AS product_title, p.price,
@@ -192,9 +200,9 @@ router.get('/list/:business_id', async (req, res) => {
       JOIN products p ON o.product_id = p.id
       JOIN clients c ON o.client_id = c.id
       LEFT JOIN sellers s ON o.seller_id = s.id
-      WHERE o.business_id = $1
+      WHERE ${bizFilter}
     `;
-    const params = [req.params.business_id];
+    const params = [bizParam];
     if (status) { query += ` AND o.status = $2`; params.push(status); }
     query += ' ORDER BY o.created_at DESC LIMIT 100';
     const result = await db.query(query, params);

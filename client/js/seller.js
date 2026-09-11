@@ -711,6 +711,19 @@ function initSocket(biz) {
     toast(`📅 New Booking — ${data.clientName}`, `Booked for ${new Date(data.bookingTime).toLocaleString()}`, 'info', 6000);
     if (selectedBiz?.type === 'service') loadWeek();
   });
+
+  // Also listen for incoming client chat messages
+  socket.on('chat:message', async (msg) => {
+    if (typeof activeChatClient !== 'undefined' && activeChatClient && msg.client_id == activeChatClient) {
+      const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
+      renderChatMessages(messages);
+    } else if (msg.sender === 'client') {
+      toast('💬 New Message', 'New message from a client', 'info');
+    }
+  });
+
+  // Notify any listeners that socket is ready
+  window.dispatchEvent(new Event('socket:ready'));
 }
 
 // ─── PUSH NOTIFICATIONS ────────────────────────────────────────────────────────
@@ -997,6 +1010,7 @@ function openSettings() {
   document.getElementById('s-lunch-end').value = trimTime(selectedBiz.lunch_end);
   document.getElementById('s-duration').value = selectedBiz.session_duration_minutes || 30;
   document.getElementById('s-currency').value = selectedBiz.currency_symbol || 'UGX';
+  document.getElementById('s-phone').value = selectedBiz.phone_number || '';
   
   // open_days can be an array of ints or strings — normalize
   const days = (selectedBiz.open_days || []).map(d => parseInt(d));
@@ -1026,6 +1040,7 @@ async function saveSettings(e) {
       lunch_end: document.getElementById('s-lunch-end').value,
       session_duration_minutes: document.getElementById('s-duration').value,
       currency_symbol: document.getElementById('s-currency').value,
+      phone_number: document.getElementById('s-phone').value,
       open_days: days
     };
 
@@ -1176,14 +1191,30 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Listen for socket messages if io is available
-  if (window.socket) {
-    window.socket.on('chat:message', async (msg) => {
+  // Listen for socket messages
+  if (typeof socket !== 'undefined' && socket) {
+    socket.on('chat:message', async (msg) => {
       if (activeChatClient && msg.client_id == activeChatClient) {
         const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
         renderChatMessages(messages);
       } else if (msg.sender === 'client') {
-        toast('New Message', 'You received a new message from a client.', 'info');
+        toast('💬 New Message', `New message from a client`, 'info');
+        // Badge the chat tab if visible
+        pollPending();
+      }
+    });
+  } else {
+    // Socket hasn't been initialized yet, listen for it via event
+    window.addEventListener('socket:ready', () => {
+      if (socket) {
+        socket.on('chat:message', async (msg) => {
+          if (activeChatClient && msg.client_id == activeChatClient) {
+            const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
+            renderChatMessages(messages);
+          } else if (msg.sender === 'client') {
+            toast('💬 New Message', `New message from a client`, 'info');
+          }
+        });
       }
     });
   }

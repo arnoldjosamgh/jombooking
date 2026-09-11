@@ -13,7 +13,7 @@ router.get('/:slug', async (req, res) => {
     const result = await db.query(
       `SELECT id, name, type, slug, logo_url, open_time, close_time,
               open_days, session_duration_minutes, currency_symbol, pusher_channel,
-              lunch_start, lunch_end, status
+              lunch_start, lunch_end, status, phone_number
        FROM businesses WHERE slug = $1`,
       [slug]
     );
@@ -46,7 +46,7 @@ router.put('/:slug/logo', async (req, res) => {
   }
 });
 
-// PUT /api/businesses/:slug/settings — Update working hours, lunch, currency
+// PUT /api/businesses/:slug/settings — Update working hours, lunch, currency, phone
 router.put('/:slug/settings', authenticate, async (req, res) => {
   try {
     const { slug } = req.params;
@@ -57,7 +57,8 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
       session_duration_minutes,
       lunch_start,
       lunch_end,
-      currency_symbol
+      currency_symbol,
+      phone_number
     } = req.body;
 
     const result = await db.query(
@@ -68,7 +69,8 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
          session_duration_minutes = COALESCE($4, session_duration_minutes),
          lunch_start = $5,
          lunch_end = $6,
-         currency_symbol = COALESCE($7, currency_symbol)
+         currency_symbol = COALESCE($7, currency_symbol),
+         phone_number = $9
        WHERE slug = $8 RETURNING id, slug`,
       [
         open_time || null,
@@ -78,7 +80,8 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
         lunch_start || null,
         lunch_end || null,
         currency_symbol || null,
-        slug
+        slug,
+        phone_number || null
       ]
     );
     if (result.rows.length === 0) {

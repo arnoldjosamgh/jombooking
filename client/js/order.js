@@ -29,14 +29,32 @@ window.addEventListener('DOMContentLoaded', async () => {
     document.title = `Order — ${business.name} | Jomish`;
     renderHeader();
 
+    // Show call button if business has a phone number
+    if (business.phone_number) {
+      const callBtn = document.getElementById('call-btn');
+      if (callBtn) {
+        callBtn.href = `tel:${business.phone_number}`;
+        callBtn.style.display = 'flex';
+      }
+    }
+
+    // Update chat title
+    const chatTitle = document.getElementById('client-chat-title');
+    if (chatTitle) chatTitle.textContent = `💬 Chat with ${business.name}`;
+
     showRegistrationModal((c) => {
       client = c;
       loadProducts();
+      
+      // Show floating chat button once client is registered
+      const floatBtn = document.getElementById('float-chat-btn');
+      if (floatBtn) floatBtn.style.display = 'flex';
     });
   } catch (err) {
     renderError('Business not found. Check your link and try again.');
   }
 });
+
 
 // ─── Load Products ─────────────────────────────────────────────
 async function loadProducts() {
@@ -370,3 +388,81 @@ function renderError(msg) {
     </div>
   `;
 }
+
+function formatTime(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+// ─── STANDALONE FLOATING CHAT (available anytime) ──────────────────────────────
+let clientChatOpen = false;
+let clientChatLoaded = false;
+
+function toggleClientChat() {
+  const modal = document.getElementById('client-chat-modal');
+  if (!modal) return;
+  clientChatOpen = !clientChatOpen;
+  modal.style.display = clientChatOpen ? 'flex' : 'none';
+  if (clientChatOpen && !clientChatLoaded) {
+    loadClientChatHistory();
+    clientChatLoaded = true;
+    if (socket && business && client) {
+      socket.emit('join:chat', { businessId: business.id, clientId: client.id });
+      socket.on('chat:message', (msg) => {
+        renderClientChatMsg(msg);
+        // Also render in embedded chat if it exists
+        if (typeof renderMsg === 'function') renderMsg(msg);
+      });
+    }
+  }
+  if (clientChatOpen) {
+    setTimeout(() => {
+      const box = document.getElementById('client-chat-msgs');
+      if (box) box.scrollTop = box.scrollHeight;
+    }, 50);
+  }
+}
+
+async function loadClientChatHistory() {
+  if (!business || !client) return;
+  try {
+    const msgs = await apiFetch(`/api/messages/${business.id}/${client.id}`);
+    msgs.forEach(renderClientChatMsg);
+  } catch { /* no history */ }
+}
+
+function renderClientChatMsg(msg) {
+  const box = document.getElementById('client-chat-msgs');
+  if (!box) return;
+  const isMe = msg.sender === 'client';
+  const el = document.createElement('div');
+  el.style.cssText = `display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'};`;
+  el.innerHTML = `
+    <div style="max-width:85%; padding:8px 12px; border-radius:12px; font-size:0.84rem; ${isMe ? 'background:#5b67f6; color:#fff;' : 'background:#e2e8f0; color:#1a2461;'}">
+      ${msg.content}
+    </div>
+    <div style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">${formatTime(msg.created_at)}</div>
+  `;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function sendClientMsg() {
+  const input = document.getElementById('client-chat-input');
+  if (!input) return;
+  const content = input.value.trim();
+  if (!content || !client || !business) return;
+  input.value = '';
+  try {
+    const msg = await apiFetch('/api/messages', {
+      method: 'POST',
+      body: { business_id: business.id, client_id: client.id, sender: 'client', content }
+    });
+    // Message rendering is handled by socket, but we render it optimistically
+    renderClientChatMsg(msg);
+    if (typeof renderMsg === 'function') renderMsg(msg);
+  } catch (err) {
+    toast('Send failed', err.message, 'error');
+  }
+}
+

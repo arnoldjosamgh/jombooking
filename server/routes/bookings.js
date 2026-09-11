@@ -154,9 +154,16 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
 });
 
 // ─── GET /api/bookings/list/:business_id ──────────────────────────────────────
+// Accepts business_id (numeric) OR business slug
 router.get('/list/:business_id', async (req, res) => {
   try {
     const { date, status, service_id } = req.query;
+    const bizParam = req.params.business_id;
+    const isNumeric = /^\d+$/.test(bizParam);
+    const bizFilter = isNumeric
+      ? 'b.business_id = $1'
+      : 'b.business_id = (SELECT id FROM businesses WHERE slug = $1 LIMIT 1)';
+
     let query = `
       SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id, b.seller_id,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
@@ -166,9 +173,9 @@ router.get('/list/:business_id', async (req, res) => {
       JOIN clients c  ON b.client_id = c.id
       LEFT JOIN services s ON b.service_id = s.id
       LEFT JOIN sellers sel ON b.seller_id = sel.id
-      WHERE b.business_id = $1
+      WHERE ${bizFilter}
     `;
-    const params = [req.params.business_id];
+    const params = [bizParam];
     if (date)       { params.push(date);       query += ` AND DATE(b.booking_time) = $${params.length}::date`; }
     if (status)     { params.push(status);     query += ` AND b.status = $${params.length}`; }
     if (service_id) { params.push(service_id); query += ` AND b.service_id = $${params.length}`; }

@@ -52,14 +52,16 @@ app.use(express.static(path.join(__dirname, '..', 'client')));
 const { authenticate } = require('./routes/auth');
 const { demoGuard } = require('./middleware/demo');
 
-app.use('/api/auth',       require('./routes/auth').router);  // Auth first (populates req.user)
-// Apply demo guard AFTER auth so req.user is set
-app.use('/api', (req, res, next) => {
-  // Attempt to authenticate (don't block if token missing — routes handle that)
-  authenticate(req, res, () => { demoGuard(req, res, next); });
-});
+// ─── Public Routes (no auth required) ──────────────────────────────
+// These must be registered BEFORE the auth middleware
+app.use('/api/auth',       require('./routes/auth').router);
 app.use('/api/businesses', require('./routes/businesses'));
 app.use('/api/clients',    require('./routes/clients'));
+
+// ─── Auth Middleware for protected routes ────────────────────────────
+app.use('/api', (req, res, next) => {
+  authenticate(req, res, () => { demoGuard(req, res, next); });
+});
 app.use('/api/products',   require('./routes/products'));
 app.use('/api/orders',     require('./routes/products'));   // products router handles both
 app.use('/api/services',   require('./routes/services'));   // service catalog + slot blocking

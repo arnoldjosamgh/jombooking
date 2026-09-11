@@ -325,7 +325,7 @@ function showBookingSuccess() {
           </div>
         </div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center">
-          <button class="btn btn-primary" onclick="downloadReceipt()">📥 Download Receipt</button>
+          <button class="btn btn-primary" onclick="downloadReceipt()">📥 Download Invoice</button>
           <button class="btn btn-outline" onclick="window.location.reload()">Book Another</button>
         </div>
       </div>
@@ -336,12 +336,12 @@ function showBookingSuccess() {
   showPwaPromptIfAvailable();
 }
 
-// ─── RECEIPT DOWNLOAD ──────────────────────────────────────────────────────────
+// ─── INVOICE DOWNLOAD ────────────────────────────────────────────────────────────
 function downloadReceipt() {
   const lines = [
     '=============================',
     '       JOMISH BOOKING        ',
-    '       RECEIPT               ',
+    '       INVOICE               ',
     '=============================',
     `Business  : ${business.name}`,
     `Client    : ${client.name}`,
@@ -359,7 +359,7 @@ function downloadReceipt() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = `Jomish-Receipt-${booking.id}.txt`;
+  a.download = `Jomish-Invoice-${booking.id}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }

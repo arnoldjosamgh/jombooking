@@ -202,13 +202,13 @@ router.get('/list/:business_id', async (req, res) => {
 // ─── PATCH /api/bookings/:id/status ───────────────────────────────────────────
 router.patch('/:id/status', authenticate, async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, final_price } = req.body;
     if (!['confirmed', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(
-      `UPDATE bookings SET status = $1, seller_id = $2 WHERE id = $3 RETURNING id, status`,
-      [status, req.user.id, req.params.id]
+      `UPDATE bookings SET status = $1, seller_id = $2, final_price = COALESCE($3, final_price) WHERE id = $4 RETURNING id, status, final_price`,
+      [status, req.user.id, final_price !== undefined ? final_price : null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
     res.json(result.rows[0]);

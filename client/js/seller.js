@@ -707,11 +707,9 @@ async function showBookingAtTime(slotTime) {
       completeBtn.style.display = 'inline-flex';
       cancelBtn.style.display = 'inline-block';
       
-      completeBtn.onclick = async () => {
-        await apiFetch(`/api/bookings/${match.id}/status`, { method: 'PATCH', body: { status: 'completed' } });
+      completeBtn.onclick = () => {
         closeModal('booking-modal');
-        loadWeek();
-        toast('Done', 'Booking marked as completed', 'success');
+        completeBooking(match);
       };
       
       // Store ID for cancel modal
@@ -1063,7 +1061,7 @@ async function renderPending() {
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')">✉️ Message</button>
-              <button class="btn btn-primary btn-sm" onclick="completeBooking(${b.id})">Mark Completed</button>
+              <button class="btn btn-primary btn-sm" onclick='completeBooking(${JSON.stringify(b).replace(/'/g, "&#39;")})'>Mark Completed</button>
             </div>
           </div>
         `).join('');
@@ -1224,15 +1222,68 @@ async function completeOrder(orderId) {
   }
 }
 
-async function completeBooking(bookingId) {
+let currentBookingToComplete = null;
+
+function completeBooking(booking) {
+  currentBookingToComplete = booking;
+  document.getElementById('complete-booking-id').value = booking.id;
+  document.getElementById('complete-final-price').value = booking.service_price || 0;
+  
+  const modal = document.getElementById('complete-modal');
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+}
+
+async function confirmCompleteBooking() {
+  const priceInput = document.getElementById('complete-final-price').value;
+  const finalPrice = parseFloat(priceInput) || 0;
+  const bk = currentBookingToComplete;
+  if (!bk) return;
+
   try {
-    await apiFetch(`/api/bookings/${bookingId}/status`, { method: 'PATCH', body: { status: 'completed' }});
+    const res = await apiFetch(`/api/bookings/${bk.id}/status`, { 
+      method: 'PATCH', 
+      body: { status: 'completed', final_price: finalPrice }
+    });
+    
+    closeModal('complete-modal');
     toast('Success', 'Booking marked as completed.', 'success');
     renderPending();
     pollPending(); // update badge
+    
+    // Generate PDF receipt
+    generateReceiptPDF(bk, finalPrice);
   } catch(e) {
     toast('Error', e.message, 'error');
   }
+}
+
+function generateReceiptPDF(bk, finalPrice) {
+  // Populate the hidden template
+  document.getElementById('receipt-biz-name').textContent = bk.business_name || selectedBiz.name;
+  document.getElementById('receipt-biz-location').textContent = bk.business_location || selectedBiz.location || '';
+  document.getElementById('receipt-id').textContent = bk.receipt_number || bk.id;
+  document.getElementById('receipt-date').textContent = new Date().toLocaleString();
+  document.getElementById('receipt-client').textContent = bk.client_name;
+  document.getElementById('receipt-service').textContent = bk.service_name || 'Service';
+  document.getElementById('receipt-price').textContent = '$' + finalPrice.toFixed(2);
+  document.getElementById('receipt-total').textContent = '$' + finalPrice.toFixed(2);
+  
+  const element = document.getElementById('receipt-content');
+  // Temporarily show container so html2pdf can read it
+  document.getElementById('receipt-container').style.display = 'block';
+  
+  const opt = {
+    margin:       0,
+    filename:     `Receipt-${bk.receipt_number || bk.id}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'mm', format: [80, 150], orientation: 'portrait' }
+  };
+  
+  html2pdf().set(opt).from(element).save().then(() => {
+    document.getElementById('receipt-container').style.display = 'none';
+  });
 }
 
 async function pollPending() {
@@ -1550,10 +1601,9 @@ function renderChatMessages(messages) {
 }
 
 // Bind chat form
-document.addEventListener('DOMContentLoaded', () => {
-  const chatForm = document.getElementById('chat-form');
-  if (chatForm) {
-    chatForm.addEventListener('submit', async (e) => {
+const chatForm = document.getElementById('chat-form');
+if (chatForm) {
+  chatForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const input = document.getElementById('chat-input');
       const content = input.value.trim();
@@ -1611,4 +1661,3 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
-});

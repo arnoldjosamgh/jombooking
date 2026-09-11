@@ -80,7 +80,7 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
 
     // Success — generate token
     const token = jwt.sign({ id: seller.id, role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, seller: { id: seller.id, username: seller.username, role, name: seller.name }, business_slug });
+    res.json({ token, seller: { id: seller.id, username: seller.username, role, name: seller.name }, business_slug, has_biometrics: !!seller.webauthn_cred_id });
   } catch (err) {
     console.error('[auth] Login error:', err.message);
     res.status(500).json({ error: 'Server error' });

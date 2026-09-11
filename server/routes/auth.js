@@ -181,7 +181,7 @@ router.post('/webauthn/register-options', authenticate, async (req, res) => {
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
       rpID: RP_ID,
-      userID: String(sellerId), // Must be string or Buffer
+      userID: new Uint8Array(Buffer.from(String(sellerId))),
       userName: seller.rows[0].username,
       attestationType: 'none',
       authenticatorSelection: {

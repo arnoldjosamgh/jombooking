@@ -48,7 +48,16 @@ app.use(express.urlencoded({ extended: true }));
 // Serve PWA static frontend
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
-// ─── API Routes ───────────────────────────────────────────────────────────────
+// ─── API Routes ─────────────────────────────────────────────────────
+const { authenticate } = require('./routes/auth');
+const { demoGuard } = require('./middleware/demo');
+
+app.use('/api/auth',       require('./routes/auth').router);  // Auth first (populates req.user)
+// Apply demo guard AFTER auth so req.user is set
+app.use('/api', (req, res, next) => {
+  // Attempt to authenticate (don't block if token missing — routes handle that)
+  authenticate(req, res, () => { demoGuard(req, res, next); });
+});
 app.use('/api/businesses', require('./routes/businesses'));
 app.use('/api/clients',    require('./routes/clients'));
 app.use('/api/products',   require('./routes/products'));
@@ -57,7 +66,6 @@ app.use('/api/services',   require('./routes/services'));   // service catalog +
 app.use('/api/slots',      require('./routes/bookings'));
 app.use('/api/bookings',   require('./routes/bookings'));
 app.use('/api/messages',   require('./routes/messages'));
-app.use('/api/auth',       require('./routes/auth').router);
 app.use('/api/tech',       require('./routes/tech'));
 app.use('/api/push',       require('./routes/push').router);
 

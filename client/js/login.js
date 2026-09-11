@@ -141,6 +141,11 @@ function handleLoginSuccess(data) {
   if (data.business_slug) {
     localStorage.setItem('business_slug', data.business_slug);
   }
+  if (data.seller.is_demo) {
+    localStorage.setItem('is_demo', '1');
+  } else {
+    localStorage.removeItem('is_demo');
+  }
 
   setTimeout(() => {
     if (data.seller.role === 'tech') {
@@ -149,4 +154,17 @@ function handleLoginSuccess(data) {
       window.location.href = '/seller.html';
     }
   }, 300);
+}
+
+// ─── DEMO LOGIN ────────────────────────────────────────────────────────────────
+async function demoLogin(type) {
+  try {
+    const btn = event && event.target ? event.target.closest('button') : null;
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+    const data = await apiFetch('/api/auth/demo-login', { method: 'POST', body: { type } });
+    handleLoginSuccess(data);
+  } catch (err) {
+    toast('Demo Error', err.message || 'Could not start demo. Try again.', 'error');
+    document.querySelectorAll('[onclick^="demoLogin"]').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
+  }
 }

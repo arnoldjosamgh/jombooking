@@ -68,8 +68,8 @@ router.post('/block', authenticate, requireFields('business_id', 'service_id', '
   }
 });
 
-// ─── DELETE /api/services/block — Unblock a slot ─────────────────────────────
-router.delete('/block', authenticate, async (req, res) => {
+// ─── POST /api/services/unblock — Unblock a slot ─────────────────────────────
+router.post('/unblock', authenticate, async (req, res) => {
   try {
     const { business_id, service_id, slot_time } = req.body;
     await db.query(

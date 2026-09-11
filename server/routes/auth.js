@@ -71,7 +71,37 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
   }
 });
 
-// ─── Setup Password via Magic Link ───
+// ─── Demo Login — Read-only simulator mode ───
+router.post('/demo-login', async (req, res) => {
+  try {
+    const { type } = req.body; // 'product' or 'service'
+    const demoSlug = type === 'service' ? 'jomish-salon' : 'jomish-cafe';
+
+    // Check if the demo business exists
+    const bizRes = await db.query('SELECT id, slug, name FROM businesses WHERE slug = $1', [demoSlug]);
+    let bizSlug = demoSlug;
+    if (bizRes.rows.length > 0) {
+      bizSlug = bizRes.rows[0].slug;
+    }
+
+    // Issue a special demo token (does not correspond to a real seller)
+    const token = jwt.sign(
+      { id: 0, role: 'owner', username: 'DEMO', is_demo: true, demo_type: type || 'product' },
+      JWT_SECRET,
+      { expiresIn: '2h' }
+    );
+
+    res.json({
+      token,
+      seller: { id: 0, username: 'DEMO', role: 'owner', name: 'Demo User', is_demo: true },
+      business_slug: bizSlug
+    });
+  } catch (err) {
+    console.error('[auth] Demo login error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/setup-password', requireFields('token', 'password'), async (req, res) => {
   try {
     const { token, password } = req.body;

@@ -53,7 +53,29 @@
       <button type="submit" class="btn-neon-cyan" id="login-btn">Sign In</button>
     </form>
 
-    <div style="margin-top: 32px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing:0.05em;">JOMISH ENTERPRISE WORKFORCE PLATFORM</div>
+    <!-- Demo Simulator Section -->
+    <div style="margin-top:32px; border-top: 1px solid rgba(255,255,255,0.08); padding-top:24px;">
+      <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:16px;">
+        ⚡ Try Demo Simulator — No Login Required
+      </div>
+      <div style="display:flex; gap:12px;">
+        <button onclick="demoLogin('product')" style="flex:1; padding:12px 8px; background:linear-gradient(135deg,#1a2461,#0d1240); border:1px solid rgba(91,103,246,0.5); color:#fff; border-radius:10px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.borderColor='#5b67f6'" onmouseout="this.style.borderColor='rgba(91,103,246,0.5)'">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          <span>Product POS</span>
+          <span style="font-size:0.68rem; color:var(--text-muted);">Café / Shop demo</span>
+        </button>
+        <button onclick="demoLogin('service')" style="flex:1; padding:12px 8px; background:linear-gradient(135deg,#1a2461,#0d1240); border:1px solid rgba(16,185,129,0.5); color:#fff; border-radius:10px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='rgba(16,185,129,0.5)'">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Service Calendar</span>
+          <span style="font-size:0.68rem; color:var(--text-muted);">Salon / Clinic demo</span>
+        </button>
+      </div>
+      <p style="margin-top:12px; font-size:0.7rem; color:var(--text-muted); line-height:1.5;">
+        Demo mode lets you explore all features. No data will be saved.
+      </p>
+    </div>
+
+    <div style="margin-top: 24px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing:0.05em;">JOMISH ENTERPRISE WORKFORCE PLATFORM</div>
   </div>
 
   <div id="toast-container"></div>

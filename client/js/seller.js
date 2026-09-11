@@ -59,6 +59,12 @@ function setupBiz(biz) {
   document.getElementById('seller-content').style.display = 'block';
   document.getElementById('dashboard-title').textContent = biz.name;
 
+  // Show demo banner if applicable
+  if (localStorage.getItem('is_demo') === '1') {
+    const banner = document.getElementById('demo-banner');
+    if (banner) banner.style.display = 'block';
+  }
+
   if (biz.logo_url) {
     const brandIconContainer = document.querySelector('.brand-icon');
     if (brandIconContainer) {
@@ -77,10 +83,18 @@ function setupBiz(biz) {
     renderCalendar();
   }
 
+  // Wire up settings form
+  const sf = document.getElementById('settings-form');
+  if (sf && !sf._bound) {
+    sf._bound = true;
+    sf.addEventListener('submit', saveSettings);
+  }
+
   initSocket(biz);
   checkFirstLogin(biz);
   pollPending(); // Initial poll for pending orders
 }
+
 
 // ─── FIRST LOGIN ONBOARDING ────────────────────────────────────────────────────
 function checkFirstLogin(biz) {
@@ -616,8 +630,9 @@ async function toggleBlockSlot(slotTime, currentlyBlocked) {
   if (!selectedSvcId) return;
   try {
     if (currentlyBlocked) {
-      await apiFetch('/api/services/block', { method: 'DELETE', body: { business_id: selectedBiz.id, service_id: selectedSvcId, slot_time: slotTime } });
-      toast('Unblocked', 'Slot is now available', 'success');
+      // Use POST /unblock to avoid browser/proxy dropping DELETE body
+      await apiFetch('/api/services/unblock', { method: 'POST', body: { business_id: selectedBiz.id, service_id: selectedSvcId, slot_time: slotTime } });
+      toast('Unblocked', 'Slot is now available again', 'success');
     } else {
       if (!confirm('Block this slot? Clients won\'t be able to book it.')) return;
       await apiFetch('/api/services/block', { method: 'POST', body: { business_id: selectedBiz.id, service_id: selectedSvcId, slot_time: slotTime } });
@@ -791,7 +806,10 @@ async function renderPending() {
               <strong>${o.product_title}</strong> (x${o.quantity})<br>
               <span class="text-dim text-sm">${o.client_name} • ${new Date(o.created_at).toLocaleString()}</span>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="completeOrder(${o.id})">Mark Delivered</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')">✉️ Message</button>
+              <button class="btn btn-primary btn-sm" onclick="completeOrder(${o.id})">Mark Delivered</button>
+            </div>
           </div>
         `).join('');
         html += '</div>';
@@ -810,7 +828,10 @@ async function renderPending() {
               <strong>${b.service_name || 'Booking'}</strong><br>
               <span class="text-dim text-sm">${b.client_name} • ${new Date(b.booking_time).toLocaleString()}</span>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="completeBooking(${b.id})">Mark Completed</button>
+            <div style="display:flex; gap:8px;">
+              <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')">✉️ Message</button>
+              <button class="btn btn-primary btn-sm" onclick="completeBooking(${b.id})">Mark Completed</button>
+            </div>
           </div>
         `).join('');
         html += '</div>';
@@ -846,7 +867,8 @@ async function renderHistory() {
         client: o.client_name,
         date: new Date(o.created_at),
         seller: o.seller_username || 'Unknown',
-        price: o.total_price
+        price: o.total_price,
+        raw: o
       })));
     }
     
@@ -858,11 +880,13 @@ async function renderHistory() {
         client: b.client_name,
         date: new Date(b.booking_time),
         seller: b.seller_username || 'Unknown',
-        price: b.service_price
+        price: b.service_price,
+        raw: b
       })));
     }
     
     items.sort((a,b) => b.date - a.date); // Sort newest first
+    window._historyData = items;
     
     if (items.length === 0) {
       list.innerHTML = '<div class="text-dim">No transaction history.</div>';
@@ -877,7 +901,8 @@ async function renderHistory() {
         </div>
         <div style="text-align:right">
           <div class="font-bold">${formatCurrency(i.price || 0)}</div>
-          <div class="text-xs" style="color:var(--accent-green);font-weight:bold;">Sold by: ${i.seller}</div>
+          <div class="text-xs" style="color:var(--accent-green);font-weight:bold;margin-bottom:6px;">Sold by: ${i.seller}</div>
+          <button class="btn btn-outline" style="padding:4px 8px;font-size:0.7rem;" onclick="showReceipt(${i.raw.id}, '${i.type === 'Product' ? 'order' : 'booking'}')">Receipt</button>
         </div>
       </div>
     `).join('') + '</div>';
@@ -943,7 +968,207 @@ async function pollPending() {
   } catch(e) {
     console.error('Error polling pending:', e);
   }
+  }
 }
 
 // Poll every 30 seconds
 setInterval(pollPending, 30000);
+
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function openSettings() {
+  document.getElementById('s-open-time').value = selectedBiz.open_time || '';
+  document.getElementById('s-close-time').value = selectedBiz.close_time || '';
+  document.getElementById('s-lunch-start').value = selectedBiz.lunch_start || '';
+  document.getElementById('s-lunch-end').value = selectedBiz.lunch_end || '';
+  document.getElementById('s-duration').value = selectedBiz.session_duration_minutes || 30;
+  document.getElementById('s-currency').value = selectedBiz.currency_symbol || 'UGX';
+  
+  const days = selectedBiz.open_days || [];
+  document.querySelectorAll('#s-open-days input[type="checkbox"]').forEach(cb => {
+    cb.checked = days.includes(parseInt(cb.value));
+  });
+
+  document.getElementById('settings-modal').style.display = 'flex';
+}
+
+async function saveSettings(e) {
+  e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const days = [];
+    document.querySelectorAll('#s-open-days input[type="checkbox"]:checked').forEach(cb => {
+      days.push(parseInt(cb.value));
+    });
+
+    const payload = {
+      open_time: document.getElementById('s-open-time').value,
+      close_time: document.getElementById('s-close-time').value,
+      lunch_start: document.getElementById('s-lunch-start').value,
+      lunch_end: document.getElementById('s-lunch-end').value,
+      session_duration_minutes: document.getElementById('s-duration').value,
+      currency_symbol: document.getElementById('s-currency').value,
+      open_days: days
+    };
+
+    await apiFetch(`/api/businesses/${selectedBiz.slug}/settings`, {
+      method: 'PUT',
+      body: payload
+    });
+
+    toast('Settings Saved', 'Your business settings have been updated.', 'success');
+    closeModal('settings-modal');
+    
+    // Refresh biz data
+    const updatedBiz = await apiFetch(`/api/businesses/${selectedBiz.slug}`);
+    setupBiz(updatedBiz);
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Settings';
+  }
+}
+
+// ─── RECEIPTS ─────────────────────────────────────────────────────────────────
+function showReceipt(transactionId, type) {
+  const t = window._historyData.find(x => x.id === transactionId && x._type === type);
+  if (!t) return;
+  
+  const date = new Date(t.created_at).toLocaleString();
+  const title = type === 'order' ? `${t.product_title} ×${t.quantity}` : `${t.service_name || 'Booking'}`;
+  const price = type === 'order' ? t.price * t.quantity : t.service_price || 0;
+  
+  document.getElementById('receipt-content').innerHTML = `
+    <div style="text-align:center; margin-bottom:24px;">
+      <h2 style="margin:0; font-size:1.5rem; color:var(--text-primary);">${selectedBiz.name}</h2>
+      <div style="color:var(--text-muted); font-size:0.85rem;">Official Receipt</div>
+    </div>
+    <div style="border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; padding:16px 0; margin-bottom:24px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted)">Date:</span>
+        <span style="font-weight:600">${date}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted)">Client:</span>
+        <span style="font-weight:600">${t.client_name}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted)">Item:</span>
+        <span style="font-weight:600">${title}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted)">Served By:</span>
+        <span style="font-weight:600">${t.seller_username || 'Staff'}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <span style="color:var(--text-muted)">Status:</span>
+        <span style="font-weight:600; text-transform:uppercase;">${t.status}</span>
+      </div>
+    </div>
+    <div style="display:flex; justify-content:space-between; font-size:1.2rem; font-weight:700;">
+      <span>TOTAL</span>
+      <span>${formatCurrency(price, selectedBiz.currency_symbol)}</span>
+    </div>
+    <div style="text-align:center; margin-top:32px; font-size:0.75rem; color:var(--text-muted);">
+    </div>
+  `;
+  document.getElementById('receipt-modal').style.display = 'flex';
+}
+
+// ─── CHAT ──────────────────────────────────────────────────────────────────────
+let activeChatClient = null;
+
+async function openChat(clientId, clientName) {
+  activeChatClient = clientId;
+  document.getElementById('chat-title').innerHTML = `
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    Chat with ${clientName}
+  `;
+  document.getElementById('chat-messages').innerHTML = '<div class="spinner"></div>';
+  document.getElementById('chat-modal').style.display = 'flex';
+
+  try {
+    const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${clientId}`);
+    renderChatMessages(messages);
+  } catch (err) {
+    document.getElementById('chat-messages').innerHTML = `<div class="text-red">Failed to load chat: ${err.message}</div>`;
+  }
+}
+
+function closeChat() {
+  document.getElementById('chat-modal').style.display = 'none';
+  activeChatClient = null;
+}
+
+function renderChatMessages(messages) {
+  const container = document.getElementById('chat-messages');
+  if (messages.length === 0) {
+    container.innerHTML = '<div class="text-dim text-center mt-24">No messages yet. Send a message to start chatting!</div>';
+    return;
+  }
+  container.innerHTML = messages.map(m => {
+    const isMe = m.sender === 'seller';
+    return `
+      <div style="display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}">
+        <div style="max-width:80%; padding:10px 14px; border-radius:12px; font-size:0.85rem; ${isMe ? 'background:#5b67f6; color:#fff;' : 'background:#e2e8f0; color:#1a2461;'}">
+          ${m.content}
+        </div>
+        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">
+          ${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+        </div>
+      </div>
+    `;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+// Bind chat form
+document.addEventListener('DOMContentLoaded', () => {
+  const chatForm = document.getElementById('chat-form');
+  if (chatForm) {
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('chat-input');
+      const content = input.value.trim();
+      if (!content || !activeChatClient) return;
+
+      const btn = chatForm.querySelector('button');
+      btn.disabled = true;
+
+      try {
+        await apiFetch('/api/messages', {
+          method: 'POST',
+          body: {
+            business_id: selectedBiz.id,
+            client_id: activeChatClient,
+            sender: 'seller',
+            content: content
+          }
+        });
+        input.value = '';
+        // Re-fetch messages
+        const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
+        renderChatMessages(messages);
+      } catch (err) {
+        toast('Message Error', err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  }
+  
+  // Listen for socket messages if io is available
+  if (window.socket) {
+    window.socket.on('chat:message', async (msg) => {
+      if (activeChatClient && msg.client_id == activeChatClient) {
+        const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
+        renderChatMessages(messages);
+      } else if (msg.sender === 'client') {
+        toast('New Message', 'You received a new message from a client.', 'info');
+      }
+    });
+  }
+});

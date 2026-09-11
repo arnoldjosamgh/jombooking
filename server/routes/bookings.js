@@ -18,12 +18,12 @@ const { sendPushToSeller } = require('./push');
 async function generateSlots(businessId, dateStr, serviceId) {
   // Get business hours
   const bizResult = await db.query(
-    `SELECT open_time, close_time, session_duration_minutes, open_days
+    `SELECT open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end
      FROM businesses WHERE id = $1`,
     [businessId]
   );
   if (bizResult.rows.length === 0) throw new Error('Business not found');
-  const { open_time, close_time, session_duration_minutes, open_days } = bizResult.rows[0];
+  const { open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end } = bizResult.rows[0];
 
   // Check if business is open on this day
   const date = new Date(dateStr + 'T00:00:00');
@@ -42,9 +42,20 @@ async function generateSlots(businessId, dateStr, serviceId) {
   const openMinutes  = openH * 60 + openM;
   const closeMinutes = closeH * 60 + closeM;
 
-  // Build all possible slot timestamps
+  // Lunch window in minutes (if set)
+  let lunchStartMin = null, lunchEndMin = null;
+  if (lunch_start && lunch_end) {
+    const [lsh, lsm] = lunch_start.split(':').map(Number);
+    const [leh, lem] = lunch_end.split(':').map(Number);
+    lunchStartMin = lsh * 60 + lsm;
+    lunchEndMin   = leh * 60 + lem;
+  }
+
+  // Build all possible slot timestamps, skipping lunch
   const allSlots = [];
   for (let m = openMinutes; m + duration <= closeMinutes; m += duration) {
+    // Skip slots that overlap with the lunch break
+    if (lunchStartMin !== null && m < lunchEndMin && m + duration > lunchStartMin) continue;
     const h   = Math.floor(m / 60);
     const min = m % 60;
     allSlots.push(`${dateStr}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`);

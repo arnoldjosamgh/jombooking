@@ -53,10 +53,16 @@ const { authenticate } = require('./routes/auth');
 const { demoGuard } = require('./middleware/demo');
 
 // ─── Public Routes (no auth required) ──────────────────────────────
-// These must be registered BEFORE the auth middleware
+// These must be registered BEFORE the auth middleware so
+// unauthenticated clients (QR scan, chat, booking, push) can access them
 app.use('/api/auth',       require('./routes/auth').router);
 app.use('/api/businesses', require('./routes/businesses'));
 app.use('/api/clients',    require('./routes/clients'));
+app.use('/api/services',   require('./routes/services'));   // clients need service catalog
+app.use('/api/slots',      require('./routes/bookings'));   // clients need to see available slots
+app.use('/api/bookings',   require('./routes/bookings'));   // clients need to create bookings
+app.use('/api/messages',   require('./routes/messages'));   // clients need to chat
+app.use('/api/push',       require('./routes/push').router); // push VAPID key is public
 
 // ─── Auth Middleware for protected routes ────────────────────────────
 app.use('/api', (req, res, next) => {
@@ -64,12 +70,7 @@ app.use('/api', (req, res, next) => {
 });
 app.use('/api/products',   require('./routes/products'));
 app.use('/api/orders',     require('./routes/products'));   // products router handles both
-app.use('/api/services',   require('./routes/services'));   // service catalog + slot blocking
-app.use('/api/slots',      require('./routes/bookings'));
-app.use('/api/bookings',   require('./routes/bookings'));
-app.use('/api/messages',   require('./routes/messages'));
 app.use('/api/tech',       require('./routes/tech'));
-app.use('/api/push',       require('./routes/push').router);
 
 // ─── Pusher: Notify Seller on Order (I'm Waiting button) ─────────────────────
 app.post('/api/notify/order', async (req, res) => {

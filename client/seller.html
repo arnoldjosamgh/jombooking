@@ -18,6 +18,8 @@
   <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
   <!-- Lucide SVG icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- SimpleWebAuthn for biometric setup -->
+  <script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
 </head>
 <body class="bg-light" style="overflow: hidden;">
 
@@ -296,6 +298,19 @@
         <div class="flex justify-end gap-8 mt-24">
           <button type="button" class="btn btn-outline" onclick="closeModal('settings-modal')">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Settings</button>
+        </div>
+
+        <!-- Push Notifications -->
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid #e2e8f0;">
+          <div style="font-size:0.8rem; color:#64748b; font-weight:600; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">🔔 Notifications &amp; Security</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <button type="button" id="push-enable-btn" onclick="enablePushNotifications()" class="btn btn-outline" style="justify-content:flex-start; gap:10px; font-size:0.88rem;">
+              🔔 Enable Push Notifications
+            </button>
+            <button type="button" id="bio-setup-btn" onclick="setupBiometrics()" class="btn btn-outline" style="justify-content:flex-start; gap:10px; font-size:0.88rem;">
+              👆 Set Up Biometric Login
+            </button>
+          </div>
         </div>
       </form>
     </div>

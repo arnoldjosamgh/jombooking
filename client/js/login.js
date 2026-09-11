@@ -21,15 +21,25 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (lastUser) {
     // Pre-fill the username so the form is ready if biometrics fail
     document.getElementById('username').value = lastUser;
-    // Try biometrics silently
-    await attemptBiometricLogin(lastUser);
+
+    // Show biometric button if user previously registered biometrics
+    if (localStorage.getItem('bio_registered_' + lastUser)) {
+      const bioSection = document.getElementById('bio-login-section');
+      if (bioSection) bioSection.style.display = 'block';
+      // Also silently attempt biometric login on page load
+      await attemptBiometricLogin(lastUser);
+    }
   }
 
-  // Force uppercase while typing
+  // Force uppercase while typing — update bio button visibility on change
   document.getElementById('username').addEventListener('input', function () {
     const pos = this.selectionStart;
     this.value = this.value.toUpperCase();
     this.setSelectionRange(pos, pos);
+    const bioSection = document.getElementById('bio-login-section');
+    if (bioSection) {
+      bioSection.style.display = localStorage.getItem('bio_registered_' + this.value) ? 'block' : 'none';
+    }
   });
 
   document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -62,6 +72,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
+
+// Manual biometric login trigger (button tap)
+async function triggerBiometricLogin() {
+  const username = document.getElementById('username').value.trim();
+  if (!username) {
+    toast('Enter Username', 'Please type your username first', 'error');
+    return;
+  }
+  const btn = document.getElementById('bio-login-btn');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+  await attemptBiometricLogin(username);
+  if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+}
 
 // ─── SILENT BIOMETRIC LOGIN ────────────────────────────────────────────────────
 async function attemptBiometricLogin(username) {

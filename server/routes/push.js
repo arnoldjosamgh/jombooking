@@ -10,15 +10,18 @@ const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
 const EMAIL = process.env.VAPID_EMAIL || 'mailto:admin@jomish.com';
 
+let activeVapidPublicKey = null;
 let keysValid = false;
 if (VAPID_PUBLIC && VAPID_PRIVATE) {
   webpush.setVapidDetails(EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
+  activeVapidPublicKey = VAPID_PUBLIC;
   keysValid = true;
   console.log('[Web Push] VAPID keys loaded successfully.');
 } else {
   console.log('[Web Push] WARNING: VAPID keys missing. Generating temporary ones for local dev...');
   const vapidKeys = webpush.generateVAPIDKeys();
   webpush.setVapidDetails(EMAIL, vapidKeys.publicKey, vapidKeys.privateKey);
+  activeVapidPublicKey = vapidKeys.publicKey;
   console.log(`\nTemporary VAPID_PUBLIC_KEY=${vapidKeys.publicKey}`);
   console.log(`Temporary VAPID_PRIVATE_KEY=${vapidKeys.privateKey}\n`);
   keysValid = true;
@@ -27,7 +30,7 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
 // ─── Get Public Key for Service Worker ───
 router.get('/vapidPublicKey', (req, res) => {
   if (!keysValid) return res.status(500).json({ error: 'VAPID keys not configured' });
-  res.send(VAPID_PUBLIC || webpush.vapidKeys?.publicKey || '');
+  res.send(activeVapidPublicKey);
 });
 
 // ─── Save Push Subscription ───

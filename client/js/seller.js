@@ -1062,6 +1062,77 @@ async function saveSettings(e) {
   }
 }
 
+
+// ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
+async function enablePushNotifications() {
+  const btn = document.getElementById('push-enable-btn');
+  if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+    toast('Not Supported', 'Push notifications are not supported on this device/browser.', 'error');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Requesting permission…'; }
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      toast('Blocked', 'Please allow notifications in your browser settings and try again.', 'error');
+      return;
+    }
+    // Get VAPID public key
+    const vapidPublicKey = await fetch('/api/push/vapidPublicKey').then(r => r.text());
+    if (!vapidPublicKey) throw new Error('Server VAPID key missing');
+
+    const sw = await navigator.serviceWorker.ready;
+    const subscription = await sw.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+    });
+
+    // Save subscription to server
+    await apiFetch('/api/push/subscribe', { method: 'POST', body: subscription });
+    toast('Notifications On! 🔔', 'You will now receive push notifications for new orders and bookings.', 'success', 4000);
+    if (btn) btn.textContent = '✅ Notifications Enabled';
+  } catch (err) {
+    toast('Error', err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔔 Enable Push Notifications'; }
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+// ─── BIOMETRIC SETUP (from settings) ─────────────────────────────────────────
+async function setupBiometrics() {
+  const btn = document.getElementById('bio-setup-btn');
+  if (!window.PublicKeyCredential) {
+    toast('Not Supported', 'Biometrics are not supported on this device/browser.', 'error');
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Setting up…'; }
+  try {
+    const SimpleWebAuthnBrowser = window.SimpleWebAuthnBrowser;
+    if (!SimpleWebAuthnBrowser) throw new Error('WebAuthn library not loaded');
+    const { startRegistration } = SimpleWebAuthnBrowser;
+
+    const options = await apiFetch('/api/auth/webauthn/register-options', { method: 'POST' });
+    const attResp = await startRegistration(options);
+    const verification = await apiFetch('/api/auth/webauthn/register-verify', { method: 'POST', body: attResp });
+
+    if (verification.verified) {
+      const username = localStorage.getItem('last_username') || '';
+      if (username) localStorage.setItem('bio_registered_' + username, '1');
+      toast('Biometrics Enabled 👆', 'You can now use fingerprint/face to log in next time!', 'success', 4000);
+      if (btn) btn.textContent = '✅ Biometrics Active';
+    }
+  } catch (err) {
+    toast('Biometrics Failed', err.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '👆 Set Up Biometric Login'; }
+  }
+}
+
 // ─── RECEIPTS ─────────────────────────────────────────────────────────────────
 function showReceipt(transactionId, type) {
   const t = window._historyData.find(x => x.id === transactionId && x._type === type);

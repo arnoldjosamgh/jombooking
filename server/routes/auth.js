@@ -253,11 +253,16 @@ router.post('/webauthn/register-verify', authenticate, async (req, res) => {
     const { verified, registrationInfo } = verification;
     
     if (verified && registrationInfo) {
-      const { credentialPublicKey, credentialID, counter } = registrationInfo;
-      
-      // Store public key as base64 for easy DB storage
-      const pubKeyBase64 = Buffer.from(credentialPublicKey).toString('base64');
-      const credIdBase64 = Buffer.from(credentialID).toString('base64');
+      // v14 API: credential is nested under registrationInfo.credential
+      const { credential } = registrationInfo;
+      const credId = credential.id;             // Base64URLString in v14
+      const pubKeyBytes = credential.publicKey; // Uint8Array
+      const counter = credential.counter;
+
+      const credIdBase64 = typeof credId === 'string'
+        ? credId
+        : Buffer.from(credId).toString('base64url');
+      const pubKeyBase64 = Buffer.from(pubKeyBytes).toString('base64');
 
       await db.query(
         'UPDATE sellers SET webauthn_cred_id = $1, webauthn_pub_key = $2, webauthn_counter = $3 WHERE id = $4',
@@ -272,6 +277,19 @@ router.post('/webauthn/register-verify', authenticate, async (req, res) => {
   } catch (error) {
     console.error('[webauthn] Register verify error:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ─── WebAuthn Reset (clear credential) ───
+router.post('/webauthn/reset', authenticate, async (req, res) => {
+  try {
+    await db.query(
+      'UPDATE sellers SET webauthn_cred_id = NULL, webauthn_pub_key = NULL, webauthn_counter = 0 WHERE id = $1',
+      [req.user.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -291,9 +309,8 @@ router.post('/webauthn/auth-options', async (req, res) => {
     const options = await generateAuthenticationOptions({
       rpID: rpId,
       allowCredentials: [{
-        id: Buffer.from(seller.webauthn_cred_id, 'base64'),
+        id: seller.webauthn_cred_id, // already stored as Base64URLString
         type: 'public-key',
-        // Don't restrict transports — allows USB, BLE, NFC, internal on all platforms
       }],
       userVerification: 'preferred',
     });
@@ -319,6 +336,10 @@ router.post('/webauthn/auth-verify', async (req, res) => {
 
     const { rpId, origin } = getRpConfig(req);
 
+    // Decode stored credential for v14 API
+    const credId = seller.webauthn_cred_id; // stored as base64url string
+    const pubKeyBytes = new Uint8Array(Buffer.from(seller.webauthn_pub_key, 'base64'));
+
     let verification;
     try {
       verification = await verifyAuthenticationResponse({
@@ -326,10 +347,11 @@ router.post('/webauthn/auth-verify', async (req, res) => {
         expectedChallenge,
         expectedOrigin: origin,
         expectedRPID: rpId,
-        authenticator: {
-          credentialID: Buffer.from(seller.webauthn_cred_id, 'base64'),
-          credentialPublicKey: Buffer.from(seller.webauthn_pub_key, 'base64'),
-          counter: seller.webauthn_counter,
+        // v14 API: use 'credential' not 'authenticator'
+        credential: {
+          id: credId,
+          publicKey: pubKeyBytes,
+          counter: seller.webauthn_counter || 0,
         },
       });
     } catch (error) {

@@ -1356,8 +1356,18 @@ async function enablePushNotifications() {
   if (btn) { btn.disabled = true; btn.textContent = '⏳ Requesting permission…'; }
   try {
     const permission = await Notification.requestPermission();
+    if (permission === 'denied') {
+      toast(
+        '🔔 Notifications Blocked',
+        'To enable: open your browser Settings → Site Settings → Notifications → find this site and set to Allow.',
+        'info',
+        7000
+      );
+      if (btn) { btn.disabled = false; btn.textContent = '🔔 Enable Push Notifications'; }
+      return;
+    }
     if (permission !== 'granted') {
-      toast('Blocked', 'Please allow notifications in your browser settings and try again.', 'error');
+      if (btn) { btn.disabled = false; btn.textContent = '🔔 Enable Push Notifications'; }
       return;
     }
     // Get VAPID public key
@@ -1411,12 +1421,35 @@ async function setupBiometrics() {
       if (btn) btn.textContent = '✅ Biometrics Active';
     }
   } catch (err) {
-    toast('Biometrics Failed', err.message, 'error');
+    console.error('[biometrics]', err);
+    let msg = err.message || 'Unknown error';
+    // Friendly messages for common errors
+    if (msg.includes('timed out')) msg = 'Timed out — please try again.';
+    if (msg.includes('not allowed') || msg.includes('NotAllowedError')) msg = 'Permission denied. Please try again and complete the fingerprint/face scan.';
+    if (msg.includes('already registered') || msg.includes('InvalidStateError')) msg = 'This device is already registered. Try logging out and back in.';
+    toast('Biometrics Failed', msg, 'error', 6000);
     if (btn) { btn.disabled = false; btn.textContent = '👆 Set Up Biometric Login'; }
   }
 }
 
-// ─── RECEIPTS ─────────────────────────────────────────────────────────────────
+// ─── RESET BIOMETRICS ─────────────────────────────────────────────────────────
+async function resetBiometrics() {
+  if (!confirm('This will clear your saved biometric credential. You will need to set it up again.\n\nContinue?')) return;
+  try {
+    await apiFetch('/api/auth/webauthn/reset', { method: 'POST' });
+    const username = localStorage.getItem('last_username') || '';
+    if (username) {
+      localStorage.removeItem('bio_registered_' + username);
+      localStorage.removeItem('prompted_bio_' + username);
+    }
+    const btn = document.getElementById('bio-setup-btn');
+    if (btn) { btn.disabled = false; btn.textContent = '👆 Set Up Biometric Login'; }
+    toast('Biometrics Reset', 'You can now set up biometrics again.', 'success');
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  }
+}
+
 function showReceipt(transactionId, type) {
   const t = window._historyData.find(x => x.id === transactionId && x._type === type);
   if (!t) return;

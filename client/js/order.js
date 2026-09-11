@@ -16,6 +16,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!slug) { renderError('No business slug provided.'); return; }
 
   injectRegModal();
+  setupPwaPrompt();
   renderSkeleton();
 
   try {
@@ -249,16 +250,46 @@ function showOrderSuccess(orders) {
       const allCompleted = myOrders.length > 0 && myOrders.every(o => o.status === 'completed');
       if (allCompleted) {
         clearInterval(checkStatus);
+        
+        let receiptHtml = '';
+        if (myOrders.length) {
+          receiptHtml = myOrders.map(o => `
+            <div class="flex justify-between mt-8 text-sm">
+              <span class="text-dim">${o.product_title} ×${o.quantity}</span>
+              <span class="font-bold">${formatCurrency(o.price * o.quantity, business.currency_symbol)}</span>
+            </div>
+          `).join('');
+        }
+        
         document.getElementById('main-content').innerHTML = `
           <div class="container-sm" style="padding-top:32px;text-align:center;">
             <div class="success-screen" style="border: 2px solid var(--accent-green);">
               <div class="success-icon" style="background:var(--accent-green);">🎉</div>
               <h2 style="color:var(--accent-green);font-size:2rem;margin-top:16px;">Delivered!</h2>
-              <p class="mt-8">Thank you for your order.</p>
-              <button class="btn btn-outline mt-20" onclick="window.location.reload()">Place Another Order</button>
+              <p class="mt-8">Thank you for your order from <strong>${business.name}</strong>.</p>
+              
+              <div class="card mt-20" style="text-align:left;padding:20px;border:1px solid #e2e8f0;box-shadow:none;">
+                <div class="flex justify-between mb-8 text-sm">
+                  <span class="text-dim">Order ID</span>
+                  <span class="font-bold">#${orderIds.join(', ')}</span>
+                </div>
+                <hr style="border:none;border-top:1px dashed #e2e8f0;margin:12px 0;">
+                ${receiptHtml}
+                <hr style="border:none;border-top:1px dashed #e2e8f0;margin:12px 0;">
+                <div class="flex justify-between mt-8 text-sm">
+                  <span class="text-dim font-bold">Status</span>
+                  <span class="badge badge-green">Completed ✓</span>
+                </div>
+              </div>
+              
+              <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center">
+                <button class="btn btn-primary" onclick="downloadOrderReceipt('${orderIds.join(',')}')">📥 Download Receipt</button>
+                <button class="btn btn-outline" onclick="window.location.reload()">Place Another</button>
+              </div>
             </div>
           </div>
         `;
+        showPwaPromptIfAvailable();
       }
     } catch (e) {}
   }, 5000);
@@ -409,9 +440,7 @@ function toggleClientChat() {
     if (socket && business && client) {
       socket.emit('join:chat', { businessId: business.id, clientId: client.id });
       socket.on('chat:message', (msg) => {
-        renderClientChatMsg(msg);
-        // Also render in embedded chat if it exists
-        if (typeof renderMsg === 'function') renderMsg(msg);
+        if (msg.sender === 'seller') renderClientChatMsg(msg);
       });
     }
   }
@@ -452,17 +481,106 @@ async function sendClientMsg() {
   if (!input) return;
   const content = input.value.trim();
   if (!content || !client || !business) return;
+  
+  // Optimistic render
+  renderClientChatMsg({ sender: 'client', content, created_at: new Date().toISOString() });
   input.value = '';
+  
   try {
     const msg = await apiFetch('/api/messages', {
       method: 'POST',
       body: { business_id: business.id, client_id: client.id, sender: 'client', content }
     });
-    // Message rendering is handled by socket, but we render it optimistically
-    renderClientChatMsg(msg);
-    if (typeof renderMsg === 'function') renderMsg(msg);
+    // We already rendered it, so we don't call renderClientChatMsg here again.
   } catch (err) {
     toast('Send failed', err.message, 'error');
   }
 }
 
+// ─── PWA INSTALL PROMPT ────────────────────────────────────────────────────────
+let _pwaPromptEvent = null;
+
+function setupPwaPrompt() {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _pwaPromptEvent = e;
+  });
+}
+
+function showPwaPromptIfAvailable() {
+  if (!_pwaPromptEvent) return;
+  const banner = document.createElement('div');
+  banner.id = 'pwa-banner';
+  banner.style.cssText = `
+    position:fixed; bottom:80px; left:50%; transform:translateX(-50%);
+    background:linear-gradient(135deg,#1a2461,#5b67f6); color:#fff;
+    border-radius:16px; padding:16px 20px; max-width:340px; width:90%;
+    box-shadow:0 8px 32px rgba(0,0,0,0.3); z-index:9999;
+    display:flex; align-items:center; gap:14px; animation: slideUp 0.4s ease;
+  `;
+  banner.innerHTML = `
+    <div style="font-size:2rem">📲</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">Install Jomish App</div>
+      <div style="font-size:0.78rem;opacity:0.85">Add to your home screen for faster ordering and notifications</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button onclick="installPwa()" style="background:#fff;color:#1a2461;border:none;border-radius:8px;padding:6px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;">Install</button>
+      <button onclick="document.getElementById('pwa-banner').remove()" style="background:transparent;color:rgba(255,255,255,0.7);border:none;font-size:0.75rem;cursor:pointer;">Maybe later</button>
+    </div>
+  `;
+  document.body.appendChild(banner);
+}
+
+async function installPwa() {
+  if (!_pwaPromptEvent) return;
+  _pwaPromptEvent.prompt();
+  const { outcome } = await _pwaPromptEvent.userChoice;
+  _pwaPromptEvent = null;
+  const banner = document.getElementById('pwa-banner');
+  if (banner) banner.remove();
+  if (outcome === 'accepted') toast('App Installed! 🎉', 'Jomish has been added to your home screen.', 'success');
+}
+
+// ─── RECEIPT DOWNLOAD ──────────────────────────────────────────────────────────
+async function downloadOrderReceipt(orderIdsStr) {
+  try {
+    const res = await apiFetch(`/api/orders/list/${business.id}`);
+    const ids = orderIdsStr.split(',').map(Number);
+    const myOrders = res.filter(o => ids.includes(o.id));
+    
+    let total = 0;
+    const itemsLines = myOrders.map(o => {
+      const lineTotal = o.price * o.quantity;
+      total += lineTotal;
+      return `- ${o.product_title} ×${o.quantity} : ${formatCurrency(lineTotal, business.currency_symbol)}`;
+    }).join('\n');
+
+    const lines = [
+      '=============================',
+      '       JOMISH ORDER          ',
+      '       RECEIPT               ',
+      '=============================',
+      `Business  : ${business.name}`,
+      `Client    : ${client.name}`,
+      `Order IDs : #${orderIdsStr}`,
+      `Date      : ${new Date().toLocaleString()}`,
+      '-----------------------------',
+      'ITEMS:',
+      itemsLines,
+      '-----------------------------',
+      `TOTAL     : ${formatCurrency(total, business.currency_symbol)}`,
+      '=============================',
+    ].join('\n');
+
+    const blob = new Blob([lines], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `Jomish-Order-${ids[0]}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    toast('Error', 'Failed to generate receipt', 'error');
+  }
+}

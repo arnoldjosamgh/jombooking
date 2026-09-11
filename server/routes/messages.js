@@ -7,6 +7,30 @@ const router = express.Router();
 const db = require('../db');
 const { requireFields } = require('../middleware/validate');
 
+// GET /api/messages/threads/:business_id — All client threads for seller panel
+router.get('/threads/:business_id', async (req, res) => {
+  try {
+    const { business_id } = req.params;
+    const result = await db.query(
+      `SELECT DISTINCT ON (m.client_id)
+         m.client_id, c.name AS client_name, c.phone AS client_phone,
+         m.content AS last_message, m.sender AS last_sender, m.created_at AS last_at,
+         (SELECT COUNT(*) FROM messages
+          WHERE business_id = $1 AND client_id = m.client_id AND sender = 'client' AND read_at IS NULL
+         ) AS unread_count
+       FROM messages m
+       JOIN clients c ON m.client_id = c.id
+       WHERE m.business_id = $1
+       ORDER BY m.client_id, m.created_at DESC`,
+      [business_id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[messages] threads error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/messages/:business_id/:client_id — Load chat history
 router.get('/:business_id/:client_id', async (req, res) => {
   try {

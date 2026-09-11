@@ -207,4 +207,57 @@ router.patch('/:id/status', authenticate, async (req, res) => {
   }
 });
 
+// ─── PATCH /api/bookings/:id/cancel — Cancel with reason, auto-message client ─
+router.patch('/:id/cancel', authenticate, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const bookingId = req.params.id;
+
+    // Get booking info for messaging
+    const bookingRes = await db.query(
+      `SELECT b.id, b.business_id, b.client_id, b.booking_time, b.service_id,
+              c.name AS client_name, s.name AS service_name
+       FROM bookings b
+       JOIN clients c ON b.client_id = c.id
+       LEFT JOIN services s ON b.service_id = s.id
+       WHERE b.id = $1`,
+      [bookingId]
+    );
+    if (bookingRes.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    const bk = bookingRes.rows[0];
+
+    // Update status
+    await db.query(
+      `UPDATE bookings SET status = 'cancelled', seller_id = $1 WHERE id = $2`,
+      [req.user.id, bookingId]
+    );
+
+    // Send cancellation reason as a message to the client
+    const svcLabel = bk.service_name || 'your appointment';
+    const timeLabel = new Date(bk.booking_time).toLocaleString();
+    const msgContent = reason
+      ? `❌ Your booking for ${svcLabel} on ${timeLabel} has been cancelled.\n\nReason: ${reason}`
+      : `❌ Your booking for ${svcLabel} on ${timeLabel} has been cancelled by the seller.`;
+
+    const msgResult = await db.query(
+      `INSERT INTO messages (business_id, client_id, sender, content)
+       VALUES ($1, $2, 'seller', $3) RETURNING id, sender, content, created_at`,
+      [bk.business_id, bk.client_id, msgContent]
+    );
+    const msg = msgResult.rows[0];
+
+    // Emit via socket to client room
+    const io = req.app.get('io');
+    if (io) {
+      const room = `chat-${bk.business_id}-${bk.client_id}`;
+      io.to(room).emit('chat:message', msg);
+    }
+
+    res.json({ ok: true, message_sent: msg });
+  } catch (err) {
+    console.error('[bookings] cancel error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

@@ -100,6 +100,33 @@ function setupBiz(biz) {
   initSocket(biz);
   checkFirstLogin(biz);
   pollPending(); // Initial poll for pending orders
+  
+  // Show first-login setup prompts if not seen
+  setTimeout(showSetupPrompts, 2000);
+}
+
+// ─── POST-LOGIN SETUP PROMPTS ────────────────────────────────────────────────
+async function showSetupPrompts() {
+  const username = localStorage.getItem('last_username');
+  if (!username) return;
+  
+  // 1. Check Push Notifications
+  if (('Notification' in window) && Notification.permission === 'default' && !localStorage.getItem('prompted_push_' + username)) {
+    localStorage.setItem('prompted_push_' + username, '1');
+    if (confirm('🔔 Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
+      await enablePushNotifications();
+    }
+  }
+  
+  // 2. Check Biometrics
+  if (window.PublicKeyCredential && !localStorage.getItem('bio_registered_' + username) && !localStorage.getItem('prompted_bio_' + username)) {
+    localStorage.setItem('prompted_bio_' + username, '1');
+    setTimeout(() => {
+      if (confirm('👆 Set Up Biometric Login?\n\nUse your fingerprint or Face ID to log in next time securely.')) {
+        setupBiometrics();
+      }
+    }, 1000); // Wait a second before second prompt so they don't overlap awkwardly
+  }
 }
 
 
@@ -664,24 +691,62 @@ async function showBookingAtTime(slotTime) {
         <tr><td class="text-dim text-sm" style="padding:8px 0">Price</td><td>${match.service_price ? formatCurrency(match.service_price) : '—'}</td></tr>
         <tr><td class="text-dim text-sm" style="padding:8px 0">Location</td><td>${match.client_location || '—'}</td></tr>
         <tr><td class="text-dim text-sm" style="padding:8px 0">Time</td><td>${new Date(match.booking_time).toLocaleString()}</td></tr>
-        <tr><td class="text-dim text-sm" style="padding:8px 0">Status</td><td><span class="badge badge-${match.status === 'confirmed' ? 'blue' : 'green'}">${match.status}</span></td></tr>
+        <tr><td class="text-dim text-sm" style="padding:8px 0">Status</td><td><span class="badge badge-${match.status === 'confirmed' ? 'blue' : (match.status === 'completed' ? 'green' : 'red')}">${match.status}</span></td></tr>
       </table>
     `;
     const completeBtn = document.getElementById('complete-booking-btn');
+    const cancelBtn = document.getElementById('cancel-booking-btn');
+    
     if (match.status === 'confirmed') {
       completeBtn.style.display = 'inline-flex';
+      cancelBtn.style.display = 'inline-block';
+      
       completeBtn.onclick = async () => {
         await apiFetch(`/api/bookings/${match.id}/status`, { method: 'PATCH', body: { status: 'completed' } });
         closeModal('booking-modal');
         loadWeek();
         toast('Done', 'Booking marked as completed', 'success');
       };
+      
+      // Store ID for cancel modal
+      document.getElementById('cancel-booking-id').value = match.id;
     } else {
       completeBtn.style.display = 'none';
+      cancelBtn.style.display = 'none';
     }
     const modal = document.getElementById('booking-modal');
     modal.style.display = 'flex';
     setTimeout(() => modal.classList.add('active'), 10);
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  }
+}
+
+function promptCancelBooking() {
+  closeModal('booking-modal');
+  const modal = document.getElementById('cancel-modal');
+  document.getElementById('cancel-reason').value = '';
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+}
+
+async function submitCancelBooking() {
+  const id = document.getElementById('cancel-booking-id').value;
+  const reason = document.getElementById('cancel-reason').value.trim();
+  
+  if (!reason) {
+    toast('Reason Required', 'Please provide a reason for cancelling', 'error');
+    return;
+  }
+  
+  try {
+    await apiFetch(`/api/bookings/${id}/cancel`, { 
+      method: 'PATCH', 
+      body: { reason } 
+    });
+    closeModal('cancel-modal');
+    loadWeek();
+    toast('Cancelled', 'Booking cancelled and client notified', 'success');
   } catch (err) {
     toast('Error', err.message, 'error');
   }
@@ -719,12 +784,153 @@ function initSocket(biz) {
       renderChatMessages(messages);
     } else if (msg.sender === 'client') {
       toast('💬 New Message', 'New message from a client', 'info');
+      // Refresh threads if panel is open, otherwise just show badge
+      if (document.getElementById('seller-chat-panel').style.display === 'flex') {
+        renderSellerChatThreads();
+      } else {
+        const badge = document.getElementById('seller-chat-badge');
+        if (badge) {
+          badge.style.display = 'flex';
+          badge.textContent = parseInt(badge.textContent || 0) + 1;
+        }
+      }
     }
   });
 
   // Notify any listeners that socket is ready
   window.dispatchEvent(new Event('socket:ready'));
 }
+
+// ─── SELLER FLOATING CHAT PANEL ───────────────────────────────────────────────
+async function toggleSellerChatPanel() {
+  const panel = document.getElementById('seller-chat-panel');
+  if (!panel) return;
+  const isHidden = panel.style.display === 'none';
+  panel.style.display = isHidden ? 'flex' : 'none';
+  
+  if (isHidden) {
+    // Clear badge
+    const badge = document.getElementById('seller-chat-badge');
+    if (badge) { badge.style.display = 'none'; badge.textContent = '0'; }
+    await renderSellerChatThreads();
+  }
+}
+
+async function renderSellerChatThreads() {
+  const container = document.getElementById('seller-chat-threads');
+  if (!container) return;
+  if (!selectedBiz) return;
+  
+  container.innerHTML = '<div style="padding:24px; text-align:center; color:#94a3b8; font-size:0.9rem;">Loading messages...</div>';
+  
+  try {
+    const threads = await apiFetch(`/api/messages/threads/${selectedBiz.id}`);
+    
+    if (threads.length === 0) {
+      container.innerHTML = '<div style="padding:24px; text-align:center; color:#94a3b8; font-size:0.9rem;">No client messages yet.</div>';
+      return;
+    }
+    
+    container.innerHTML = threads.map(t => {
+      const isUnread = t.unread_count > 0;
+      return `
+        <div onclick="openSellerChat(${t.client_id}, '${t.client_name.replace(/'/g,"\\'")}')" style="padding:12px 16px; border-bottom:1px solid #f1f5f9; cursor:pointer; display:flex; gap:12px; align-items:center; transition:background 0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+          <div style="width:40px; height:40px; border-radius:50%; background:#e2e8f0; color:#1a2461; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.1rem; flex-shrink:0;">
+            ${t.client_name.charAt(0).toUpperCase()}
+          </div>
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px;">
+              <div style="font-weight:600; font-size:0.95rem; color:#1a2461; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${t.client_name}</div>
+              <div style="font-size:0.7rem; color:#94a3b8;">${new Date(t.last_at).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="font-size:0.85rem; color:${isUnread ? '#1a2461' : '#64748b'}; font-weight:${isUnread ? '600' : '400'}; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                ${t.last_sender === 'seller' ? 'You: ' : ''}${t.last_message}
+              </div>
+              ${isUnread ? `<div style="background:#5b67f6; color:#fff; font-size:0.7rem; font-weight:700; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center;">${t.unread_count}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    // Update badge with total unread threads
+    const totalUnread = threads.reduce((sum, t) => sum + (t.unread_count > 0 ? 1 : 0), 0);
+    const badge = document.getElementById('seller-chat-badge');
+    if (badge) {
+      if (totalUnread > 0 && panel.style.display === 'none') {
+        badge.style.display = 'flex';
+        badge.textContent = totalUnread;
+      } else {
+        badge.style.display = 'none';
+        badge.textContent = '0';
+      }
+    }
+  } catch (err) {
+    container.innerHTML = `<div style="padding:24px; text-align:center; color:red; font-size:0.9rem;">Error: ${err.message}</div>`;
+  }
+}
+
+async function openSellerChat(clientId, clientName) {
+  // Hide the panel and open the modal chat
+  document.getElementById('seller-chat-panel').style.display = 'none';
+  const badge = document.getElementById('seller-chat-badge');
+  if (badge) { badge.style.display = 'none'; badge.textContent = '0'; }
+  openChat(clientId, clientName); // Uses existing openChat function
+}
+
+function openBroadcastModal() {
+  document.getElementById('seller-chat-panel').style.display = 'none';
+  const modal = document.getElementById('broadcast-modal');
+  document.getElementById('broadcast-msg').value = '';
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
+}
+
+async function sendBroadcast() {
+  const msg = document.getElementById('broadcast-msg').value.trim();
+  if (!msg) {
+    toast('Required', 'Please enter a message', 'error');
+    return;
+  }
+  
+  const btn = document.getElementById('broadcast-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  
+  try {
+    // Get all clients from threads
+    const threads = await apiFetch(`/api/messages/threads/${selectedBiz.id}`);
+    if (threads.length === 0) {
+      toast('No Clients', 'You have no clients to message yet.', 'info');
+      closeModal('broadcast-modal');
+      return;
+    }
+    
+    // Send message to each client (simplistic approach for now)
+    let successCount = 0;
+    for (const t of threads) {
+      try {
+        await apiFetch('/api/messages', {
+          method: 'POST',
+          body: { business_id: selectedBiz.id, client_id: t.client_id, sender: 'seller', content: msg }
+        });
+        successCount++;
+      } catch (e) {
+        console.error('Failed to send to client', t.client_id, e);
+      }
+    }
+    
+    closeModal('broadcast-modal');
+    toast('Broadcast Sent', `Message sent to ${successCount} clients.`, 'success');
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send to All';
+  }
+}
+
 
 // ─── PUSH NOTIFICATIONS ────────────────────────────────────────────────────────
 async function initPushNotifications() {

@@ -2,41 +2,102 @@
 <html lang="en">
 <head>
   <meta property="og:title" content="Jomish Tech Hub">
-  <meta property="og:description" content="Booking & Delivery Management Platform">
+  <meta property="og:description" content="Booking &amp; Delivery Management Platform">
   <meta property="og:image" content="/img/logo.png">
   <meta property="og:type" content="website">
   <link rel="icon" href="/img/logo.png">
   <meta charset="UTF-8">
-  <title>Jomish BDM — Redirecting...</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jomish — Redirecting...</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .error-box {
+      max-width: 400px; margin: 0 auto; padding: 32px 24px;
+      background: #fff; border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      text-align: center;
+    }
+    .error-icon { font-size: 3rem; margin-bottom: 12px; }
+    .error-title { font-size: 1.3rem; font-weight: 700; color: #1a2461; margin-bottom: 8px; }
+    .error-msg { font-size: 0.9rem; color: #64748b; margin-bottom: 16px; line-height: 1.5; }
+    .error-slug { font-size: 0.8rem; color: #94a3b8; word-break: break-all; margin-bottom: 20px; background: #f1f5f9; padding: 8px 12px; border-radius: 8px; }
+    .retry-btn { background: #5b67f6; color: #fff; border: none; padding: 12px 28px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; }
+    .retry-btn:hover { background: #4451e0; }
+  </style>
+</head>
+<body class="bg-gradient flex items-center justify-content-center" style="min-height:100vh;display:flex;align-items:center;justify-content:center;">
+  <div id="loading-view" class="loading-center">
+    <div class="spinner" style="margin-bottom:16px"></div>
+    <p>Loading your Jomish portal...</p>
+  </div>
+
+  <div id="error-view" style="display:none; padding:24px;">
+    <div class="error-box">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">Business Not Found</div>
+      <div class="error-msg" id="err-msg">We couldn't find this business. The link may be invalid or the business may no longer be active.</div>
+      <div class="error-slug" id="err-slug"></div>
+      <button class="retry-btn" onclick="window.location.reload()">Try Again</button>
+    </div>
+  </div>
+
   <script>
     window.addEventListener('DOMContentLoaded', async () => {
-      // The URL will be /c.html?slug=SOMETHING or if we configure express /c/SOMETHING
-      // For now let's assume /c.html?slug=
+      function showError(msg, slugInfo) {
+        document.getElementById('loading-view').style.display = 'none';
+        document.getElementById('error-view').style.display = 'block';
+        if (msg) document.getElementById('err-msg').textContent = msg;
+        document.getElementById('err-slug').textContent = 'Link: ' + slugInfo;
+      }
+
+      // Extract slug — handle both ?slug=xxx AND direct /c/xxx paths
       const params = new URLSearchParams(window.location.search);
-      const slug = params.get('slug');
+      let slug = params.get('slug') || '';
+
+      // Clean up slug: remove trailing slashes, whitespace, query junk
+      slug = slug.split('/')[0].split('?')[0].trim();
+
       if (!slug) {
-        document.body.innerHTML = '<h2>Invalid Link</h2>';
+        showError('This link has no business ID. Please ask the seller for the correct link.', window.location.href);
         return;
       }
+
       try {
-        const res = await fetch(`/api/businesses/${slug}`);
+        const res = await fetch(`/api/businesses/${encodeURIComponent(slug)}`);
+
+        if (!res.ok) {
+          // API returned an error (404, 500, etc.)
+          let errText = `Server responded with status ${res.status}`;
+          try {
+            const errBody = await res.json();
+            errText = errBody.error || errText;
+          } catch (_) { /* ignore */ }
+          showError(errText, slug);
+          return;
+        }
+
         const biz = await res.json();
+
+        if (!biz || !biz.slug) {
+          showError('The business data returned was invalid. Please try again.', slug);
+          return;
+        }
+
+        // Redirect to the correct portal
         if (biz.type === 'product') {
           window.location.replace(`/order.html?slug=${biz.slug}`);
         } else {
           window.location.replace(`/book.html?slug=${biz.slug}`);
         }
+
       } catch (err) {
-        document.body.innerHTML = '<h2>Business Not Found</h2>';
+        // Network error — likely localhost on mobile or server is down
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const msg = isLocalhost
+          ? 'You are on a local server (localhost). To scan the QR code from a phone, open the seller dashboard using your computer\'s IP address (e.g. http://192.168.x.x:3000/seller) so the QR code contains a reachable URL.'
+          : `Could not connect to server: ${err.message}`;
+        showError(msg, slug);
       }
     });
   </script>
-</head>
-<body class="bg-gradient flex items-center justify-center">
-  <div class="loading-center">
-    <div class="spinner"></div>
-    <p>Loading your Jomish portal...</p>
-  </div>
 </body>
 </html>

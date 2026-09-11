@@ -15,7 +15,7 @@ router.get('/:business_slug', async (req, res) => {
       `SELECT p.id, p.title, p.description, p.price, p.image_url, p.stock_quantity, p.barcode
        FROM products p
        JOIN businesses b ON p.business_id = b.id
-       WHERE b.slug = $1
+       WHERE b.slug = $1 AND (p.is_deleted = false OR p.is_deleted IS NULL)
        ORDER BY p.title`,
       [req.params.business_slug]
     );
@@ -68,6 +68,18 @@ router.patch('/manage/:id/stock', authenticate, async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ─── DELETE /api/products/manage/:id ───────────────────────────────────────────
+// Soft-delete: product hidden from POS but orders referencing it remain intact
+router.delete('/manage/:id', authenticate, async (req, res) => {
+  try {
+    await db.query('UPDATE products SET is_deleted = true WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[products] DELETE /manage/:id error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

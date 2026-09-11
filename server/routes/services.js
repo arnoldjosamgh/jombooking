@@ -15,7 +15,7 @@ router.get('/:business_slug', async (req, res) => {
       `SELECT s.id, s.name, s.price, s.duration_minutes
        FROM services s
        JOIN businesses b ON s.business_id = b.id
-       WHERE b.slug = $1
+       WHERE b.slug = $1 AND (s.is_deleted = false OR s.is_deleted IS NULL)
        ORDER BY s.name`,
       [req.params.business_slug]
     );
@@ -45,7 +45,7 @@ router.post('/', authenticate, requireFields('business_id', 'name', 'price', 'du
 // ─── DELETE /api/services/:id — Seller removes a service ──────────────────────
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    await db.query('DELETE FROM services WHERE id = $1', [req.params.id]);
+    await db.query('UPDATE services SET is_deleted = true WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

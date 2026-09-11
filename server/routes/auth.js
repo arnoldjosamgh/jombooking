@@ -7,8 +7,24 @@ const { generateRegistrationOptions, verifyRegistrationResponse, generateAuthent
 const { requireFields } = require('../middleware/validate');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback_secret_for_local_dev';
-const RP_ID = process.env.RP_ID || 'localhost'; // Relaying Party ID for WebAuthn (must be localhost or domain)
-const RP_NAME = 'Jomish Booking and Delivering Management System';
+const RP_NAME = 'Jomish Business Suite';
+
+// Helper: derive RP_ID and expected origin from the incoming request
+// This makes biometrics work on any device (Android, iOS, desktop, localhost)
+function getRpConfig(req) {
+  const host = (req.headers.origin || req.headers.host || 'localhost');
+  let origin = host.startsWith('http') ? host : `http://${host}`;
+  // Normalise: strip port for RP_ID, keep full origin for expectedOrigin
+  let rpId;
+  try {
+    const u = new URL(origin);
+    rpId = process.env.RP_ID || u.hostname; // env override wins for production
+    origin = u.origin;
+  } catch (_) {
+    rpId = process.env.RP_ID || 'localhost';
+  }
+  return { rpId, origin };
+}
 
 // Temporary store for WebAuthn challenges
 const userChallenges = {};
@@ -176,18 +192,30 @@ router.get('/me', authenticate, async (req, res) => {
 router.post('/webauthn/register-options', authenticate, async (req, res) => {
   try {
     const sellerId = req.user.id;
+    if (sellerId === 0 || req.user.username === 'DEMO') {
+      return res.status(400).json({ error: 'Biometrics are not supported for the Demo account.' });
+    }
+
     const seller = await db.query('SELECT username FROM sellers WHERE id = $1', [sellerId]);
+    if (seller.rows.length === 0) {
+      return res.status(400).json({ error: 'User not found.' });
+    }
+
+    const { rpId, origin } = getRpConfig(req);
 
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
-      rpID: RP_ID,
+      rpID: rpId,
       userID: new Uint8Array(Buffer.from(String(sellerId))),
       userName: seller.rows[0].username,
       attestationType: 'none',
       authenticatorSelection: {
-        residentKey: 'required',
+        residentKey: 'preferred',
         userVerification: 'preferred',
+        authenticatorAttachment: 'platform', // prefers built-in biometric (Face/Fingerprint)
       },
+      // Support all transport types so Android, iOS, and desktop all work
+      supportedAlgorithmIDs: [-7, -257],
     });
 
     userChallenges[sellerId] = options.challenge;
@@ -208,17 +236,18 @@ router.post('/webauthn/register-verify', authenticate, async (req, res) => {
     }
 
     const body = req.body;
+    const { rpId, origin } = getRpConfig(req);
     let verification;
     try {
       verification = await verifyRegistrationResponse({
         response: body,
         expectedChallenge,
-        expectedOrigin: req.headers.origin || `http://${RP_ID}:3000`,
-        expectedRPID: RP_ID,
+        expectedOrigin: origin,
+        expectedRPID: rpId,
       });
     } catch (error) {
-      console.error(error);
-      return res.status(400).json({ error: error.message });
+      console.error('[webauthn] register-verify error:', error.message);
+      return res.status(400).json({ error: 'Biometric registration failed: ' + error.message });
     }
 
     const { verified, registrationInfo } = verification;
@@ -258,12 +287,13 @@ router.post('/webauthn/auth-options', async (req, res) => {
     }
 
     const seller = result.rows[0];
+    const { rpId } = getRpConfig(req);
     const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
+      rpID: rpId,
       allowCredentials: [{
         id: Buffer.from(seller.webauthn_cred_id, 'base64'),
         type: 'public-key',
-        transports: ['internal'],
+        // Don't restrict transports — allows USB, BLE, NFC, internal on all platforms
       }],
       userVerification: 'preferred',
     });
@@ -287,13 +317,15 @@ router.post('/webauthn/auth-verify', async (req, res) => {
 
     if (!expectedChallenge) return res.status(400).json({ error: 'Challenge not found' });
 
+    const { rpId, origin } = getRpConfig(req);
+
     let verification;
     try {
       verification = await verifyAuthenticationResponse({
         response: response,
         expectedChallenge,
-        expectedOrigin: req.headers.origin || `http://${RP_ID}:3000`,
-        expectedRPID: RP_ID,
+        expectedOrigin: origin,
+        expectedRPID: rpId,
         authenticator: {
           credentialID: Buffer.from(seller.webauthn_cred_id, 'base64'),
           credentialPublicKey: Buffer.from(seller.webauthn_pub_key, 'base64'),
@@ -301,8 +333,8 @@ router.post('/webauthn/auth-verify', async (req, res) => {
         },
       });
     } catch (error) {
-      console.error(error);
-      return res.status(400).json({ error: error.message });
+      console.error('[webauthn] auth-verify error:', error.message);
+      return res.status(400).json({ error: 'Biometric verification failed. Please try your password instead.' });
     }
 
     const { verified, authenticationInfo } = verification;

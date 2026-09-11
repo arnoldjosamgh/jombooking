@@ -41,25 +41,18 @@
           autocomplete="username"
           autocapitalize="characters"
           style="text-transform: uppercase; letter-spacing: 0.08em;"
-          required
         >
       </div>
 
       <div class="login-form-group">
         <label>Password</label>
-        <input type="password" id="password" class="login-input" placeholder="Enter password" autocomplete="current-password" required>
+        <input type="password" id="password" class="login-input" placeholder="Enter password" autocomplete="current-password">
       </div>
 
       <button type="submit" class="btn-neon-cyan" id="login-btn">Sign In</button>
     </form>
 
-    <!-- Biometric Login Button (shown only if previously registered) -->
-    <div id="bio-login-section" style="display:none; margin-top:16px;">
-      <button id="bio-login-btn" onclick="triggerBiometricLogin()" style="width:100%; padding:14px; background:linear-gradient(135deg,#1a2461,#0d1240); border:2px solid rgba(91,103,246,0.6); color:#fff; border-radius:12px; cursor:pointer; font-size:0.95rem; font-weight:600; display:flex; align-items:center; justify-content:center; gap:10px; transition:all 0.2s;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-        Sign in with Biometrics
-      </button>
-    </div>
+
 
     <!-- Demo Simulator Section -->
     <div style="margin-top:32px; border-top: 1px solid rgba(255,255,255,0.08); padding-top:24px;">

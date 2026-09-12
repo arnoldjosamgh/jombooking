@@ -21,6 +21,20 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (lastUser) {
     // Pre-fill the username so the form is ready if biometrics fail
     document.getElementById('username').value = lastUser;
+    
+    // Auto-trigger biometric login if registered
+    if (localStorage.getItem('bio_registered_' + lastUser)) {
+      const btn = document.getElementById('login-btn');
+      btn.disabled = true;
+      btn.textContent = 'Checking biometrics…';
+      attemptBiometricLogin(lastUser).then(() => {
+        // If it failed, reset button
+        if (btn.textContent === 'Checking biometrics…') {
+          btn.disabled = false;
+          btn.textContent = 'Sign In';
+        }
+      });
+    }
   }
 
   // Force uppercase while typing

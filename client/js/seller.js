@@ -415,7 +415,8 @@ async function renderCalendar() { setActiveTab("tab-calendar");
   main.innerHTML = '';
   main.appendChild(tpl.content.cloneNode(true));
 
-  currentWeekStart = getMonday(new Date());
+  currentWeekStart = new Date();
+  currentWeekStart.setHours(0, 0, 0, 0);
 
   // Load services first
   await loadServices();
@@ -630,7 +631,8 @@ async function loadWeek() {
       dayCol.innerHTML = `<div class="cal-day-header">${dateObj.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short'})}</div>`;
 
       if (!dayData.slots || dayData.slots.length === 0) {
-        dayCol.innerHTML += `<div class="cal-closed">Closed</div>`;
+        // Skip rendering closed days per user request
+        return;
       } else {
         dayData.slots.forEach(slot => {
           const time    = new Date(slot.time + 'Z');

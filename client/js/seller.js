@@ -13,6 +13,12 @@ let scannerActive = false;
 let currentWeekStart = null;
 let codeReader = null;
 
+// Format currency for receipts
+function formatCurrency2(amount) {
+  if (amount == null) return 'N/A';
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(amount));
+}
+
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
   if (!localStorage.getItem('auth_token')) {
@@ -1055,7 +1061,9 @@ async function renderPending() {
       const pendingBookings = bookings.filter(b => new Date(b.booking_time) > new Date(Date.now() - 86400000)); // Only show recent/upcoming
       if (pendingBookings.length > 0) {
         html += `<h4>📅 Service Bookings</h4><div class="list-group">`;
-        html += pendingBookings.map(b => `
+        html += pendingBookings.map(b => {
+          pendingBookingsMap.set(b.id, b);
+          return `
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
               <strong>${b.service_name || 'Booking'}</strong><br>
@@ -1063,10 +1071,11 @@ async function renderPending() {
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')">✉️ Message</button>
-              <button class="btn btn-primary btn-sm" onclick='completeBooking(${JSON.stringify(b).replace(/'/g, "&#39;")})'>Mark Completed</button>
+              <button class="btn btn-primary btn-sm" onclick="completeBooking(${b.id})">Mark Completed</button>
             </div>
           </div>
-        `).join('');
+          `;
+        }).join('');
         html += '</div>';
       }
     }
@@ -1225,8 +1234,15 @@ async function completeOrder(orderId) {
 }
 
 let currentBookingToComplete = null;
+// Map to store pending bookings for safe lookup (avoids JSON-in-HTML issues)
+const pendingBookingsMap = new Map();
 
-function completeBooking(booking) {
+function completeBooking(bookingId) {
+  const booking = pendingBookingsMap.get(Number(bookingId)) || pendingBookingsMap.get(bookingId);
+  if (!booking) {
+    toast('Error', 'Booking not found. Please refresh and try again.', 'error');
+    return;
+  }
   currentBookingToComplete = booking;
   document.getElementById('complete-booking-id').value = booking.id;
   document.getElementById('complete-final-price').value = booking.service_price || 0;
@@ -1242,8 +1258,11 @@ async function confirmCompleteBooking() {
   const bk = currentBookingToComplete;
   if (!bk) return;
 
+  const btn = document.querySelector('#complete-modal .btn-primary');
+  if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
+
   try {
-    const res = await apiFetch(`/api/bookings/${bk.id}/status`, { 
+    await apiFetch(`/api/bookings/${bk.id}/status`, { 
       method: 'PATCH', 
       body: { status: 'completed', final_price: finalPrice }
     });
@@ -1251,12 +1270,40 @@ async function confirmCompleteBooking() {
     closeModal('complete-modal');
     toast('Success', 'Booking marked as completed.', 'success');
     renderPending();
-    pollPending(); // update badge
+    pollPending();
     
-    // Generate PDF receipt
+    // Send receipt as message to client automatically
+    const receiptMsg = [
+      `🧭 RECEIPT`,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `Business : ${bk.business_name || selectedBiz.name}`,
+      `Service  : ${bk.service_name || 'Service'}`,
+      `Date     : ${new Date(bk.booking_time).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}`,
+      `Client   : ${bk.client_name}`,
+      `Ref      : ${bk.receipt_number || '#' + bk.id}`,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `TOTAL    : ${formatCurrency2(finalPrice)}`,
+      `━━━━━━━━━━━━━━━━━━━━`,
+      `Status   : PAID ✅`,
+      `Thank you for your visit!`,
+    ].join('\n');
+
+    apiFetch('/api/messages', {
+      method: 'POST',
+      body: {
+        business_id: selectedBiz.id,
+        client_id: bk.client_id,
+        sender: 'seller',
+        content: receiptMsg
+      }
+    }).catch(e => console.warn('Receipt message failed:', e.message));
+
+    // Also generate PDF download
     generateReceiptPDF(bk, finalPrice);
   } catch(e) {
     toast('Error', e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Complete & Receipt'; }
   }
 }
 
@@ -1558,7 +1605,9 @@ async function openChat(clientId, clientName) {
     Chat with ${clientName}
   `;
   document.getElementById('chat-messages').innerHTML = '<div class="spinner"></div>';
-  document.getElementById('chat-modal').style.display = 'flex';
+  const modal = document.getElementById('chat-modal');
+  modal.style.display = 'flex';
+  setTimeout(() => modal.classList.add('active'), 10);
 
   try {
     const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${clientId}`);
@@ -1576,7 +1625,9 @@ async function openChat(clientId, clientName) {
 }
 
 function closeChat() {
-  document.getElementById('chat-modal').style.display = 'none';
+  const modal = document.getElementById('chat-modal');
+  modal.classList.remove('active');
+  setTimeout(() => { modal.style.display = 'none'; }, 200);
   activeChatClient = null;
 }
 

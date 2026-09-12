@@ -271,3 +271,81 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
 });
 
 module.exports = router;
+
+// ─── AUTO-RESCHEDULE EXPIRED BOOKINGS ────────────────────────────────────────
+// Called nightly — finds confirmed bookings that have already passed
+// and moves each one to the next available slot, messaging the client.
+module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBookings(io) {
+  try {
+    // Find all confirmed bookings where the time is in the past
+    const expired = await db.query(
+      `SELECT b.id, b.business_id, b.client_id, b.service_id, b.booking_time,
+              c.name AS client_name,
+              s.name AS service_name
+       FROM bookings b
+       JOIN clients c ON b.client_id = c.id
+       LEFT JOIN services s ON b.service_id = s.id
+       WHERE b.status = 'confirmed'
+         AND b.booking_time < NOW()`
+    );
+
+    if (expired.rows.length === 0) {
+      console.log('[Reschedule] No expired bookings to process.');
+      return;
+    }
+
+    console.log(`[Reschedule] Processing ${expired.rows.length} expired booking(s)...`);
+
+    for (const bk of expired.rows) {
+      // Try up to 14 days ahead to find a free slot
+      let newSlot = null;
+      let newDate = null;
+      for (let daysAhead = 1; daysAhead <= 14; daysAhead++) {
+        const candidate = new Date();
+        candidate.setDate(candidate.getDate() + daysAhead);
+        const dateStr = candidate.toISOString().split('T')[0];
+
+        const slots = await generateSlots(bk.business_id, dateStr, bk.service_id);
+        const free  = slots.find(s => s.available);
+        if (free) {
+          newSlot = free.time;
+          newDate = dateStr;
+          break;
+        }
+      }
+
+      if (!newSlot) {
+        console.log(`[Reschedule] Booking #${bk.id}: no free slot found in next 14 days — skipping.`);
+        continue;
+      }
+
+      // Move the booking to the new slot
+      await db.query(
+        `UPDATE bookings SET booking_time = $1 WHERE id = $2`,
+        [newSlot, bk.id]
+      );
+
+      // Notify the client via message
+      const svcLabel  = bk.service_name || 'your appointment';
+      const oldTime   = new Date(bk.booking_time).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+      const newTime   = new Date(newSlot + 'Z').toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+      const msgContent = `📅 Your booking for ${svcLabel} on ${oldTime} was missed and has been automatically rescheduled to ${newTime}.\n\nIf this doesn't work for you, please contact us to adjust.`;
+
+      const msgResult = await db.query(
+        `INSERT INTO messages (business_id, client_id, content, sender)
+         VALUES ($1, $2, $3, 'seller') RETURNING *`,
+        [bk.business_id, bk.client_id, msgContent]
+      );
+
+      // Emit realtime notification to client if online
+      if (io) {
+        const room = `chat-${bk.business_id}-${bk.client_id}`;
+        io.to(room).emit('chat:message', msgResult.rows[0]);
+      }
+
+      console.log(`[Reschedule] Booking #${bk.id} (${bk.client_name}) → rescheduled to ${newSlot}`);
+    }
+  } catch (err) {
+    console.error('[Reschedule] Error during rescheduling:', err.message);
+  }
+};

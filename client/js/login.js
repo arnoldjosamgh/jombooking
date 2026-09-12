@@ -2,33 +2,81 @@
  * Jomish Login Logic
  *
  * Flow:
- * 1. Page loads → if last_username is stored, silently attempt biometric auth
+ * 1. Page loads → check IndexedDB for saved username.
+ *    If found AND bio is registered, auto-trigger biometric login silently.
  *    - Success → log in automatically (no password needed)
- *    - Fail / not available / declined → hide spinner, show normal form
+ *    - Fail / declined → hide spinner, show normal form
  * 2. User submits username+password → log in
- *    - On success → trigger biometric registration in background (device prompt appears)
- *    - If they decline or device doesn't support it → no problem, just continue
+ *    - On success → register biometrics silently (device native prompt)
+ *    - After first successful registration, IndexedDB remembers it permanently
+ *      (survives browser cache clears, unlike localStorage)
  */
 
 const { startAuthentication, startRegistration } = SimpleWebAuthnBrowser;
 
+// ─── IndexedDB helpers for persistent biometric state ───────────────────────────
+const BioStore = {
+  DB_NAME: 'jomish_bio',
+  STORE:   'flags',
+
+  _open() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this.DB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(this.STORE);
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror   = e => reject(e.target.error);
+    });
+  },
+
+  async get(key) {
+    try {
+      const db = await this._open();
+      return new Promise((resolve) => {
+        const tx = db.transaction(this.STORE, 'readonly');
+        const req = tx.objectStore(this.STORE).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => resolve(null);
+      });
+    } catch { return null; }
+  },
+
+  async set(key, value) {
+    try {
+      const db = await this._open();
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(this.STORE, 'readwrite');
+        tx.objectStore(this.STORE).put(value, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror    = e => reject(e.target.error);
+      });
+    } catch (e) { console.warn('[BioStore] set failed:', e); }
+  },
+};
+
 window.addEventListener('DOMContentLoaded', async () => {
-  const lastUser = localStorage.getItem('last_username');
+  // Check IndexedDB for saved username (survives cache clears)
+  const idbUser = await BioStore.get('last_username');
+  const lsUser  = localStorage.getItem('last_username');
+  const lastUser = idbUser || lsUser;
+
+  // Migrate localStorage to IndexedDB if needed
+  if (lsUser && !idbUser) await BioStore.set('last_username', lsUser);
 
   // Initialize password toggle
   pwEye('password');
 
   if (lastUser) {
-    // Pre-fill the username so the form is ready if biometrics fail
+    // Pre-fill username
     document.getElementById('username').value = lastUser;
-    
-    // Auto-trigger biometric login if registered
-    if (localStorage.getItem('bio_registered_' + lastUser)) {
+
+    // Auto-trigger biometric if registered (check IndexedDB first, fallback to localStorage)
+    const bioFlag = await BioStore.get('bio_registered_' + lastUser)
+                 || localStorage.getItem('bio_registered_' + lastUser);
+    if (bioFlag) {
       const btn = document.getElementById('login-btn');
       btn.disabled = true;
       btn.textContent = 'Checking biometrics…';
       attemptBiometricLogin(lastUser).then(() => {
-        // If it failed, reset button
         if (btn.textContent === 'Checking biometrics…') {
           btn.disabled = false;
           btn.textContent = 'Sign In';
@@ -86,8 +134,8 @@ window.addEventListener('DOMContentLoaded', async () => {
       handleLoginSuccess(data);
 
       // After successful password login, silently try to register biometrics
-      // (only if not already registered for this user)
-      if (!localStorage.getItem('bio_registered_' + username)) {
+      if (!(await BioStore.get('bio_registered_' + username))
+          && !localStorage.getItem('bio_registered_' + username)) {
         setTimeout(() => attemptBiometricRegistration(username), 1500);
       }
 
@@ -162,9 +210,10 @@ async function attemptBiometricRegistration(username) {
     });
 
     if (verification.verified) {
-      // Remember we've registered biometrics for this user
+      // Save to BOTH IndexedDB (permanent) and localStorage (fast access)
+      await BioStore.set('bio_registered_' + username, '1');
       localStorage.setItem('bio_registered_' + username, '1');
-      toast('Biometrics Enabled', 'You can now log in with your fingerprint or face next time.', 'success', 4000);
+      toast('Biometrics Enabled', 'Next time, just tap Sign In — no typing needed!', 'success', 4000);
     }
   } catch (err) {
     // Declined or not supported — fail silently, no error shown
@@ -176,8 +225,11 @@ function handleLoginSuccess(data) {
   localStorage.setItem('auth_token', data.token);
   localStorage.setItem('last_username', data.seller.username);
   localStorage.setItem('role', data.seller.role);
+  // Persist username to IndexedDB too (survives cache clears)
+  BioStore.set('last_username', data.seller.username);
   if (data.has_biometrics) {
     localStorage.setItem('bio_registered_' + data.seller.username, '1');
+    BioStore.set('bio_registered_' + data.seller.username, '1');
   }
   if (data.business_slug) {
     localStorage.setItem('business_slug', data.business_slug);

@@ -93,11 +93,54 @@ const Session = {
   }
 };
 
-// ─── API Fetch Wrapper ─────────────────────────────────────────
+// ─── Offline Queue & Gentle Network Handling ─────────────────────────────────
+const OfflineQueue = {
+  KEY: 'jomish_offline_queue',
+  get()  { try { return JSON.parse(localStorage.getItem(this.KEY)) || []; } catch { return []; } },
+  add(item) {
+    const q = this.get();
+    q.push({ ...item, _queued: Date.now() });
+    localStorage.setItem(this.KEY, JSON.stringify(q));
+  },
+  clear() { localStorage.removeItem(this.KEY); },
+  async flush() {
+    const q = this.get();
+    if (!q.length) return;
+    this.clear();
+    for (const item of q) {
+      try { await apiFetch(item.path, item.options); }
+      catch (e) { console.warn('[OfflineQueue] Replay failed:', e.message); }
+    }
+    toast('Back Online', 'Your queued actions have been sent ✅', 'success', 3000);
+  }
+};
+
+function showOfflineBanner() {
+  if (document.getElementById('offline-banner')) return;
+  const b = document.createElement('div');
+  b.id = 'offline-banner';
+  b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f59e0b;color:#1a1a1a;text-align:center;padding:8px 16px;font-size:0.85rem;font-weight:600;';
+  b.textContent = '⚡ You\'re offline — changes will sync automatically when you reconnect.';
+  document.body.prepend(b);
+}
+function hideOfflineBanner() { const b = document.getElementById('offline-banner'); if (b) b.remove(); }
+
+window.addEventListener('online',  () => { hideOfflineBanner(); OfflineQueue.flush(); });
+window.addEventListener('offline', () => showOfflineBanner());
+if (typeof navigator !== 'undefined' && !navigator.onLine) showOfflineBanner();
+
+// ─── API Fetch Wrapper ──────────────────────────────────────────────────────────
 async function apiFetch(path, options = {}) {
   const token = localStorage.getItem('auth_token');
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  // If offline and this is a write, queue it instead of crashing
+  if (!navigator.onLine && options.method && options.method !== 'GET') {
+    OfflineQueue.add({ path, options });
+    showOfflineBanner();
+    throw new Error('You\'re offline. This will send automatically when you reconnect.');
+  }
 
   try {
     const res = await fetch(`${API}${path}`, {
@@ -109,6 +152,15 @@ async function apiFetch(path, options = {}) {
     if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
     return data;
   } catch (err) {
+    // Catch network/connection failures gently
+    if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
+      showOfflineBanner();
+      if (options.method && options.method !== 'GET') {
+        OfflineQueue.add({ path, options });
+        throw new Error('No connection — saved locally and will sync when you\'re back.');
+      }
+      throw new Error('No connection — please check your internet and try again.');
+    }
     console.error('[API]', path, err.message);
     throw err;
   }

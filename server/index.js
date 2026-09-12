@@ -152,6 +152,20 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'client', 'index.html'));
 });
 
+// ─── Nightly Auto-Reschedule Job ───────────────────────────────────────────────────
+const { rescheduleExpiredBookings } = require('./routes/bookings');
+function scheduleMidnightReschedule() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  const msUntilMidnight = midnight - now;
+  setTimeout(() => {
+    rescheduleExpiredBookings(io);
+    setInterval(() => rescheduleExpiredBookings(io), 24 * 60 * 60 * 1000);
+  }, msUntilMidnight);
+  console.log(`[Reschedule] Job scheduled – runs at midnight (in ${Math.round(msUntilMidnight / 60000)} min)`);
+}
+
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
@@ -159,6 +173,7 @@ server.listen(PORT, () => {
   console.log(`   Order flow:   http://localhost:${PORT}/order/jomish-cafe`);
   console.log(`   Booking flow: http://localhost:${PORT}/book/jomish-salon`);
   console.log(`   Seller view:  http://localhost:${PORT}/seller\n`);
+  scheduleMidnightReschedule();
 });
 
 module.exports = { app, server, io };

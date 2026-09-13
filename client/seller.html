@@ -14,8 +14,8 @@
   <link rel="stylesheet" href="/css/style.css">
   <!-- ZXing for barcode scanning -->
   <script type="text/javascript" src="https://unpkg.com/@zxing/browser@latest"></script>
-  <!-- QRCode.js for QR generation -->
-  <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+  <!-- Modern QR Code Styling -->
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
   <!-- Lucide SVG icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <!-- SimpleWebAuthn for biometric setup -->
@@ -197,12 +197,9 @@
         <!-- Main QR -->
         <div style="flex:1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:10px">
           <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.07em;color:#64748b">Main QR Code</div>
-          <!-- QR wrapper with centred logo overlay -->
+          <!-- QR wrapper -->
           <div style="position:relative;display:inline-block;padding:10px;background:#fff;border-radius:10px;border:1px solid #e2e8f0">
             <div id="ob-qrcode"></div>
-            <div id="ob-qr-logo" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36px;height:36px;border-radius:8px;background:#fff;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:none;overflow:hidden;">
-              <img id="ob-qr-logo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:6px">
-            </div>
           </div>
           <p style="font-size:0.72rem;color:#94a3b8;margin:0">Scan to visit your store</p>
         </div>
@@ -216,9 +213,6 @@
           </div>
           <div style="position:relative;display:inline-block;padding:10px;background:#fff;border-radius:10px;border:1px solid #e2e8f0">
             <div id="ob-table-qrcode" style="display:none"></div>
-            <div id="ob-table-qr-logo" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:30px;height:30px;border-radius:6px;background:#fff;padding:2px;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:none;overflow:hidden;">
-              <img id="ob-table-qr-logo-img" src="" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:5px">
-            </div>
           </div>
         </div>
       </div>

@@ -161,17 +161,19 @@ function showOnboarding(biz) {
 
   const qrEl = document.getElementById('ob-qrcode');
   qrEl.innerHTML = '';
-  new QRCode(qrEl, { text: clientLink, width: 160, height: 160, colorDark: '#1a2461', colorLight: '#ffffff' });
-
-  // Logo overlay in the centre of the main QR
-  const logoOverlay = document.getElementById('ob-qr-logo');
-  const logoImg = document.getElementById('ob-qr-logo-img');
-  if (biz.logo_url && logoOverlay && logoImg) {
-    logoImg.src = biz.logo_url;
-    logoOverlay.style.display = 'block';
-  } else if (logoOverlay) {
-    logoOverlay.style.display = 'none';
-  }
+  
+  const qrCode = new QRCodeStyling({
+    width: 150,
+    height: 150,
+    data: clientLink,
+    image: biz.logo_url || "",
+    dotsOptions: { color: "#1a2461", type: "dots" },
+    cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
+    cornersDotOptions: { type: "dot", color: "#1a2461" },
+    backgroundOptions: { color: "#ffffff" },
+    imageOptions: { crossOrigin: "anonymous", margin: 6 }
+  });
+  qrCode.append(qrEl);
 
   // Update TV link
   const tvLink = document.getElementById('tv-display-link');
@@ -190,17 +192,19 @@ function generateTableQR() {
   const qrEl = document.getElementById('ob-table-qrcode');
   qrEl.style.display = 'inline-block';
   qrEl.innerHTML = '';
-  new QRCode(qrEl, { text: clientLink, width: 130, height: 130, colorDark: '#1a2461', colorLight: '#ffffff' });
-
-  // Logo overlay in the centre of the table QR
-  const logoOverlay = document.getElementById('ob-table-qr-logo');
-  const logoImg = document.getElementById('ob-table-qr-logo-img');
-  if (selectedBiz.logo_url && logoOverlay && logoImg) {
-    logoImg.src = selectedBiz.logo_url;
-    logoOverlay.style.display = 'block';
-  } else if (logoOverlay) {
-    logoOverlay.style.display = 'none';
-  }
+  
+  const qrCode = new QRCodeStyling({
+    width: 130,
+    height: 130,
+    data: clientLink,
+    image: selectedBiz.logo_url || "",
+    dotsOptions: { color: "#1a2461", type: "dots" },
+    cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
+    cornersDotOptions: { type: "dot", color: "#1a2461" },
+    backgroundOptions: { color: "#ffffff" },
+    imageOptions: { crossOrigin: "anonymous", margin: 5 }
+  });
+  qrCode.append(qrEl);
 }
 
 function closeOnboarding() {

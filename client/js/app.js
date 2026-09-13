@@ -201,7 +201,7 @@ function toast(title, body = '', type = 'info', duration = 4000) {
     ${body ? `<div class="toast-body">${body}</div>` : ''}
   `;
   container.appendChild(el);
-  if (typeof lucide !== 'undefined') lucide.createIcons();
+  try { if (typeof lucide !== 'undefined') lucide.createIcons(); } catch (e) {}
   
   setTimeout(() => {
     el.style.animation = 'none';

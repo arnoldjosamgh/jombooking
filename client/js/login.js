@@ -75,13 +75,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         body: { username, password }
       });
 
-      handleLoginSuccess(data);
+      // Check biometric status BEFORE redirect — but fire-and-forget, never throw
+      try {
+        const hasBio = await BioStore.get('bio_registered_' + username)
+                    || localStorage.getItem('bio_registered_' + username);
+        if (!hasBio) {
+          setTimeout(() => attemptBiometricRegistration(username), 1500);
+        }
+      } catch (_) { /* ignore — biometrics not critical */ }
 
-      // After successful password login, silently try to register biometrics
-      if (!(await BioStore.get('bio_registered_' + username))
-          && !localStorage.getItem('bio_registered_' + username)) {
-        setTimeout(() => attemptBiometricRegistration(username), 1500);
-      }
+      // Redirect now — this is the last thing we do
+      handleLoginSuccess(data);
 
     } catch (err) {
       toast('Login Failed', err.message, 'error');
@@ -220,34 +224,43 @@ async function attemptBiometricRegistration(username) {
 
 // ─── SUCCESS HANDLER ──────────────────────────────────────────────────────────
 function handleLoginSuccess(data) {
-  localStorage.setItem('auth_token',  data.token);
-  localStorage.setItem('last_username', data.seller.username);
-  localStorage.setItem('role',        data.seller.role);
-  BioStore.set('last_username', data.seller.username);
+  try {
+    localStorage.setItem('auth_token',  data.token);
+    localStorage.setItem('last_username', data.seller.username);
+    localStorage.setItem('role',        data.seller.role);
 
-  if (data.has_biometrics) {
-    localStorage.setItem('bio_registered_' + data.seller.username, '1');
-    BioStore.set('bio_registered_' + data.seller.username, '1');
-  }
-  if (data.business_slug) {
-    localStorage.setItem('business_slug', data.business_slug);
-  }
-  if (data.business_name) {
-    localStorage.setItem('business_name', data.business_name);
-  }
-  if (data.seller.is_demo) {
-    localStorage.setItem('is_demo', '1');
-  } else {
-    localStorage.removeItem('is_demo');
-  }
+    // Fire-and-forget — don't await, never block redirect
+    try { BioStore.set('last_username', data.seller.username); } catch(_) {}
 
-  setTimeout(() => {
-    if (data.seller.role === 'tech') {
-      window.location.href = '/tech.html';
-    } else {
-      window.location.href = '/seller.html';
+    if (data.has_biometrics) {
+      localStorage.setItem('bio_registered_' + data.seller.username, '1');
+      try { BioStore.set('bio_registered_' + data.seller.username, '1'); } catch(_) {}
     }
-  }, 300);
+    if (data.business_slug) {
+      localStorage.setItem('business_slug', data.business_slug);
+    }
+    if (data.business_name) {
+      localStorage.setItem('business_name', data.business_name);
+    }
+    if (data.seller.is_demo) {
+      localStorage.setItem('is_demo', '1');
+    } else {
+      localStorage.removeItem('is_demo');
+    }
+
+    // Redirect immediately — no delay
+    if (data.seller.role === 'tech') {
+      window.location.replace('/tech.html');
+    } else {
+      window.location.replace('/seller.html');
+    }
+  } catch (err) {
+    console.error('[Login] handleLoginSuccess crashed:', err);
+    // Force redirect anyway if we at least have a token
+    if (data && data.token) {
+      window.location.replace('/seller.html');
+    }
+  }
 }
 
 // ─── DEMO LOGIN ───────────────────────────────────────────────────────────────

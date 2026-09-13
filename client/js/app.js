@@ -326,7 +326,7 @@ function fileToBase64(file) {
 function injectRegModal() {
   if (document.getElementById('reg-modal')) return;
   const tableParam = getParam('table') || '';
-  document.body.insertAdjacentHTML('beforeend', \`
+  document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-overlay" id="reg-modal">
       <div class="modal">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
@@ -342,12 +342,12 @@ function injectRegModal() {
           </div>
           <div class="form-group">
             <label for="reg-location">Your Location / Address / Table</label>
-            <input type="text" id="reg-location" placeholder="e.g. Table 4 or 123 Main St" value="\${tableParam}" required>
+            <input type="text" id="reg-location" placeholder="e.g. Table 4 or 123 Main St" value="${tableParam}" required>
           </div>
           <!-- Photo removed per request -->
           <button type="submit" class="btn btn-primary btn-full mt-8" id="reg-submit">Get Started →</button>
         </form>
       </div>
     </div>
-  \`);
+  `);
 }

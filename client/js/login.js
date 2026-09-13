@@ -266,7 +266,7 @@ function handleLoginSuccess(data) {
 // ─── DEMO LOGIN ───────────────────────────────────────────────────────────────
 async function demoLogin(type) {
   try {
-    const btn = event && event.target ? event.target.closest('button') : null;
+    const btn = typeof event !== 'undefined' && event && event.target ? event.target.closest('button') : null;
     if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
     const data = await apiFetch('/api/auth/demo-login', { method: 'POST', body: { type } });
     handleLoginSuccess(data);

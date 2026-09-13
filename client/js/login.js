@@ -54,51 +54,8 @@ const BioStore = {
 };
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Always initialize password toggle first
-  pwEye('password');
-
-  // Check IndexedDB for saved username (survives cache clears)
-  const idbUser  = await BioStore.get('last_username');
-  const lsUser   = localStorage.getItem('last_username');
-  const lastUser = idbUser || lsUser;
-
-  // Migrate localStorage to IndexedDB if needed
-  if (lsUser && !idbUser) await BioStore.set('last_username', lsUser);
-
-  if (lastUser) {
-    // Pre-fill username field
-    const usernameEl = document.getElementById('username');
-    if (usernameEl) usernameEl.value = lastUser;
-
-    // Check if biometrics are registered for this user
-    const bioFlag = await BioStore.get('bio_registered_' + lastUser)
-                 || localStorage.getItem('bio_registered_' + lastUser);
-
-    if (bioFlag) {
-      // Show the fast-login card (form stays visible above it)
-      const fastUi = document.getElementById('fast-login-ui');
-      if (fastUi) {
-        const bizName = localStorage.getItem('business_name');
-        const nameEl  = document.getElementById('fast-login-name');
-        if (nameEl) {
-          nameEl.textContent = bizName ? 'Welcome back to ' + bizName : 'Welcome back, ' + lastUser;
-        }
-        fastUi.style.display = 'block';
-      }
-    }
-  }
-
-  // Force uppercase while typing
-  const usernameInput = document.getElementById('username');
-  if (usernameInput) {
-    usernameInput.addEventListener('input', function () {
-      const pos = this.selectionStart;
-      this.value = this.value.toUpperCase();
-      this.setSelectionRange(pos, pos);
-    });
-  }
-
-  // Standard password login submit
+  // 1. Immediately attach event listeners to prevent form reload on submit
+  //    (This MUST be before any 'await' calls so it is guaranteed to register)
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('login-btn');
@@ -132,6 +89,53 @@ window.addEventListener('DOMContentLoaded', async () => {
       btn.textContent = 'Sign In';
     }
   });
+
+  const usernameInput = document.getElementById('username');
+  if (usernameInput) {
+    usernameInput.addEventListener('input', function () {
+      const pos = this.selectionStart;
+      this.value = this.value.toUpperCase();
+      this.setSelectionRange(pos, pos);
+    });
+  }
+
+  // Always initialize password toggle first
+  pwEye('password');
+
+  try {
+    // Check IndexedDB for saved username (survives cache clears)
+    const idbUser  = await BioStore.get('last_username');
+    const lsUser   = localStorage.getItem('last_username');
+    const lastUser = idbUser || lsUser;
+
+    // Migrate localStorage to IndexedDB if needed
+    if (lsUser && !idbUser) await BioStore.set('last_username', lsUser);
+
+    if (lastUser) {
+      // Pre-fill username field
+      const usernameEl = document.getElementById('username');
+      if (usernameEl) usernameEl.value = lastUser;
+
+      // Check if biometrics are registered for this user
+      const bioFlag = await BioStore.get('bio_registered_' + lastUser)
+                   || localStorage.getItem('bio_registered_' + lastUser);
+
+      if (bioFlag) {
+        // Show the fast-login card (form stays visible above it)
+        const fastUi = document.getElementById('fast-login-ui');
+        if (fastUi) {
+          const bizName = localStorage.getItem('business_name');
+          const nameEl  = document.getElementById('fast-login-name');
+          if (nameEl) {
+            nameEl.textContent = bizName ? 'Welcome back to ' + bizName : 'Welcome back, ' + lastUser;
+          }
+          fastUi.style.display = 'block';
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Login UI] Error loading saved user info:', e);
+  }
 });
 
 // ─── FAST LOGIN (triggered by button tap) ─────────────────────────────────────

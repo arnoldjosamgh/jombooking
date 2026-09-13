@@ -332,6 +332,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('[orders] PATCH /status error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

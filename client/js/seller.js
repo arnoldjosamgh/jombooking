@@ -125,7 +125,7 @@ async function showSetupPrompts() {
   // 1. Check Push Notifications
   if (('Notification' in window) && Notification.permission === 'default' && !localStorage.getItem('prompted_push_' + username)) {
     localStorage.setItem('prompted_push_' + username, '1');
-    if (confirm('<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
+    if (confirm('Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
       await enablePushNotifications();
     }
   }
@@ -1077,7 +1077,7 @@ async function renderPending() {
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
               <strong>${o.product_title}</strong> (x${o.quantity})<br>
-              <span class="text-dim text-sm">${o.client_name} • ${new Date(o.created_at).toLocaleString()}</span>
+              <span class="text-dim text-sm">${o.client_name} ${o.client_location ? `• Table/Loc: ${o.client_location}` : ''} • ${new Date(o.created_at).toLocaleString()}</span>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
               <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${o.client_id}', '${o.client_name}', '${o.product_title.replace(/'/g, "\\'")}')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Ready</button>
@@ -1102,7 +1102,7 @@ async function renderPending() {
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
               <strong>${b.service_name || 'Booking'}</strong><br>
-              <span class="text-dim text-sm">${b.client_name} • ${new Date(b.booking_time).toLocaleString()}</span>
+              <span class="text-dim text-sm">${b.client_name} ${b.client_location ? `• Table/Loc: ${b.client_location}` : ''} • ${new Date(b.booking_time).toLocaleString()}</span>
             </div>
             <div style="display:flex; gap:8px;">
               <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Message</button>

@@ -175,7 +175,7 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
 
       if (stockResult.rowCount === 0) {
         await client.query('ROLLBACK');
-        return res.status(409).json({ error: \`Out of stock for product #\${item.product_id}\` });
+        return res.status(409).json({ error: `Out of stock for product #${item.product_id}` });
       }
 
       const orderResult = await client.query(
@@ -186,7 +186,7 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
       
       const orderId = orderResult.rows[0].id;
       await client.query(
-        \`UPDATE orders SET receipt_number = 'ORD-' || LPAD($1::text, 5, '0') WHERE id = $1\`,
+        `UPDATE orders SET receipt_number = 'ORD-' || LPAD($1::text, 5, '0') WHERE id = $1`,
         [orderId]
       );
 
@@ -209,7 +209,7 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
     if (bizRes.rows.length > 0) {
       sendPushToSeller(bizRes.rows[0].owner_id, {
         title: 'New Order Request',
-        body: \`You received a new order with \${items.length} item(s).\`,
+        body: `You received a new order with ${items.length} item(s).`,
         url: '/seller'
       });
     }

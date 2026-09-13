@@ -86,7 +86,7 @@ function setupBiz(biz) {
   }
 
   const type = biz.type;
-  document.getElementById('dashboard-type').textContent = type === 'product' ? '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Point of Sale' : type === 'service' ? '<i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Calendar' : '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> POS & <i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Calendar';
+  document.getElementById('dashboard-type').innerHTML = type === 'product' ? '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Point of Sale' : type === 'service' ? '<i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Calendar' : '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> POS & <i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Calendar';
 
   renderTabs(type);
 
@@ -113,6 +113,8 @@ function setupBiz(biz) {
   // Poll unread counts every 30s
   renderSellerChatThreads();
   
+  if (window.lucide) lucide.createIcons();
+
   // Show first-login setup prompts if not seen
   setTimeout(showSetupPrompts, 2000);
 }
@@ -159,7 +161,17 @@ function showOnboarding(biz) {
 
   const qrEl = document.getElementById('ob-qrcode');
   qrEl.innerHTML = '';
-  new QRCode(qrEl, { text: clientLink, width: 180, height: 180, colorDark: '#1a2461', colorLight: '#ffffff' });
+  new QRCode(qrEl, { text: clientLink, width: 160, height: 160, colorDark: '#1a2461', colorLight: '#ffffff' });
+
+  // Logo overlay in the centre of the main QR
+  const logoOverlay = document.getElementById('ob-qr-logo');
+  const logoImg = document.getElementById('ob-qr-logo-img');
+  if (biz.logo_url && logoOverlay && logoImg) {
+    logoImg.src = biz.logo_url;
+    logoOverlay.style.display = 'block';
+  } else if (logoOverlay) {
+    logoOverlay.style.display = 'none';
+  }
 
   // Update TV link
   const tvLink = document.getElementById('tv-display-link');
@@ -178,7 +190,17 @@ function generateTableQR() {
   const qrEl = document.getElementById('ob-table-qrcode');
   qrEl.style.display = 'inline-block';
   qrEl.innerHTML = '';
-  new QRCode(qrEl, { text: clientLink, width: 150, height: 150, colorDark: '#1a2461', colorLight: '#ffffff' });
+  new QRCode(qrEl, { text: clientLink, width: 130, height: 130, colorDark: '#1a2461', colorLight: '#ffffff' });
+
+  // Logo overlay in the centre of the table QR
+  const logoOverlay = document.getElementById('ob-table-qr-logo');
+  const logoImg = document.getElementById('ob-table-qr-logo-img');
+  if (selectedBiz.logo_url && logoOverlay && logoImg) {
+    logoImg.src = selectedBiz.logo_url;
+    logoOverlay.style.display = 'block';
+  } else if (logoOverlay) {
+    logoOverlay.style.display = 'none';
+  }
 }
 
 function closeOnboarding() {
@@ -1363,32 +1385,49 @@ async function confirmCompleteBooking() {
 }
 
 function generateReceiptPDF(bk, finalPrice) {
-  // Populate the hidden template
+  const symbol = selectedBiz?.currency_symbol || '$';
+  const logoUrl = selectedBiz?.logo_url || bk.business_logo || '';
+
+  // Populate header
   document.getElementById('receipt-biz-name').textContent = bk.business_name || selectedBiz.name;
   document.getElementById('receipt-biz-location').textContent = bk.business_location || selectedBiz.location || '';
+  const phoneEl = document.getElementById('receipt-biz-phone');
+  if (phoneEl) phoneEl.textContent = selectedBiz.phone_number || bk.business_phone || '';
+
+  // Logo & watermark images
+  const logoEl = document.getElementById('receipt-logo');
+  if (logoEl) { logoEl.src = logoUrl; logoEl.style.display = logoUrl ? 'block' : 'none'; }
+  const wmEl = document.getElementById('receipt-watermark');
+  if (wmEl) { wmEl.src = logoUrl; wmEl.style.display = logoUrl ? 'block' : 'none'; }
+
+  // Order meta
   document.getElementById('receipt-id').textContent = bk.receipt_number || bk.id;
   document.getElementById('receipt-date').textContent = new Date().toLocaleString();
   document.getElementById('receipt-client').textContent = bk.client_name;
+
+  // Line item
   document.getElementById('receipt-service').textContent = bk.service_name || 'Service';
-  document.getElementById('receipt-price').textContent = '$' + finalPrice.toFixed(2);
-  document.getElementById('receipt-total').textContent = '$' + finalPrice.toFixed(2);
-  
+  document.getElementById('receipt-price').textContent = symbol + parseFloat(finalPrice).toFixed(2);
+  document.getElementById('receipt-total').textContent = symbol + parseFloat(finalPrice).toFixed(2);
+
   const element = document.getElementById('receipt-content');
-  // Temporarily show container so html2pdf can read it
-  document.getElementById('receipt-container').style.display = 'block';
-  
+  // Temporarily reveal for html2pdf capture
+  const container = document.getElementById('receipt-container');
+  container.style.cssText = 'display:block;position:fixed;top:-9999px;left:-9999px;';
+
   const opt = {
     margin:       0,
     filename:     `Receipt-${bk.receipt_number || bk.id}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2 },
-    jsPDF:        { unit: 'mm', format: [80, 150], orientation: 'portrait' }
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: [80, 170], orientation: 'portrait' }
   };
-  
+
   html2pdf().set(opt).from(element).save().then(() => {
-    document.getElementById('receipt-container').style.display = 'none';
+    container.style.cssText = 'display:none;position:fixed;top:-9999px;left:-9999px;';
   });
 }
+
 
 async function pollPending() {
   if (!selectedBiz) return;
@@ -1508,7 +1547,7 @@ async function enablePushNotifications() {
     toast('Not Supported', 'Push notifications are not supported on this device/browser.', 'error');
     return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Requesting permission…'; }
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Requesting permission…'; }
   try {
     const permission = await Notification.requestPermission();
     if (permission === 'denied') {
@@ -1518,11 +1557,11 @@ async function enablePushNotifications() {
         'info',
         7000
       );
-      if (btn) { btn.disabled = false; btn.textContent = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
       return;
     }
     if (permission !== 'granted') {
-      if (btn) { btn.disabled = false; btn.textContent = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
       return;
     }
     // Get VAPID public key
@@ -1538,10 +1577,12 @@ async function enablePushNotifications() {
     // Save subscription to server
     await apiFetch('/api/push/subscribe', { method: 'POST', body: subscription });
     toast('Notifications On! <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'You will now receive push notifications for new orders and bookings.', 'success', 4000);
-    if (btn) btn.textContent = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Notifications Enabled';
+    if (btn) btn.innerHTML = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Notifications Enabled';
   } catch (err) {
     toast('Error', err.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+  } finally {
+    if (window.lucide) lucide.createIcons();
   }
 }
 

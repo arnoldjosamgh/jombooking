@@ -2,62 +2,297 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TV Display | Jomish</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    body { background: #0f1222; color: #fff; overflow: hidden; padding: 2rem; font-family: Outfit, sans-serif; }
-    h1 { text-align: center; font-size: 3rem; margin-bottom: 2rem; color: #f4a81d; }
-    .columns { display: flex; gap: 2rem; height: calc(100vh - 150px); }
-    .col { flex: 1; background: rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 2rem; display: flex; flex-direction: column; border: 1px solid rgba(255, 255, 255, 0.1); }
-    .col-title { font-size: 2.5rem; text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 800; }
-    .preparing .col-title { color: #facc15; }
-    .ready .col-title { color: #4ade80; }
-    .order-list { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; gap: 1rem; }
-    .order-item { background: rgba(255, 255, 255, 0.1); padding: 1.5rem; border-radius: 16px; font-size: 2.5rem; font-weight: 700; text-align: center; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-    .ready .order-item { background: rgba(74, 222, 128, 0.2); border: 2px solid #4ade80; }
-    @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: 'Outfit', sans-serif;
+      background: #0f1222;
+      color: #ffffff;
+    }
+
+    /* ── Header ─────────────────────────────── */
+    .tv-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 32px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(12px);
+    }
+
+    .tv-brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .tv-logo {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      object-fit: cover;
+      border: 2px solid rgba(244,168,29,0.5);
+      box-shadow: 0 4px 16px rgba(244,168,29,0.25);
+    }
+
+    .tv-logo-placeholder {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #1a2461, #0f1222);
+      border: 2px solid rgba(244,168,29,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tv-biz-name {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+
+    .tv-biz-sub {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+      margin-top: 2px;
+    }
+
+    .tv-time {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #f4a81d;
+      letter-spacing: 0.02em;
+    }
+
+    .tv-status-dot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+    }
+    .tv-status-dot::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #4ade80;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── Columns ─────────────────────────────── */
+    .tv-columns {
+      display: flex;
+      gap: 24px;
+      padding: 24px 32px;
+      height: calc(100vh - 106px);
+    }
+
+    .tv-col {
+      flex: 1;
+      border-radius: 24px;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255,255,255,0.08);
+      backdrop-filter: blur(8px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .tv-col::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      border-radius: 24px 24px 0 0;
+    }
+
+    .col-preparing {
+      background: rgba(245, 158, 11, 0.05);
+    }
+    .col-preparing::before { background: linear-gradient(90deg, #f59e0b, #f4a81d); }
+
+    .col-ready {
+      background: rgba(16, 185, 129, 0.05);
+    }
+    .col-ready::before { background: linear-gradient(90deg, #10b981, #34d399); }
+
+    .tv-col-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .tv-col-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .col-preparing .tv-col-icon { background: rgba(245,158,11,0.2); }
+    .col-ready .tv-col-icon { background: rgba(16,185,129,0.2); }
+
+    .tv-col-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .col-preparing .tv-col-title { color: #f59e0b; }
+    .col-ready .tv-col-title { color: #10b981; }
+
+    .tv-order-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow: hidden;
+    }
+
+    .tv-order-item {
+      padding: 18px 22px;
+      border-radius: 16px;
+      font-size: 1.6rem;
+      font-weight: 700;
+      text-align: center;
+      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .tv-order-item .order-label { font-size: 1.6rem; }
+    .tv-order-item .order-sub { font-size: 0.9rem; font-weight: 500; opacity: 0.7; margin-top: 4px; }
+
+    .col-preparing .tv-order-item {
+      background: rgba(245,158,11,0.12);
+      border-color: rgba(245,158,11,0.25);
+      color: #fde68a;
+    }
+
+    .col-ready .tv-order-item {
+      background: rgba(16,185,129,0.15);
+      border-color: rgba(16,185,129,0.35);
+      color: #6ee7b7;
+    }
+
+    .tv-empty {
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      font-size: 1.1rem;
+      padding: 40px 0;
+    }
+
+    @keyframes popIn {
+      0%   { opacity: 0; transform: scale(0.85) translateY(8px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
   </style>
-  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
 
-  <h1 id="biz-title">Loading...</h1>
-  
-  <div class="columns">
-    <div class="col preparing">
-      <div class="col-title">Preparing</div>
-      <div class="order-list" id="preparing-list"></div>
+  <!-- Header -->
+  <div class="tv-header">
+    <div class="tv-brand">
+      <img id="biz-logo" class="tv-logo" style="display:none" alt="Logo">
+      <div id="biz-logo-placeholder" class="tv-logo-placeholder">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f4a81d" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div>
+        <div class="tv-biz-name" id="biz-title">Loading...</div>
+        <div class="tv-biz-sub">Order Status Board</div>
+      </div>
     </div>
-    <div class="col ready">
-      <div class="col-title">Ready for Pickup</div>
-      <div class="order-list" id="ready-list"></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+      <div class="tv-time" id="tv-clock">--:--</div>
+      <div class="tv-status-dot">Live</div>
+    </div>
+  </div>
+
+  <!-- Order columns -->
+  <div class="tv-columns">
+    <div class="tv-col col-preparing">
+      <div class="tv-col-header">
+        <div class="tv-col-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <div class="tv-col-title">Preparing</div>
+      </div>
+      <div class="tv-order-list" id="preparing-list">
+        <div class="tv-empty">No pending orders</div>
+      </div>
+    </div>
+    <div class="tv-col col-ready">
+      <div class="tv-col-header">
+        <div class="tv-col-icon">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="tv-col-title">Ready for Pickup</div>
+      </div>
+      <div class="tv-order-list" id="ready-list">
+        <div class="tv-empty">Nothing ready yet</div>
+      </div>
     </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    const API = window.location.origin;
     let businessId = null;
+
+    // Live clock
+    function updateClock() {
+      const now = new Date();
+      document.getElementById('tv-clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    updateClock();
+    setInterval(updateClock, 1000);
 
     async function init() {
       const params = new URLSearchParams(window.location.search);
       const slug = params.get('slug');
-      if (!slug) return document.getElementById('biz-title').textContent = 'Invalid Link';
-
+      if (!slug) {
+        document.getElementById('biz-title').textContent = 'Invalid Link';
+        return;
+      }
       try {
         const res = await fetch(`/api/businesses/${slug}`);
         const biz = await res.json();
         businessId = biz.id;
-        document.getElementById('biz-title').textContent = biz.name + ' - Order Status';
-        
-        loadOrders();
-        setInterval(loadOrders, 10000); // Poll every 10 seconds
+        document.getElementById('biz-title').textContent = biz.name;
 
-        const socket = io();
-        socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
-        socket.on('order:waiting', () => loadOrders());
-        socket.on('order:status', () => loadOrders());
-      } catch (e) {
+        if (biz.logo_url) {
+          const logoEl = document.getElementById('biz-logo');
+          logoEl.src = biz.logo_url;
+          logoEl.style.display = 'block';
+          document.getElementById('biz-logo-placeholder').style.display = 'none';
+        }
+
+        loadOrders();
+        setInterval(loadOrders, 10000);
+
+        try {
+          const socket = io();
+          socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
+          socket.on('order:waiting', loadOrders);
+          socket.on('order:status', loadOrders);
+        } catch(e) {}
+      } catch(e) {
         document.getElementById('biz-title').textContent = 'Error connecting';
       }
     }
@@ -67,43 +302,34 @@
       try {
         const res = await fetch(`/api/orders/list/${businessId}`);
         const orders = await res.json();
-
-        // Pending -> Preparing
-        // Status ready -> Completed? Since we used completed for delivered, let's treat recent 'completed' as Ready for 5 minutes, or maybe just look at orders from today.
-        // Actually, if seller clicks 'Notify Ready', we can add 'ready' status, but we didn't add that to DB check constraints.
-        // So we'll just show 'pending' as Preparing.
         const pending = orders.filter(o => o.status === 'pending');
-        
-        // Show recently completed (last 15 mins) as Ready
-        const ready = orders.filter(o => o.status === 'completed' && (Date.now() - new Date(o.created_at).getTime()) < 15 * 60000);
-
-        // Group by order_group_id or client_name or just show order ID (receipt_number)
-        renderList('preparing-list', pending);
-        renderList('ready-list', ready);
-      } catch (e) {
-        console.error(e);
-      }
+        const ready   = orders.filter(o => o.status === 'completed' && (Date.now() - new Date(o.created_at).getTime()) < 15 * 60000);
+        renderList('preparing-list', pending, 'No pending orders');
+        renderList('ready-list', ready, 'Nothing ready yet');
+      } catch(e) { console.error(e); }
     }
 
-    function renderList(elementId, items) {
+    function renderList(elementId, items, emptyMsg) {
       const container = document.getElementById(elementId);
-      // Get unique clients or order_group_ids. Let's just group by receipt_number / client_name
       const grouped = {};
       items.forEach(i => {
         const key = i.receipt_number || i.id;
-        if (!grouped[key]) grouped[key] = { id: key, name: i.client_name };
+        if (!grouped[key]) grouped[key] = { id: key, name: i.client_name, loc: i.client_location };
       });
-      
-      const orders = Object.values(grouped).slice(0, 8); // Max 8 items
-      
-      const newHtml = orders.map(o => `<div class="order-item">#${o.id.toString().replace('ORD-00', '')} - ${o.name}</div>`).join('');
-      if (container.innerHTML !== newHtml) {
-        container.innerHTML = newHtml;
+      const orders = Object.values(grouped).slice(0, 8);
+      if (!orders.length) {
+        container.innerHTML = `<div class="tv-empty">${emptyMsg}</div>`;
+        return;
       }
+      const newHtml = orders.map(o => {
+        const num = o.id.toString().replace(/^ORD-0+/, '');
+        const locTag = o.loc ? `<div class="order-sub">Table ${o.loc}</div>` : '';
+        return `<div class="tv-order-item"><div class="order-label">#${num} — ${o.name}</div>${locTag}</div>`;
+      }).join('');
+      if (container.innerHTML !== newHtml) container.innerHTML = newHtml;
     }
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
-  <script>if(window.lucide) lucide.createIcons();</script>
 </body>
 </html>

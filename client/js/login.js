@@ -2,19 +2,18 @@
  * Jomish Login Logic
  *
  * Flow:
- * 1. Page loads → check IndexedDB for saved username.
- *    If found AND bio is registered, auto-trigger biometric login silently.
- *    - Success → log in automatically (no password needed)
- *    - Fail / declined → hide spinner, show normal form
+ * 1. Page loads → show the standard login form immediately (always visible).
+ *    If a saved username + biometric flag exists, also show a "fast login" card BELOW the form.
+ *    - User taps fast-login button → biometric prompt
+ *    - Success → log in automatically
+ *    - Fail / declined → fast-login card hides, form remains fully usable
  * 2. User submits username+password → log in
- *    - On success → register biometrics silently (device native prompt)
- *    - After first successful registration, IndexedDB remembers it permanently
- *      (survives browser cache clears, unlike localStorage)
+ *    - On success → silently register biometrics (device native prompt)
  */
 
 const { startAuthentication, startRegistration } = SimpleWebAuthnBrowser;
 
-// ─── IndexedDB helpers for persistent biometric state ───────────────────────────
+// ─── IndexedDB helpers for persistent biometric state ────────────────────────
 const BioStore = {
   DB_NAME: 'jomish_bio',
   STORE:   'flags',
@@ -54,83 +53,63 @@ const BioStore = {
 };
 
 window.addEventListener('DOMContentLoaded', async () => {
+  // Always initialize password toggle first
+  pwEye('password');
+
   // Check IndexedDB for saved username (survives cache clears)
-  const idbUser = await BioStore.get('last_username');
-  const lsUser  = localStorage.getItem('last_username');
+  const idbUser  = await BioStore.get('last_username');
+  const lsUser   = localStorage.getItem('last_username');
   const lastUser = idbUser || lsUser;
 
   // Migrate localStorage to IndexedDB if needed
   if (lsUser && !idbUser) await BioStore.set('last_username', lsUser);
 
-  // Initialize password toggle
-  pwEye('password');
-
   if (lastUser) {
-    // Pre-fill username
-    document.getElementById('username').value = lastUser;
+    // Pre-fill username field
+    const usernameEl = document.getElementById('username');
+    if (usernameEl) usernameEl.value = lastUser;
 
-    // Auto-trigger biometric if registered (check IndexedDB first, fallback to localStorage)
+    // Check if biometrics are registered for this user
     const bioFlag = await BioStore.get('bio_registered_' + lastUser)
                  || localStorage.getItem('bio_registered_' + lastUser);
+
     if (bioFlag) {
-      const form = document.getElementById('login-form');
-      const msg = document.getElementById('login-msg');
+      // Show the fast-login card (form stays visible above it)
       const fastUi = document.getElementById('fast-login-ui');
-      
-      if (form && fastUi) {
-        form.style.display = 'none';
-        if (msg) msg.style.display = 'none';
-        fastUi.style.display = 'block';
-        
+      if (fastUi) {
         const bizName = localStorage.getItem('business_name');
-        if (bizName) {
-          const titleEl = document.getElementById('fast-login-title');
-          if (titleEl) titleEl.textContent = 'Welcome back to ' + bizName;
+        const nameEl  = document.getElementById('fast-login-name');
+        if (nameEl) {
+          nameEl.textContent = bizName ? 'Welcome back to ' + bizName : 'Welcome back, ' + lastUser;
         }
+        fastUi.style.display = 'block';
       }
-      // NOTE: We do NOT auto-trigger here — user taps the button to avoid locking up the page
     }
   }
 
   // Force uppercase while typing
-  document.getElementById('username').addEventListener('input', function () {
-    const pos = this.selectionStart;
-    this.value = this.value.toUpperCase();
-    this.setSelectionRange(pos, pos);
-  });
+  const usernameInput = document.getElementById('username');
+  if (usernameInput) {
+    usernameInput.addEventListener('input', function () {
+      const pos = this.selectionStart;
+      this.value = this.value.toUpperCase();
+      this.setSelectionRange(pos, pos);
+    });
+  }
 
+  // Standard password login submit
   document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('login-btn');
 
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
-    const lastUser = localStorage.getItem('last_username');
-    
-    // Target user: whatever they typed, or the last saved one if empty
-    let targetUser = username || lastUser;
 
-    // If no password typed, check if we can use biometrics for this user
-    if (targetUser && !password && localStorage.getItem('bio_registered_' + targetUser)) {
-      btn.disabled = true;
-      btn.textContent = 'Checking biometrics…';
-      await attemptBiometricLogin(targetUser);
-      btn.disabled = false;
-      btn.textContent = 'Sign In';
-      return;
-    }
+    if (!username) { toast('Required', 'Please enter your User ID', 'error'); return; }
+    if (!password) { toast('Required', 'Please enter your password', 'error'); return; }
 
-    if (!username) {
-      toast('Required', 'Please enter your username', 'error');
-      return;
-    }
-    if (!password) {
-      toast('Required', 'Please enter your password', 'error');
-      return;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Signing in…';
+    btn.disabled    = true;
+    btn.textContent = 'Signing in...';
 
     try {
       const data = await apiFetch('/api/auth/login', {
@@ -148,27 +127,41 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     } catch (err) {
       toast('Login Failed', err.message, 'error');
-      btn.disabled = false;
+      btn.disabled    = false;
       btn.textContent = 'Sign In';
     }
   });
 });
 
+// ─── FAST LOGIN (triggered by button tap) ─────────────────────────────────────
+async function triggerFastLogin() {
+  const idbUser  = await BioStore.get('last_username');
+  const lastUser = idbUser || localStorage.getItem('last_username');
+  if (!lastUser) { showNormalLogin(); return; }
 
+  const btn = document.getElementById('fast-login-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
 
-// ─── SILENT BIOMETRIC LOGIN ────────────────────────────────────────────────────
-async function attemptBiometricLogin(username) {
-  // Show the subtle spinner
-  const spinner = document.getElementById('bio-attempting');
-  const form    = document.getElementById('login-form');
-  const msg     = document.getElementById('login-msg');
-
-  spinner.style.display = 'block';
-  if (form && form.style.display !== 'none') {
-    form.style.opacity = '0.4';
-    form.style.pointerEvents = 'none';
+  try {
+    await attemptBiometricLogin(lastUser);
+  } catch (_) {
+    // fall through — attemptBiometricLogin handles its own fallback
   }
-  if (msg) msg.style.display = 'none';
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Sign In with Biometrics'; }
+}
+
+function showNormalLogin() {
+  const fastUi = document.getElementById('fast-login-ui');
+  if (fastUi) fastUi.style.display = 'none';
+  const usernameEl = document.getElementById('username');
+  if (usernameEl) usernameEl.focus();
+}
+
+// ─── BIOMETRIC LOGIN ──────────────────────────────────────────────────────────
+async function attemptBiometricLogin(username) {
+  const spinner = document.getElementById('bio-attempting');
+  if (spinner) spinner.style.display = 'block';
 
   try {
     const options = await apiFetch('/api/auth/webauthn/auth-options', {
@@ -176,7 +169,6 @@ async function attemptBiometricLogin(username) {
       body: { username }
     });
 
-    // Device-level prompt (FaceID / TouchID / Windows Hello / fingerprint)
     const asseResp = await startAuthentication(options);
 
     const verification = await apiFetch('/api/auth/webauthn/auth-verify', {
@@ -186,28 +178,17 @@ async function attemptBiometricLogin(username) {
 
     if (verification.verified) {
       handleLoginSuccess(verification);
-      return; // Done — user never saw the form
+      return;
     }
   } catch (err) {
-    // Biometrics not set up, declined, or failed — silently fall back to form
-    // No toast, no error message — just show the login form normally
+    console.warn('[Biometric] login failed:', err.message);
   }
 
-  // Show form again (cancel fast login mode)
-  spinner.style.display = 'none';
-  if (form) {
-    form.style.display = 'block';
-    form.style.opacity = '1';
-    form.style.pointerEvents = 'auto';
-  }
-  if (msg) msg.style.display = 'block';
-  const fastUi = document.getElementById('fast-login-ui');
-  if (fastUi) fastUi.style.display = 'none';
+  if (spinner) spinner.style.display = 'none';
 }
 
-// ─── SILENT BIOMETRIC REGISTRATION (after 1st password login) ─────────────────
+// ─── BIOMETRIC REGISTRATION (silent, after first password login) ──────────────
 async function attemptBiometricRegistration(username) {
-  // Only attempt if the browser supports it
   if (!window.PublicKeyCredential) return;
 
   try {
@@ -215,7 +196,6 @@ async function attemptBiometricRegistration(username) {
       method: 'POST'
     });
 
-    // Device-level prompt — user sees their device's native dialog
     const attResp = await startRegistration(options);
 
     const verification = await apiFetch('/api/auth/webauthn/register-verify', {
@@ -224,23 +204,22 @@ async function attemptBiometricRegistration(username) {
     });
 
     if (verification.verified) {
-      // Save to BOTH IndexedDB (permanent) and localStorage (fast access)
       await BioStore.set('bio_registered_' + username, '1');
       localStorage.setItem('bio_registered_' + username, '1');
-      toast('Biometrics Enabled', 'Next time, just tap Sign In — no typing needed!', 'success', 4000);
+      toast('Biometrics Enabled', 'Next time, sign in with one tap!', 'success', 4000);
     }
   } catch (err) {
-    // Declined or not supported — fail silently, no error shown
+    // Declined or not supported — fail silently
   }
 }
 
 // ─── SUCCESS HANDLER ──────────────────────────────────────────────────────────
 function handleLoginSuccess(data) {
-  localStorage.setItem('auth_token', data.token);
+  localStorage.setItem('auth_token',  data.token);
   localStorage.setItem('last_username', data.seller.username);
-  localStorage.setItem('role', data.seller.role);
-  // Persist username to IndexedDB too (survives cache clears)
+  localStorage.setItem('role',        data.seller.role);
   BioStore.set('last_username', data.seller.username);
+
   if (data.has_biometrics) {
     localStorage.setItem('bio_registered_' + data.seller.username, '1');
     BioStore.set('bio_registered_' + data.seller.username, '1');
@@ -266,7 +245,7 @@ function handleLoginSuccess(data) {
   }, 300);
 }
 
-// ─── DEMO LOGIN ────────────────────────────────────────────────────────────────
+// ─── DEMO LOGIN ───────────────────────────────────────────────────────────────
 async function demoLogin(type) {
   try {
     const btn = event && event.target ? event.target.closest('button') : null;
@@ -277,26 +256,4 @@ async function demoLogin(type) {
     toast('Demo Error', err.message || 'Could not start demo. Try again.', 'error');
     document.querySelectorAll('[onclick^="demoLogin"]').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
   }
-}
-
-// ─── FAST LOGIN UI TRIGGERS ──────────────────────────────────────────────────
-function triggerFastLogin() {
-  const lastUser = localStorage.getItem('last_username') || BioStore.get('last_username');
-  if (lastUser) {
-    attemptBiometricLogin(lastUser);
-  }
-}
-
-function showNormalLogin() {
-  const form = document.getElementById('login-form');
-  const msg = document.getElementById('login-msg');
-  const fastUi = document.getElementById('fast-login-ui');
-  
-  if (fastUi) fastUi.style.display = 'none';
-  if (form) {
-    form.style.display = 'block';
-    form.style.opacity = '1';
-    form.style.pointerEvents = 'auto';
-  }
-  if (msg) msg.style.display = 'block';
 }

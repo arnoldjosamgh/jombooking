@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta property="og:title" content="Jomish Tech Hub">
-  <meta property="og:description" content="Booking & Delivery Management Platform">
+  <meta property="og:description" content="Booking &amp; Delivery Management Platform">
   <meta property="og:image" content="/img/logo.png">
   <meta property="og:type" content="website">
   <link rel="icon" href="/img/logo.png">
@@ -21,27 +21,26 @@
       <img src="/img/logo.png" alt="Jomish Logo" style="width:72px;height:72px;border-radius:18px;object-fit:cover;box-shadow:0 0 24px rgba(244,168,29,0.3);">
     </div>
     <div class="login-title">Jomish Tech Hub</div>
-    <div class="login-sub">Booking & Delivery Management</div>
+    <div class="login-sub">Booking &amp; Delivery Management</div>
 
     <!-- Biometric auto-attempt spinner (shown while trying silently) -->
     <div id="bio-attempting" style="display:none; margin-bottom:24px;">
       <div class="spinner" style="border-top-color:var(--neon-cyan); margin:0 auto 12px;"></div>
-      <p style="color:var(--text-muted); font-size:0.85rem;">Checking biometrics…</p>
+      <p style="color:var(--text-muted); font-size:0.85rem;">Checking biometrics&hellip;</p>
     </div>
 
     <div class="login-msg" id="login-msg">Sign in to your workspace</div>
 
-    <!-- Fast Biometric Login Screen (hidden initially) -->
-    <div id="fast-login-ui" style="display:none; text-align:center;">
-      <h2 style="margin-bottom:8px; font-weight:700;" id="fast-login-title">Welcome Back</h2>
-      <p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:24px;">Tap below to sign in securely.</p>
-      
-      <button onclick="triggerFastLogin()" class="btn-neon-cyan" style="width:100%; border-radius:12px; padding:16px; font-size:1.1rem; display:flex; justify-content:center; align-items:center; gap:12px;">
-        <i data-lucide="fingerprint" style="width:24px; height:24px;"></i> Sign In
+    <!-- Fast Biometric Login (shown when biometrics available) -->
+    <div id="fast-login-ui" style="display:none; text-align:center; margin-bottom:16px;">
+      <p id="fast-login-name" style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">Welcome back</p>
+      <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">Use biometrics to sign in instantly</p>
+      <button onclick="triggerFastLogin()" class="btn-neon-cyan" id="fast-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:14px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12c0-.7.12-1.37.34-2"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/></svg>
+        Sign In with Biometrics
       </button>
-      
-      <button onclick="showNormalLogin()" style="background:transparent; border:none; color:var(--text-muted); margin-top:24px; font-size:0.8rem; cursor:pointer; text-decoration:underline;">
-        Sign in with a different account
+      <button onclick="showNormalLogin()" style="background:transparent;border:none;color:var(--text-muted);margin-top:16px;font-size:0.8rem;cursor:pointer;text-decoration:underline;">
+        Use password instead
       </button>
     </div>
 
@@ -67,18 +66,16 @@
       <button type="submit" class="btn-neon-cyan" id="login-btn">Sign In</button>
     </form>
 
-
-
     <!-- Demo Simulator Section -->
     <div style="margin-top:32px; border-top: 1px solid rgba(255,255,255,0.08); padding-top:24px;">
       <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:16px;">
-        ⚡ Try Demo Simulator — No Login Required
+        Try Demo Simulator &mdash; No Login Required
       </div>
       <div style="display:flex; gap:12px;">
         <button onclick="demoLogin('product')" style="flex:1; padding:12px 8px; background:linear-gradient(135deg,#1a2461,#0d1240); border:1px solid rgba(91,103,246,0.5); color:#fff; border-radius:10px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.borderColor='#5b67f6'" onmouseout="this.style.borderColor='rgba(91,103,246,0.5)'">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5b67f6" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
           <span>Product POS</span>
-          <span style="font-size:0.68rem; color:var(--text-muted);">Café / Shop demo</span>
+          <span style="font-size:0.68rem; color:var(--text-muted);">Cafe / Shop demo</span>
         </button>
         <button onclick="demoLogin('service')" style="flex:1; padding:12px 8px; background:linear-gradient(135deg,#1a2461,#0d1240); border:1px solid rgba(16,185,129,0.5); color:#fff; border-radius:10px; cursor:pointer; font-size:0.82rem; font-weight:600; display:flex; flex-direction:column; align-items:center; gap:6px; transition:all 0.2s;" onmouseover="this.style.borderColor='#10b981'" onmouseout="this.style.borderColor='rgba(16,185,129,0.5)'">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -98,7 +95,7 @@
   <script src="/js/app.js"></script>
   <script src="/js/login.js"></script>
   <script>
-    if(window.lucide) lucide.createIcons();
+    if (window.lucide) lucide.createIcons();
     // Force uppercase on username field
     document.getElementById('username').addEventListener('input', function() {
       const pos = this.selectionStart;

@@ -10,22 +10,7 @@
   if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 })();
 
-// ─── Dynamic PWA Manifest ──────────────────────────────────────
-(function setDynamicManifest() {
-  let slug = localStorage.getItem('business_slug');
-  const urlParts = window.location.pathname.split('/');
-  
-  if (urlParts.length > 2 && (urlParts[1] === 'order' || urlParts[1] === 'book')) {
-    slug = urlParts[2] || getParam('slug');
-  } else if (urlParts[1] === 'order.html' || urlParts[1] === 'book.html') {
-    slug = new URLSearchParams(window.location.search).get('slug');
-  }
-  
-  const manifestLink = document.querySelector('link[rel="manifest"]');
-  if (slug && manifestLink) {
-    manifestLink.href = `/api/businesses/manifest/${slug}`;
-  }
-})();
+// Dynamic PWA Manifest is set up in DOMContentLoaded below (needs safe try/catch)
 
 function toggleDarkMode() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -58,6 +43,24 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.onclick = toggleDarkMode;
     document.body.appendChild(btn);
     updateDarkToggleIcon();
+  }
+
+  // ─── Dynamic PWA Manifest (safe - wrapped in try/catch) ───────
+  try {
+    let slug = localStorage.getItem('business_slug');
+    const params = new URLSearchParams(window.location.search);
+    if (!slug) slug = params.get('slug');
+    const manifestLink = document.querySelector('link[rel="manifest"]');
+    if (slug && manifestLink) {
+      manifestLink.href = '/api/businesses/manifest/' + encodeURIComponent(slug);
+    }
+  } catch (e) {
+    console.warn('[manifest] Dynamic manifest update failed:', e.message);
+  }
+
+  // ─── Init Lucide icons ────────────────────────────────────────
+  if (typeof lucide !== 'undefined') {
+    try { lucide.createIcons(); } catch (e) { /* ignore */ }
   }
 });
 

@@ -11,7 +11,8 @@
  *    - On success → silently register biometrics (device native prompt)
  */
 
-const { startAuthentication, startRegistration } = SimpleWebAuthnBrowser;
+const startAuthentication = window.SimpleWebAuthnBrowser ? window.SimpleWebAuthnBrowser.startAuthentication : null;
+const startRegistration = window.SimpleWebAuthnBrowser ? window.SimpleWebAuthnBrowser.startRegistration : null;
 
 // ─── IndexedDB helpers for persistent biometric state ────────────────────────
 const BioStore = {

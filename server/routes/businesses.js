@@ -6,6 +6,38 @@ const router = express.Router();
 const db = require('../db');
 const { authenticate } = require('./auth');
 
+// GET /api/businesses/manifest/:slug — Get dynamic PWA manifest (must be BEFORE /:slug wildcard)
+router.get('/manifest/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const result = await db.query('SELECT name FROM businesses WHERE slug = $1', [slug]);
+    const businessName = result.rows.length > 0 ? result.rows[0].name : 'Jomish BDM';
+    const shortName = businessName.length > 12 ? businessName.substring(0, 12) : businessName;
+    const initial = shortName.charAt(0).toUpperCase();
+    
+    const iconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%25' y='65%25' font-size='50' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>${initial}</text></svg>`;
+    
+    const manifest = {
+      name: businessName,
+      short_name: shortName,
+      description: 'Booking and delivery management platform',
+      start_url: '/seller.html',
+      display: 'standalone',
+      background_color: '#050c1a',
+      theme_color: '#f4a81d',
+      icons: [
+        { src: iconSvg, sizes: '192x192', type: 'image/svg+xml' },
+        { src: iconSvg, sizes: '512x512', type: 'image/svg+xml' }
+      ]
+    };
+    res.setHeader('Content-Type', 'application/manifest+json');
+    res.json(manifest);
+  } catch (err) {
+    console.error('[businesses] GET /manifest/:slug error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/businesses/:slug — Get business config
 router.get('/:slug', async (req, res) => {
   try {
@@ -100,41 +132,6 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/businesses/manifest/:slug — Get dynamic PWA manifest
-router.get('/manifest/:slug', async (req, res) => {
-  try {
-    const { slug } = req.params;
-    const result = await db.query('SELECT name FROM businesses WHERE slug = $1', [slug]);
-    const businessName = result.rows.length > 0 ? result.rows[0].name : 'Jomish BDM';
-    const shortName = businessName.length > 12 ? businessName.substring(0, 12) : businessName;
-    
-    const manifest = {
-      "name": businessName,
-      "short_name": shortName,
-      "description": "Booking and delivery management platform",
-      "start_url": `/seller`, // Default to seller, but client will set it depending on page
-      "display": "standalone",
-      "background_color": "#050c1a",
-      "theme_color": "#f4a81d",
-      "icons": [
-        {
-          "src": `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%' y='65%' font-size='50' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>${shortName.charAt(0).toUpperCase()}</text></svg>`,
-          "sizes": "192x192",
-          "type": "image/svg+xml"
-        },
-        {
-          "src": `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%' y='65%' font-size='50' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>${shortName.charAt(0).toUpperCase()}</text></svg>`,
-          "sizes": "512x512",
-          "type": "image/svg+xml"
-        }
-      ]
-    };
-    res.json(manifest);
-  } catch (err) {
-    console.error('[businesses] GET /manifest/:slug error:', err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
 // GET /api/businesses — List all businesses (for admin)
 router.get('/', async (req, res) => {

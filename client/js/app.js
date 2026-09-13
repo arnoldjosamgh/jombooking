@@ -223,22 +223,18 @@ function closeModal(id) {
   setTimeout(() => el.style.display = 'none', 200);
 }
 
-// ─── Auto-Refresh Icons (MutationObserver) ────────────────────
+// ─── Auto-Refresh Icons (debounced MutationObserver) ─────────
 (function() {
   if (typeof window === 'undefined') return;
-  const observer = new MutationObserver((mutations) => {
-    let shouldRefresh = false;
-    for (const m of mutations) {
-      if (m.addedNodes.length > 0) {
-        shouldRefresh = true;
-        break;
-      }
-    }
-    if (shouldRefresh && typeof lucide !== 'undefined') {
-      lucide.createIcons();
-    }
+  let iconTimer = null;
+  const observer = new MutationObserver(() => {
+    if (iconTimer) clearTimeout(iconTimer);
+    iconTimer = setTimeout(() => {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    }, 150);
   });
   document.addEventListener('DOMContentLoaded', () => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     observer.observe(document.body, { childList: true, subtree: true });
   });
 })();

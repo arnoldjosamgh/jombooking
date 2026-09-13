@@ -79,17 +79,16 @@ window.addEventListener('DOMContentLoaded', async () => {
       
       if (form && fastUi) {
         form.style.display = 'none';
-        msg.style.display = 'none';
+        if (msg) msg.style.display = 'none';
         fastUi.style.display = 'block';
         
         const bizName = localStorage.getItem('business_name');
         if (bizName) {
-          document.getElementById('fast-login-title').textContent = 'Welcome back to ' + bizName;
+          const titleEl = document.getElementById('fast-login-title');
+          if (titleEl) titleEl.textContent = 'Welcome back to ' + bizName;
         }
       }
-      
-      // Auto-trigger (will fall back to normal UI if it fails/cancels)
-      attemptBiometricLogin(lastUser);
+      // NOTE: We do NOT auto-trigger here — user taps the button to avoid locking up the page
     }
   }
 

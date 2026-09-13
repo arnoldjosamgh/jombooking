@@ -251,13 +251,19 @@ function renderProductGrid() {
     grid.innerHTML = `<div class="pos-empty">No products yet. Click <strong>+ Add Product</strong> to start.</div>`;
     return;
   }
-  grid.innerHTML = posProducts.map(p => `
+  grid.innerHTML = posProducts.map(p => {
+    const imgHtml = p.image_url 
+      ? `<img src="${p.image_url}" alt="${p.title}" style="width:100%; height:120px; object-fit:cover; border-radius:6px; margin-bottom:8px;">` 
+      : '';
+    return `
     <div class="pos-product-card" onclick="addToCart(${p.id})">
+      ${imgHtml}
       <div class="pos-product-name">${p.title}</div>
       <div class="pos-product-price">${formatCurrency(p.price)}</div>
       <div class="pos-product-stock ${p.stock_quantity <= 0 ? 'text-red' : ''}">${p.stock_quantity <= 0 ? '<i data-lucide="x" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Out of Stock' : `${p.stock_quantity} in stock`}</div>
     </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function addToCart(productId) {
@@ -1073,8 +1079,9 @@ async function renderPending() {
               <strong>${o.product_title}</strong> (x${o.quantity})<br>
               <span class="text-dim text-sm">${o.client_name} • ${new Date(o.created_at).toLocaleString()}</span>
             </div>
-            <div style="display:flex; gap:8px;">
-              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Message</button>
+            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+              <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${o.client_id}', '${o.client_name}', '${o.product_title.replace(/'/g, "\\'")}')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Ready</button>
+              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Msg</button>
               <button class="btn btn-primary btn-sm" onclick="completeOrder(${o.id})">Mark Delivered</button>
             </div>
           </div>
@@ -1116,8 +1123,9 @@ async function renderPending() {
   }
 }
 
-async function notifyOrderReady(orderId, clientId) {
+async function notifyOrderReady(clientId, clientName, productTitle) {
   try {
+    const msg = `Hi ${clientName}, your order for "${productTitle}" is ready for pickup/delivery!`;
     // Send a chat message to the client
     await apiFetch('/api/messages', {
       method: 'POST',
@@ -1125,11 +1133,10 @@ async function notifyOrderReady(orderId, clientId) {
         business_id: selectedBiz.id, 
         client_id: clientId, 
         sender: 'seller', 
-        content: \`Hi! Your order #\${orderId} is ready for pickup/delivery.\` 
+        content: msg
       }
     });
     
-    // Optionally change order status or just let completeOrder do it
     toast('Notified', 'Client has been notified that the order is ready', 'success');
   } catch (err) {
     toast('Error', err.message, 'error');

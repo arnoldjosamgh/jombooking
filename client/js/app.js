@@ -289,7 +289,6 @@ async function showRegistrationModal(onSuccess) {
     e.preventDefault();
     const name     = document.getElementById('reg-name').value.trim();
     const location = document.getElementById('reg-location').value.trim();
-    const photoFile = document.getElementById('reg-photo').files[0];
 
     if (!name || !location) { toast('Missing Info', 'Name and location are required.', 'error'); return; }
 
@@ -298,10 +297,9 @@ async function showRegistrationModal(onSuccess) {
     btn.textContent = 'Registering…';
 
     try {
-      let photo_url = null;
       const client = await apiFetch('/api/clients', {
         method: 'POST',
-        body: { name, location, photo_url }
+        body: { name, location }
       });
       Session.set(client);
       closeModal('reg-modal');

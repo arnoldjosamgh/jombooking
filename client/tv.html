@@ -4,246 +4,284 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TV Display | Jomish</title>
+  <!-- Same stylesheet as the rest of the app -->
   <link rel="stylesheet" href="/css/style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
+    /* ── TV-specific layout (builds on top of app tokens) ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    body {
-      margin: 0;
-      padding: 0;
-      min-height: 100vh;
+    html, body {
+      height: 100%;
       overflow: hidden;
-      font-family: 'Outfit', sans-serif;
-      background: #0f1222;
-      color: #ffffff;
+      font-family: 'Outfit', 'Inter', sans-serif;
+      background: var(--page-bg, #e6ebee);
+      color: var(--text-primary, #334155);
+      transition: background 0.3s, color 0.3s;
     }
 
-    /* ── Header ─────────────────────────────── */
+    /* ── Header ─────────────────────────────────────────── */
     .tv-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 20px 32px;
-      background: rgba(255,255,255,0.04);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(12px);
+      padding: 16px 28px;
+      background: var(--nav-bg, #ffffff);
+      border-bottom: 1px solid var(--nav-border, #f1f5f9);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     .tv-brand {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 14px;
     }
 
-    .tv-logo {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      object-fit: cover;
-      border: 2px solid rgba(244,168,29,0.5);
-      box-shadow: 0 4px 16px rgba(244,168,29,0.25);
-    }
-
-    .tv-logo-placeholder {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
+    /* Same brand-icon style used in seller header */
+    .tv-brand-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
       background: linear-gradient(135deg, #1a2461, #0f1222);
-      border: 2px solid rgba(244,168,29,0.4);
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(26,36,97,0.25);
+      overflow: hidden;
+    }
+    .tv-brand-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 12px;
     }
 
     .tv-biz-name {
-      font-size: 1.8rem;
+      font-size: 1.35rem;
       font-weight: 800;
-      color: #ffffff;
+      color: var(--text-primary, #334155);
       letter-spacing: -0.02em;
     }
-
     .tv-biz-sub {
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.5);
-      margin-top: 2px;
-    }
-
-    .tv-time {
-      font-size: 2.2rem;
-      font-weight: 700;
-      color: #f4a81d;
-      letter-spacing: 0.02em;
-    }
-
-    .tv-status-dot {
+      font-size: 0.78rem;
+      color: var(--text-sub, #64748b);
+      margin-top: 1px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 0.85rem;
-      color: rgba(255,255,255,0.5);
+      gap: 5px;
     }
-    .tv-status-dot::before {
-      content: '';
-      width: 8px;
-      height: 8px;
+    /* Live pulse dot */
+    .live-dot {
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: #4ade80;
-      animation: pulse 2s infinite;
+      background: var(--accent-green, #00d26a);
+      display: inline-block;
+      animation: blink 1.8s ease-in-out infinite;
     }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.25;} }
 
-    /* ── Columns ─────────────────────────────── */
+    .tv-clock {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--accent-orange, #fca311);
+      letter-spacing: 0.03em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Columns wrapper ─────────────────────────────────── */
     .tv-columns {
       display: flex;
-      gap: 24px;
-      padding: 24px 32px;
-      height: calc(100vh - 106px);
+      gap: 20px;
+      padding: 20px 28px;
+      height: calc(100vh - 90px);
     }
 
+    /* ── Each column card ────────────────────────────────── */
     .tv-col {
       flex: 1;
-      border-radius: 24px;
-      padding: 28px;
+      border-radius: var(--radius-lg, 20px);
+      padding: 22px 22px 18px;
       display: flex;
       flex-direction: column;
-      border: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(8px);
+      /* neumorphic card, same as app .card */
+      background: var(--card-bg, #ffffff);
+      border: 1px solid var(--card-border, #e2e8f0);
+      box-shadow: var(--shadow-glow, 0 4px 15px rgba(0,0,0,0.05));
       position: relative;
       overflow: hidden;
     }
 
+    /* Coloured top-bar accent — same concept as app badge colours */
     .tv-col::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0;
+      inset: 0 0 auto 0;
       height: 4px;
-      border-radius: 24px 24px 0 0;
+      border-radius: var(--radius-lg, 20px) var(--radius-lg, 20px) 0 0;
     }
+    .col-preparing::before { background: var(--accent-orange, #fca311); }
+    .col-ready::before     { background: var(--accent-green,  #00d26a); }
 
-    .col-preparing {
-      background: rgba(245, 158, 11, 0.05);
-    }
-    .col-preparing::before { background: linear-gradient(90deg, #f59e0b, #f4a81d); }
-
-    .col-ready {
-      background: rgba(16, 185, 129, 0.05);
-    }
-    .col-ready::before { background: linear-gradient(90deg, #10b981, #34d399); }
-
+    /* ── Column header ───────────────────────────────────── */
     .tv-col-header {
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
+      gap: 10px;
+      margin-bottom: 18px;
+      padding-top: 4px; /* clear the top bar */
     }
 
     .tv-col-icon {
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
+      flex-shrink: 0;
     }
-    .col-preparing .tv-col-icon { background: rgba(245,158,11,0.2); }
-    .col-ready .tv-col-icon { background: rgba(16,185,129,0.2); }
+    .col-preparing .tv-col-icon { background: rgba(252,163,17,0.12); }
+    .col-ready     .tv-col-icon { background: rgba(0,210,106,0.12); }
 
     .tv-col-title {
-      font-size: 1.6rem;
+      font-size: 1.15rem;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.07em;
     }
-    .col-preparing .tv-col-title { color: #f59e0b; }
-    .col-ready .tv-col-title { color: #10b981; }
+    .col-preparing .tv-col-title { color: var(--accent-orange, #fca311); }
+    .col-ready     .tv-col-title { color: var(--accent-green,  #00d26a); }
 
+    .tv-col-count {
+      margin-left: auto;
+      min-width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+    }
+    .col-preparing .tv-col-count { background: var(--accent-orange, #fca311); }
+    .col-ready     .tv-col-count { background: var(--accent-green,  #00d26a); }
+
+    /* ── Order list & items ─────────────────────────────── */
     .tv-order-list {
       flex: 1;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
       overflow: hidden;
     }
 
     .tv-order-item {
-      padding: 18px 22px;
-      border-radius: 16px;
-      font-size: 1.6rem;
-      font-weight: 700;
-      text-align: center;
-      animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      position: relative;
-      border: 1px solid rgba(255,255,255,0.06);
+      padding: 16px 18px;
+      border-radius: var(--radius-md, 14px);
+      border: 1px solid var(--card-border, #e2e8f0);
+      background: var(--page-bg, #e6ebee);
+      animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transition: box-shadow 0.2s;
     }
-
-    .tv-order-item .order-label { font-size: 1.6rem; }
-    .tv-order-item .order-sub { font-size: 0.9rem; font-weight: 500; opacity: 0.7; margin-top: 4px; }
+    .tv-order-item:hover {
+      box-shadow: var(--shadow-glow, 0 4px 15px rgba(0,0,0,0.05));
+    }
 
     .col-preparing .tv-order-item {
-      background: rgba(245,158,11,0.12);
-      border-color: rgba(245,158,11,0.25);
-      color: #fde68a;
+      border-left: 3px solid var(--accent-orange, #fca311);
+    }
+    .col-ready .tv-order-item {
+      border-left: 3px solid var(--accent-green, #00d26a);
     }
 
-    .col-ready .tv-order-item {
-      background: rgba(16,185,129,0.15);
-      border-color: rgba(16,185,129,0.35);
-      color: #6ee7b7;
+    .order-num {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--text-primary, #334155);
+      letter-spacing: -0.01em;
+    }
+    .col-preparing .order-num { color: var(--accent-orange, #fca311); }
+    .col-ready     .order-num { color: var(--accent-green,  #00d26a); }
+
+    .order-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-primary, #334155);
+      margin-top: 2px;
+    }
+    .order-sub {
+      font-size: 0.78rem;
+      color: var(--text-sub, #64748b);
+      margin-top: 3px;
     }
 
     .tv-empty {
-      color: rgba(255,255,255,0.2);
+      color: var(--text-sub, #64748b);
       text-align: center;
-      font-size: 1.1rem;
+      font-size: 0.95rem;
       padding: 40px 0;
+      opacity: 0.6;
     }
 
     @keyframes popIn {
-      0%   { opacity: 0; transform: scale(0.85) translateY(8px); }
-      100% { opacity: 1; transform: scale(1) translateY(0); }
+      from { opacity: 0; transform: scale(0.88) translateY(6px); }
+      to   { opacity: 1; transform: scale(1)    translateY(0); }
     }
   </style>
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- ── Header (mirrors seller dashboard header) ── -->
   <div class="tv-header">
     <div class="tv-brand">
-      <img id="biz-logo" class="tv-logo" style="display:none" alt="Logo">
-      <div id="biz-logo-placeholder" class="tv-logo-placeholder">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f4a81d" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <div class="tv-brand-icon" id="biz-icon">
+        <!-- Default store icon, replaced with logo if available -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f4a81d" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
       </div>
       <div>
-        <div class="tv-biz-name" id="biz-title">Loading...</div>
-        <div class="tv-biz-sub">Order Status Board</div>
+        <div class="tv-biz-name" id="biz-title">Loading…</div>
+        <div class="tv-biz-sub">
+          <span class="live-dot"></span>
+          Order Status Board
+        </div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-      <div class="tv-time" id="tv-clock">--:--</div>
-      <div class="tv-status-dot">Live</div>
-    </div>
+
+    <div class="tv-clock" id="tv-clock">--:--</div>
   </div>
 
-  <!-- Order columns -->
+  <!-- ── Columns ── -->
   <div class="tv-columns">
     <div class="tv-col col-preparing">
       <div class="tv-col-header">
         <div class="tv-col-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <!-- Hourglass / preparing icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fca311" stroke-width="2.5">
+            <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
+          </svg>
         </div>
         <div class="tv-col-title">Preparing</div>
+        <div class="tv-col-count" id="preparing-count" style="display:none">0</div>
       </div>
       <div class="tv-order-list" id="preparing-list">
         <div class="tv-empty">No pending orders</div>
       </div>
     </div>
+
     <div class="tv-col col-ready">
       <div class="tv-col-header">
         <div class="tv-col-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00d26a" stroke-width="2.5">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
         </div>
         <div class="tv-col-title">Ready for Pickup</div>
+        <div class="tv-col-count" id="ready-count" style="display:none">0</div>
       </div>
       <div class="tv-order-list" id="ready-list">
         <div class="tv-empty">Nothing ready yet</div>
@@ -253,34 +291,38 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    let businessId = null;
+    // ── Apply saved dark/light mode (same as app) ──────────────────
+    (function() {
+      if (localStorage.getItem('jomish_theme') === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
 
-    // Live clock
+    // ── Live clock ─────────────────────────────────────────────────
     function updateClock() {
       const now = new Date();
-      document.getElementById('tv-clock').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById('tv-clock').textContent =
+        now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
     updateClock();
     setInterval(updateClock, 1000);
 
+    // ── Main init ──────────────────────────────────────────────────
+    let businessId = null;
+
     async function init() {
-      const params = new URLSearchParams(window.location.search);
-      const slug = params.get('slug');
-      if (!slug) {
-        document.getElementById('biz-title').textContent = 'Invalid Link';
-        return;
-      }
+      const slug = new URLSearchParams(window.location.search).get('slug');
+      if (!slug) { document.getElementById('biz-title').textContent = 'Invalid Link'; return; }
+
       try {
-        const res = await fetch(`/api/businesses/${slug}`);
-        const biz = await res.json();
+        const biz = await fetch(`/api/businesses/${slug}`).then(r => r.json());
         businessId = biz.id;
         document.getElementById('biz-title').textContent = biz.name;
 
+        // Replace icon with logo if available
         if (biz.logo_url) {
-          const logoEl = document.getElementById('biz-logo');
-          logoEl.src = biz.logo_url;
-          logoEl.style.display = 'block';
-          document.getElementById('biz-logo-placeholder').style.display = 'none';
+          document.getElementById('biz-icon').innerHTML =
+            `<img src="${biz.logo_url}" alt="${biz.name}">`;
         }
 
         loadOrders();
@@ -290,42 +332,64 @@
           const socket = io();
           socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
           socket.on('order:waiting', loadOrders);
-          socket.on('order:status', loadOrders);
-        } catch(e) {}
+          socket.on('order:status',  loadOrders);
+        } catch(_) {}
+
       } catch(e) {
-        document.getElementById('biz-title').textContent = 'Error connecting';
+        document.getElementById('biz-title').textContent = 'Connection error';
       }
     }
 
     async function loadOrders() {
       if (!businessId) return;
       try {
-        const res = await fetch(`/api/orders/list/${businessId}`);
-        const orders = await res.json();
+        const orders = await fetch(`/api/orders/list/${businessId}`).then(r => r.json());
         const pending = orders.filter(o => o.status === 'pending');
-        const ready   = orders.filter(o => o.status === 'completed' && (Date.now() - new Date(o.created_at).getTime()) < 15 * 60000);
-        renderList('preparing-list', pending, 'No pending orders');
-        renderList('ready-list', ready, 'Nothing ready yet');
+        const ready   = orders.filter(o =>
+          o.status === 'completed' &&
+          (Date.now() - new Date(o.created_at).getTime()) < 15 * 60_000
+        );
+        renderList('preparing-list', 'preparing-count', pending, 'No pending orders');
+        renderList('ready-list',     'ready-count',     ready,   'Nothing ready yet');
       } catch(e) { console.error(e); }
     }
 
-    function renderList(elementId, items, emptyMsg) {
-      const container = document.getElementById(elementId);
+    function renderList(listId, countId, items, emptyMsg) {
+      const container  = document.getElementById(listId);
+      const countEl    = document.getElementById(countId);
+
+      // Group by receipt_number / id
       const grouped = {};
       items.forEach(i => {
         const key = i.receipt_number || i.id;
         if (!grouped[key]) grouped[key] = { id: key, name: i.client_name, loc: i.client_location };
       });
       const orders = Object.values(grouped).slice(0, 8);
+
+      // Badge
+      if (orders.length) {
+        countEl.textContent = orders.length;
+        countEl.style.display = 'flex';
+      } else {
+        countEl.style.display = 'none';
+      }
+
       if (!orders.length) {
         container.innerHTML = `<div class="tv-empty">${emptyMsg}</div>`;
         return;
       }
+
       const newHtml = orders.map(o => {
-        const num = o.id.toString().replace(/^ORD-0+/, '');
-        const locTag = o.loc ? `<div class="order-sub">Table ${o.loc}</div>` : '';
-        return `<div class="tv-order-item"><div class="order-label">#${num} — ${o.name}</div>${locTag}</div>`;
+        const num  = o.id.toString().replace(/^ORD-0+/, '');
+        const loc  = o.loc ? `<div class="order-sub">Table ${o.loc}</div>` : '';
+        return `
+          <div class="tv-order-item">
+            <div class="order-num">#${num}</div>
+            <div class="order-name">${o.name}</div>
+            ${loc}
+          </div>`;
       }).join('');
+
       if (container.innerHTML !== newHtml) container.innerHTML = newHtml;
     }
 

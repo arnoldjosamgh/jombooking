@@ -18,12 +18,13 @@ const { sendPushToSeller } = require('./push');
 async function generateSlots(businessId, dateStr, serviceId) {
   // Get business hours
   const bizResult = await db.query(
-    `SELECT open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end
+    `SELECT open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end, max_clients_per_slot
      FROM businesses WHERE id = $1`,
     [businessId]
   );
   if (bizResult.rows.length === 0) throw new Error('Business not found');
-  const { open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end } = bizResult.rows[0];
+  const { open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end, max_clients_per_slot } = bizResult.rows[0];
+  const maxClients = max_clients_per_slot || 1;
 
   // Check if business is open on this day
   const date = new Date(dateStr + 'T00:00:00');
@@ -61,17 +62,19 @@ async function generateSlots(businessId, dateStr, serviceId) {
     allSlots.push(`${dateStr}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`);
   }
 
-  // Only 'confirmed' bookings block a slot — completed ones free it up for rebooking
+  // Count confirmed bookings for each slot
   const bookedRes = await db.query(
-    `SELECT TO_CHAR(booking_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot
+    `SELECT TO_CHAR(booking_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot, COUNT(*) as count
      FROM bookings
      WHERE business_id = $1
        AND ($2::int IS NULL OR service_id = $2)
        AND DATE(booking_time) = $3::date
-       AND status = 'confirmed'`,
+       AND status = 'confirmed'
+     GROUP BY slot`,
     [businessId, serviceId || null, dateStr]
   );
-  const bookedSet = new Set(bookedRes.rows.map(r => r.slot));
+  const bookedCounts = {};
+  bookedRes.rows.forEach(r => { bookedCounts[r.slot] = parseInt(r.count); });
 
   // Manually blocked slots for this service on this date
   const blockedRes = await db.query(
@@ -84,11 +87,14 @@ async function generateSlots(businessId, dateStr, serviceId) {
   );
   const blockedSet = new Set(blockedRes.rows.map(r => r.slot));
 
-  return allSlots.map(slot => ({
-    time: slot,
-    available: !bookedSet.has(slot) && !blockedSet.has(slot),
-    blocked_by_seller: blockedSet.has(slot),
-  }));
+  return allSlots.map(slot => {
+    const booked = bookedCounts[slot] || 0;
+    return {
+      time: slot,
+      available: (booked < maxClients) && !blockedSet.has(slot),
+      blocked_by_seller: blockedSet.has(slot),
+    };
+  });
 }
 
 // ─── GET /api/slots/:business_slug?date=&service_id= ─────────────────────────

@@ -245,7 +245,7 @@ function closeModal(id) {
 // ─── Format Helpers ────────────────────────────────────────────
 function formatTime(isoStr) {
   const d = new Date(isoStr);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 function formatDate(isoStr) {
   const d = new Date(isoStr);

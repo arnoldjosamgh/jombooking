@@ -698,7 +698,7 @@ async function loadWeek() {
       } else {
         dayData.slots.forEach(slot => {
           const time    = new Date(slot.time + 'Z');
-          const timeStr = time.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+          const timeStr = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
           const el      = document.createElement('div');
 
           if (!slot.available && !slot.blocked_by_seller) {
@@ -1480,6 +1480,7 @@ function openSettings() {
 
   document.getElementById('s-open-time').value = trimTime(selectedBiz.open_time);
   document.getElementById('s-close-time').value = trimTime(selectedBiz.close_time);
+  document.getElementById('s-max-clients').value = selectedBiz.max_clients_per_slot || 1;
   document.getElementById('s-lunch-start').value = trimTime(selectedBiz.lunch_start);
   document.getElementById('s-lunch-end').value = trimTime(selectedBiz.lunch_end);
   document.getElementById('s-duration').value = selectedBiz.session_duration_minutes || 30;
@@ -1511,6 +1512,7 @@ async function saveSettings(e) {
     const payload = {
       open_time: document.getElementById('s-open-time').value,
       close_time: document.getElementById('s-close-time').value,
+      max_clients_per_slot: document.getElementById('s-max-clients').value || 1,
       lunch_start: document.getElementById('s-lunch-start').value,
       lunch_end: document.getElementById('s-lunch-end').value,
       session_duration_minutes: document.getElementById('s-duration').value || null,
@@ -1600,7 +1602,11 @@ async function setupBiometrics() {
     toast('Not Supported', 'Biometrics are not supported on this device/browser.', 'error');
     return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Setting up…'; }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Setting up…';
+    if (window.lucide) lucide.createIcons();
+  }
   try {
     const SimpleWebAuthnBrowser = window.SimpleWebAuthnBrowser;
     if (!SimpleWebAuthnBrowser) throw new Error('WebAuthn library not loaded');
@@ -1614,7 +1620,10 @@ async function setupBiometrics() {
       const username = localStorage.getItem('last_username') || '';
       if (username) localStorage.setItem('bio_registered_' + username, '1');
       toast('Biometrics Enabled 👆', 'You can now use fingerprint/face to log in next time!', 'success', 4000);
-      if (btn) btn.textContent = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Biometrics Active';
+      if (btn) {
+        btn.innerHTML = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Biometrics Active';
+        if (window.lucide) lucide.createIcons();
+      }
     }
   } catch (err) {
     console.error('[biometrics]', err);
@@ -1741,7 +1750,7 @@ function renderChatMessages(messages) {
           ${m.content}
         </div>
         <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">
-          ${new Date(m.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+          ${new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
         </div>
       </div>
     `;

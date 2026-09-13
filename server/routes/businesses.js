@@ -87,6 +87,7 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
       close_time,
       open_days,       // array of ints e.g. [1,2,3,4,5]
       session_duration_minutes,
+      max_clients_per_slot,
       lunch_start,
       lunch_end,
       currency_symbol,
@@ -96,6 +97,7 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
 
     // Parse duration — empty string or 0 should keep existing
     const duration = session_duration_minutes ? parseInt(session_duration_minutes) : null;
+    const maxClients = max_clients_per_slot ? parseInt(max_clients_per_slot) : 1;
 
     const result = await db.query(
       `UPDATE businesses SET
@@ -103,17 +105,19 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
          close_time = COALESCE($2, close_time),
          open_days = COALESCE($3, open_days),
          session_duration_minutes = COALESCE($4, session_duration_minutes),
-         lunch_start = $5,
-         lunch_end = $6,
-         currency_symbol = COALESCE($7, currency_symbol),
-         phone_number = $9,
-         location = $10
-       WHERE slug = $8 RETURNING id, slug`,
+         max_clients_per_slot = COALESCE($5, max_clients_per_slot),
+         lunch_start = $6,
+         lunch_end = $7,
+         currency_symbol = COALESCE($8, currency_symbol),
+         phone_number = $10,
+         location = $11
+       WHERE slug = $9 RETURNING id, slug`,
       [
         open_time || null,
         close_time || null,
         open_days ? open_days : null,
         duration,
+        maxClients,
         lunch_start || null,
         lunch_end || null,
         currency_symbol || null,

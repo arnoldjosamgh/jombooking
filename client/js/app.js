@@ -260,11 +260,7 @@ async function showRegistrationModal(onSuccess) {
     btn.textContent = 'Registering…';
 
     try {
-      // Convert photo to base64 if provided (simple demo approach)
       let photo_url = null;
-      if (photoFile) {
-        photo_url = await fileToBase64(photoFile);
-      }
       const client = await apiFetch('/api/clients', {
         method: 'POST',
         body: { name, location, photo_url }
@@ -293,7 +289,8 @@ function fileToBase64(file) {
 // ─── Registration Modal HTML (injected dynamically) ───────────
 function injectRegModal() {
   if (document.getElementById('reg-modal')) return;
-  document.body.insertAdjacentHTML('beforeend', `
+  const tableParam = getParam('table') || '';
+  document.body.insertAdjacentHTML('beforeend', \`
     <div class="modal-overlay" id="reg-modal">
       <div class="modal">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
@@ -308,16 +305,13 @@ function injectRegModal() {
             <input type="text" id="reg-name" placeholder="e.g. Alex Johnson" required autocomplete="name">
           </div>
           <div class="form-group">
-            <label for="reg-location">Your Location / Address</label>
-            <input type="text" id="reg-location" placeholder="e.g. Table 4 or 123 Main St" required>
+            <label for="reg-location">Your Location / Address / Table</label>
+            <input type="text" id="reg-location" placeholder="e.g. Table 4 or 123 Main St" value="\${tableParam}" required>
           </div>
-          <div class="form-group">
-            <label for="reg-photo">Profile Photo <span style="color:var(--text-500);font-weight:400;">(optional)</span></label>
-            <input type="file" id="reg-photo" accept="image/*">
-          </div>
+          <!-- Photo removed per request -->
           <button type="submit" class="btn btn-primary btn-full mt-8" id="reg-submit">Get Started →</button>
         </form>
       </div>
     </div>
-  `);
+  \`);
 }

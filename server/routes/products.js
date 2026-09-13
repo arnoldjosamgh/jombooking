@@ -7,6 +7,7 @@ const router = express.Router();
 const db = require('../db');
 const { requireFields } = require('../middleware/validate');
 const { authenticate } = require('./auth');
+const { sendPushToSeller } = require('./push');
 
 // ─── GET /api/products/:business_slug ─────────────────────────────────────────
 router.get('/:business_slug', async (req, res) => {
@@ -45,11 +46,11 @@ router.get('/barcode/:code', async (req, res) => {
 // Seller adds a new product to their business
 router.post('/manage', authenticate, requireFields('business_id', 'title', 'price'), async (req, res) => {
   try {
-    const { business_id, title, description, price, barcode, stock_quantity } = req.body;
+    const { business_id, title, description, price, barcode, stock_quantity, image_url } = req.body;
     const result = await db.query(
-      `INSERT INTO products (business_id, title, description, price, barcode, stock_quantity)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [business_id, title, description || '', parseFloat(price), barcode || null, parseInt(stock_quantity || 0)]
+      `INSERT INTO products (business_id, title, description, price, barcode, stock_quantity, image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [business_id, title, description || '', parseFloat(price), barcode || null, parseInt(stock_quantity || 0), image_url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -120,6 +121,15 @@ router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quanti
 
     await client.query('COMMIT');
 
+    const bizRes = await db.query('SELECT owner_id FROM businesses WHERE id = $1', [business_id]);
+    if (bizRes.rows.length > 0) {
+      sendPushToSeller(bizRes.rows[0].owner_id, {
+        title: 'New Order Request',
+        body: 'You received a new product order.',
+        url: '/seller'
+      });
+    }
+
 
     const fullOrder = await db.query(
       `SELECT o.id, o.quantity, o.status, o.created_at,
@@ -136,6 +146,78 @@ router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quanti
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[orders] POST / error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── POST /api/orders/bulk ────────────────────────────────────────────────────
+// Multi-item order (client-facing)
+router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (req, res) => {
+  const client = await db.connect();
+  try {
+    const { business_id, client_id, items } = req.body;
+    if (!items || !items.length) return res.status(400).json({ error: 'No items in order' });
+
+    await client.query('BEGIN');
+    const orderGroupId = require('crypto').randomUUID();
+    const createdOrders = [];
+
+    for (const item of items) {
+      const qty = parseInt(item.quantity, 10);
+      const stockResult = await client.query(
+        `UPDATE products SET stock_quantity = stock_quantity - $1
+         WHERE id = $2 AND stock_quantity >= $1
+         RETURNING id, stock_quantity`,
+        [qty, item.product_id]
+      );
+
+      if (stockResult.rowCount === 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: \`Out of stock for product #\${item.product_id}\` });
+      }
+
+      const orderResult = await client.query(
+        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, order_group_id)
+         VALUES ($1, $2, $3, $4, 'pending', $5) RETURNING *`,
+        [business_id, client_id, item.product_id, qty, orderGroupId]
+      );
+      
+      const orderId = orderResult.rows[0].id;
+      await client.query(
+        \`UPDATE orders SET receipt_number = 'ORD-' || LPAD($1::text, 5, '0') WHERE id = $1\`,
+        [orderId]
+      );
+
+      const fullOrder = await client.query(
+        `SELECT o.id, o.quantity, o.status, o.created_at, o.order_group_id,
+                p.title AS product_title, p.price,
+                c.name AS client_name, c.location AS client_location
+         FROM orders o
+         JOIN products p ON o.product_id = p.id
+         JOIN clients c ON o.client_id = c.id
+         WHERE o.id = $1`,
+        [orderId]
+      );
+      createdOrders.push(fullOrder.rows[0]);
+    }
+
+    await client.query('COMMIT');
+
+    const bizRes = await db.query('SELECT owner_id FROM businesses WHERE id = $1', [business_id]);
+    if (bizRes.rows.length > 0) {
+      sendPushToSeller(bizRes.rows[0].owner_id, {
+        title: 'New Order Request',
+        body: \`You received a new order with \${items.length} item(s).\`,
+        url: '/seller'
+      });
+    }
+    
+    res.status(201).json(createdOrders);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[orders] POST /bulk error:', err.message);
     res.status(500).json({ error: 'Server error' });
   } finally {
     client.release();

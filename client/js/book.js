@@ -470,6 +470,7 @@ function setupPwaPrompt() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     _pwaPromptEvent = e;
+    setTimeout(() => showPwaPromptIfAvailable(), 2000);
   });
 }
 

@@ -196,21 +196,22 @@ async function placeOrder() {
   if (!entries.length) { toast('Cart is empty', 'Add items first.', 'error'); btn.disabled = false; return; }
 
   try {
-    // Place each item as a separate order (one product per order row per schema)
-    const orderPromises = entries.map(([productId, quantity]) =>
-      apiFetch('/api/orders', {
-        method: 'POST',
-        body: {
-          business_id: business.id,
-          client_id: client.id,
-          product_id: parseInt(productId),
-          quantity,
-        }
-      })
-    );
-    const orders = await Promise.all(orderPromises);
-    orderId = orders[0].id; // Store first order id for notifications
+    const items = entries.map(([productId, quantity]) => ({
+      product_id: parseInt(productId),
+      quantity
+    }));
 
+    const orders = await apiFetch('/api/orders/bulk', {
+      method: 'POST',
+      body: {
+        business_id: business.id,
+        client_id: client.id,
+        items
+      }
+    });
+    
+    orderId = orders[0].id; // Store first order id for notifications
+    
     // Notify seller via Pusher
     await notifySeller(orders);
 
@@ -504,6 +505,7 @@ function setupPwaPrompt() {
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     _pwaPromptEvent = e;
+    setTimeout(() => showPwaPromptIfAvailable(), 2000);
   });
 }
 

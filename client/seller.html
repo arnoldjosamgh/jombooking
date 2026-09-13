@@ -187,12 +187,25 @@
       </div>
 
       <div class="mb-24" style="display:flex;flex-direction:column;align-items:center">
-        <label class="text-xs text-dim font-bold uppercase block mb-8">QR Code for Customers</label>
+        <label class="text-xs text-dim font-bold uppercase block mb-8">Main QR Code</label>
         <div id="ob-qrcode" style="padding:12px;background:white;border-radius:8px;display:inline-block;border:1px solid #e2e8f0;margin-bottom:20px;"></div>
         
+        <label class="text-xs text-dim font-bold uppercase block mb-8">Table / Custom QR Code</label>
+        <div class="flex gap-8 mb-8">
+          <input type="text" id="ob-table-num" placeholder="Table Number (e.g. 5)" style="flex:1;padding:8px 12px;border:1px solid #cbd5e1;border-radius:6px;font-size:0.85rem;">
+          <button class="btn btn-outline" onclick="generateTableQR()">Generate Table QR</button>
+        </div>
+        <div id="ob-table-qrcode" style="padding:12px;background:white;border-radius:8px;display:none;border:1px solid #e2e8f0;margin-bottom:20px;"></div>
+
         <label class="text-xs text-dim font-bold uppercase block mb-8">Upload Logo (Optional)</label>
         <input type="file" id="ob-logo" accept="image/*" style="font-size:0.8rem;padding:6px;width:100%;max-width:250px;border:1px dashed #cbd5e1;border-radius:6px;">
         <button class="btn btn-outline" style="margin-top:8px;padding:6px 12px;font-size:0.75rem;" onclick="uploadSellerLogo()">Save Logo</button>
+      </div>
+
+      <div class="mb-16">
+        <a id="tv-display-link" href="#" target="_blank" class="btn btn-outline btn-full" style="display:flex;align-items:center;gap:6px;justify-content:center;">
+          📺 Open TV Display
+        </a>
       </div>
 
       <button class="btn btn-primary btn-full" onclick="closeOnboarding()">Done</button>
@@ -214,6 +227,10 @@
         <div class="form-group">
           <label>Price</label>
           <input type="number" step="0.01" id="ap-price" required placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Product Image <span class="text-dim text-xs">(optional)</span></label>
+          <input type="file" id="ap-image" accept="image/*" style="font-size:0.8rem;padding:6px;border:1px dashed #cbd5e1;border-radius:6px;width:100%;">
         </div>
         <div class="form-group">
           <label>Barcode <span class="text-dim text-xs">(optional)</span></label>

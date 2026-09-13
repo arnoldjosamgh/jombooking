@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>TV Display | Jomish</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body { background: #0f1222; color: #fff; overflow: hidden; padding: 2rem; font-family: Outfit, sans-serif; }
+    h1 { text-align: center; font-size: 3rem; margin-bottom: 2rem; color: #f4a81d; }
+    .columns { display: flex; gap: 2rem; height: calc(100vh - 150px); }
+    .col { flex: 1; background: rgba(255, 255, 255, 0.05); border-radius: 24px; padding: 2rem; display: flex; flex-direction: column; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .col-title { font-size: 2.5rem; text-align: center; margin-bottom: 1.5rem; text-transform: uppercase; font-weight: 800; }
+    .preparing .col-title { color: #facc15; }
+    .ready .col-title { color: #4ade80; }
+    .order-list { flex: 1; overflow-y: hidden; display: flex; flex-direction: column; gap: 1rem; }
+    .order-item { background: rgba(255, 255, 255, 0.1); padding: 1.5rem; border-radius: 16px; font-size: 2.5rem; font-weight: 700; text-align: center; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    .ready .order-item { background: rgba(74, 222, 128, 0.2); border: 2px solid #4ade80; }
+    @keyframes popIn { 0% { opacity: 0; transform: scale(0.8); } 100% { opacity: 1; transform: scale(1); } }
+  </style>
+</head>
+<body>
+
+  <h1 id="biz-title">Loading...</h1>
+  
+  <div class="columns">
+    <div class="col preparing">
+      <div class="col-title">Preparing</div>
+      <div class="order-list" id="preparing-list"></div>
+    </div>
+    <div class="col ready">
+      <div class="col-title">Ready for Pickup</div>
+      <div class="order-list" id="ready-list"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const API = window.location.origin;
+    let businessId = null;
+
+    async function init() {
+      const params = new URLSearchParams(window.location.search);
+      const slug = params.get('slug');
+      if (!slug) return document.getElementById('biz-title').textContent = 'Invalid Link';
+
+      try {
+        const res = await fetch(`/api/businesses/${slug}`);
+        const biz = await res.json();
+        businessId = biz.id;
+        document.getElementById('biz-title').textContent = biz.name + ' - Order Status';
+        
+        loadOrders();
+        setInterval(loadOrders, 10000); // Poll every 10 seconds
+
+        const socket = io();
+        socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
+        socket.on('order:waiting', () => loadOrders());
+        socket.on('order:status', () => loadOrders());
+      } catch (e) {
+        document.getElementById('biz-title').textContent = 'Error connecting';
+      }
+    }
+
+    async function loadOrders() {
+      if (!businessId) return;
+      try {
+        const res = await fetch(`/api/orders/list/${businessId}`);
+        const orders = await res.json();
+
+        // Pending -> Preparing
+        // Status ready -> Completed? Since we used completed for delivered, let's treat recent 'completed' as Ready for 5 minutes, or maybe just look at orders from today.
+        // Actually, if seller clicks 'Notify Ready', we can add 'ready' status, but we didn't add that to DB check constraints.
+        // So we'll just show 'pending' as Preparing.
+        const pending = orders.filter(o => o.status === 'pending');
+        
+        // Show recently completed (last 15 mins) as Ready
+        const ready = orders.filter(o => o.status === 'completed' && (Date.now() - new Date(o.created_at).getTime()) < 15 * 60000);
+
+        // Group by order_group_id or client_name or just show order ID (receipt_number)
+        renderList('preparing-list', pending);
+        renderList('ready-list', ready);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function renderList(elementId, items) {
+      const container = document.getElementById(elementId);
+      // Get unique clients or order_group_ids. Let's just group by receipt_number / client_name
+      const grouped = {};
+      items.forEach(i => {
+        const key = i.receipt_number || i.id;
+        if (!grouped[key]) grouped[key] = { id: key, name: i.client_name };
+      });
+      
+      const orders = Object.values(grouped).slice(0, 8); // Max 8 items
+      
+      const newHtml = orders.map(o => `<div class="order-item">#${o.id.toString().replace('ORD-00', '')} - ${o.name}</div>`).join('');
+      if (container.innerHTML !== newHtml) {
+        container.innerHTML = newHtml;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

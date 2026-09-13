@@ -75,13 +75,14 @@ CREATE TABLE IF NOT EXISTS products (
 
 -- Orders (product flow)
 CREATE TABLE IF NOT EXISTS orders (
-  id          SERIAL PRIMARY KEY,
-  business_id INT REFERENCES businesses(id) ON DELETE CASCADE,
-  client_id   INT REFERENCES clients(id) ON DELETE SET NULL,
-  product_id  INT REFERENCES products(id) ON DELETE SET NULL,
-  quantity    INT NOT NULL DEFAULT 1,
-  status      VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','completed','cancelled')),
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  id             SERIAL PRIMARY KEY,
+  business_id    INT REFERENCES businesses(id) ON DELETE CASCADE,
+  client_id      INT REFERENCES clients(id) ON DELETE SET NULL,
+  product_id     INT REFERENCES products(id) ON DELETE SET NULL,
+  order_group_id VARCHAR(50),
+  quantity       INT NOT NULL DEFAULT 1,
+  status         VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','completed','cancelled')),
+  created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Bookings (service flow) — UNIQUE constraint prevents double-booking

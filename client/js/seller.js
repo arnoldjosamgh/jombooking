@@ -154,16 +154,31 @@ function checkFirstLogin(biz) {
 function showOnboarding(biz) {
   biz = biz || selectedBiz;
   if (!biz) return;
-  const clientLink = `${window.location.origin}/c/${biz.slug}`;
+  const clientLink = \`\${window.location.origin}/c/\${biz.slug}\`;
   document.getElementById('ob-client-link').value = clientLink;
 
   const qrEl = document.getElementById('ob-qrcode');
   qrEl.innerHTML = '';
   new QRCode(qrEl, { text: clientLink, width: 180, height: 180, colorDark: '#1a2461', colorLight: '#ffffff' });
 
+  // Update TV link
+  const tvLink = document.getElementById('tv-display-link');
+  if (tvLink) tvLink.href = \`/tv.html?slug=\${biz.slug}\`;
+
   const modal = document.getElementById('onboarding-modal');
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('active'), 10);
+}
+
+function generateTableQR() {
+  const table = document.getElementById('ob-table-num').value.trim();
+  if (!table) return toast('Error', 'Enter a table number', 'error');
+  
+  const clientLink = \`\${window.location.origin}/c/\${selectedBiz.slug}?table=\${encodeURIComponent(table)}\`;
+  const qrEl = document.getElementById('ob-table-qrcode');
+  qrEl.style.display = 'inline-block';
+  qrEl.innerHTML = '';
+  new QRCode(qrEl, { text: clientLink, width: 150, height: 150, colorDark: '#1a2461', colorLight: '#ffffff' });
 }
 
 function closeOnboarding() {
@@ -389,6 +404,18 @@ async function addProduct(e) {
   const btn = e.target.querySelector('[type=submit]');
   btn.disabled = true; btn.textContent = 'Adding...';
   try {
+    let image_url = null;
+    const fileInput = document.getElementById('ap-image');
+    if (fileInput && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      image_url = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
     const product = await apiFetch('/api/products/manage', {
       method: 'POST',
       body: {
@@ -396,7 +423,8 @@ async function addProduct(e) {
         title: document.getElementById('ap-name').value,
         price: document.getElementById('ap-price').value,
         barcode: document.getElementById('ap-barcode').value,
-        stock_quantity: document.getElementById('ap-stock').value
+        stock_quantity: document.getElementById('ap-stock').value,
+        image_url
       }
     });
     posProducts.push(product);
@@ -1084,7 +1112,27 @@ async function renderPending() {
     list.innerHTML = html;
     
   } catch(e) {
-    list.innerHTML = `<div class="text-red">Error loading pending items: ${e.message}</div>`;
+    list.innerHTML = \`<div class="text-red">Error loading pending items: \${e.message}</div>\`;
+  }
+}
+
+async function notifyOrderReady(orderId, clientId) {
+  try {
+    // Send a chat message to the client
+    await apiFetch('/api/messages', {
+      method: 'POST',
+      body: { 
+        business_id: selectedBiz.id, 
+        client_id: clientId, 
+        sender: 'seller', 
+        content: \`Hi! Your order #\${orderId} is ready for pickup/delivery.\` 
+      }
+    });
+    
+    // Optionally change order status or just let completeOrder do it
+    toast('Notified', 'Client has been notified that the order is ready', 'success');
+  } catch (err) {
+    toast('Error', err.message, 'error');
   }
 }
 

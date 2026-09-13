@@ -154,7 +154,7 @@ function checkFirstLogin(biz) {
 function showOnboarding(biz) {
   biz = biz || selectedBiz;
   if (!biz) return;
-  const clientLink = \`\${window.location.origin}/c/\${biz.slug}\`;
+  const clientLink = `${window.location.origin}/c/${biz.slug}`;
   document.getElementById('ob-client-link').value = clientLink;
 
   const qrEl = document.getElementById('ob-qrcode');
@@ -163,7 +163,7 @@ function showOnboarding(biz) {
 
   // Update TV link
   const tvLink = document.getElementById('tv-display-link');
-  if (tvLink) tvLink.href = \`/tv.html?slug=\${biz.slug}\`;
+  if (tvLink) tvLink.href = `/tv.html?slug=${biz.slug}`;
 
   const modal = document.getElementById('onboarding-modal');
   modal.style.display = 'flex';
@@ -174,7 +174,7 @@ function generateTableQR() {
   const table = document.getElementById('ob-table-num').value.trim();
   if (!table) return toast('Error', 'Enter a table number', 'error');
   
-  const clientLink = \`\${window.location.origin}/c/\${selectedBiz.slug}?table=\${encodeURIComponent(table)}\`;
+  const clientLink = `${window.location.origin}/c/${selectedBiz.slug}?table=${encodeURIComponent(table)}`;
   const qrEl = document.getElementById('ob-table-qrcode');
   qrEl.style.display = 'inline-block';
   qrEl.innerHTML = '';
@@ -1119,7 +1119,7 @@ async function renderPending() {
     list.innerHTML = html;
     
   } catch(e) {
-    list.innerHTML = \`<div class="text-red">Error loading pending items: \${e.message}</div>\`;
+    list.innerHTML = `<div class="text-red">Error loading pending items: ${e.message}</div>`;
   }
 }
 

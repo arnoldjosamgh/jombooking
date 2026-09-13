@@ -8,14 +8,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Book | Jomish</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📅</text></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'><i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></text></svg>">
   <link rel="stylesheet" href="/css/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
   <!-- Header -->
   <header class="top-nav">
     <a href="/" class="brand">
-      <div class="brand-icon">🧾</div>
+      <div class="brand-icon"><i data-lucide="receipt" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
       <div>
         <div class="brand-name" id="biz-name">Loading...</div>
         <div class="brand-sub" id="biz-sub">Booking</div>
@@ -108,5 +109,6 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/book.js"></script>
+  <script>if(window.lucide) lucide.createIcons();</script>
 </body>
 </html>

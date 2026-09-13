@@ -73,15 +73,23 @@ window.addEventListener('DOMContentLoaded', async () => {
     const bioFlag = await BioStore.get('bio_registered_' + lastUser)
                  || localStorage.getItem('bio_registered_' + lastUser);
     if (bioFlag) {
-      const btn = document.getElementById('login-btn');
-      btn.disabled = true;
-      btn.textContent = 'Checking biometrics…';
-      attemptBiometricLogin(lastUser).then(() => {
-        if (btn.textContent === 'Checking biometrics…') {
-          btn.disabled = false;
-          btn.textContent = 'Sign In';
+      const form = document.getElementById('login-form');
+      const msg = document.getElementById('login-msg');
+      const fastUi = document.getElementById('fast-login-ui');
+      
+      if (form && fastUi) {
+        form.style.display = 'none';
+        msg.style.display = 'none';
+        fastUi.style.display = 'block';
+        
+        const bizName = localStorage.getItem('business_name');
+        if (bizName) {
+          document.getElementById('fast-login-title').textContent = 'Welcome back to ' + bizName;
         }
-      });
+      }
+      
+      // Auto-trigger (will fall back to normal UI if it fails/cancels)
+      attemptBiometricLogin(lastUser);
     }
   }
 
@@ -157,8 +165,10 @@ async function attemptBiometricLogin(username) {
   const msg     = document.getElementById('login-msg');
 
   spinner.style.display = 'block';
-  form.style.opacity = '0.4';
-  form.style.pointerEvents = 'none';
+  if (form && form.style.display !== 'none') {
+    form.style.opacity = '0.4';
+    form.style.pointerEvents = 'none';
+  }
   if (msg) msg.style.display = 'none';
 
   try {
@@ -184,11 +194,16 @@ async function attemptBiometricLogin(username) {
     // No toast, no error message — just show the login form normally
   }
 
-  // Show form again
+  // Show form again (cancel fast login mode)
   spinner.style.display = 'none';
-  form.style.opacity = '1';
-  form.style.pointerEvents = 'auto';
+  if (form) {
+    form.style.display = 'block';
+    form.style.opacity = '1';
+    form.style.pointerEvents = 'auto';
+  }
   if (msg) msg.style.display = 'block';
+  const fastUi = document.getElementById('fast-login-ui');
+  if (fastUi) fastUi.style.display = 'none';
 }
 
 // ─── SILENT BIOMETRIC REGISTRATION (after 1st password login) ─────────────────
@@ -234,6 +249,9 @@ function handleLoginSuccess(data) {
   if (data.business_slug) {
     localStorage.setItem('business_slug', data.business_slug);
   }
+  if (data.business_name) {
+    localStorage.setItem('business_name', data.business_name);
+  }
   if (data.seller.is_demo) {
     localStorage.setItem('is_demo', '1');
   } else {
@@ -260,4 +278,26 @@ async function demoLogin(type) {
     toast('Demo Error', err.message || 'Could not start demo. Try again.', 'error');
     document.querySelectorAll('[onclick^="demoLogin"]').forEach(b => { b.disabled = false; b.style.opacity = '1'; });
   }
+}
+
+// ─── FAST LOGIN UI TRIGGERS ──────────────────────────────────────────────────
+function triggerFastLogin() {
+  const lastUser = localStorage.getItem('last_username') || BioStore.get('last_username');
+  if (lastUser) {
+    attemptBiometricLogin(lastUser);
+  }
+}
+
+function showNormalLogin() {
+  const form = document.getElementById('login-form');
+  const msg = document.getElementById('login-msg');
+  const fastUi = document.getElementById('fast-login-ui');
+  
+  if (fastUi) fastUi.style.display = 'none';
+  if (form) {
+    form.style.display = 'block';
+    form.style.opacity = '1';
+    form.style.pointerEvents = 'auto';
+  }
+  if (msg) msg.style.display = 'block';
 }

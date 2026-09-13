@@ -10,6 +10,23 @@
   if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
 })();
 
+// ─── Dynamic PWA Manifest ──────────────────────────────────────
+(function setDynamicManifest() {
+  let slug = localStorage.getItem('business_slug');
+  const urlParts = window.location.pathname.split('/');
+  
+  if (urlParts.length > 2 && (urlParts[1] === 'order' || urlParts[1] === 'book')) {
+    slug = urlParts[2] || getParam('slug');
+  } else if (urlParts[1] === 'order.html' || urlParts[1] === 'book.html') {
+    slug = new URLSearchParams(window.location.search).get('slug');
+  }
+  
+  const manifestLink = document.querySelector('link[rel="manifest"]');
+  if (slug && manifestLink) {
+    manifestLink.href = `/api/businesses/manifest/${slug}`;
+  }
+})();
+
 function toggleDarkMode() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
   if (isDark) {
@@ -111,7 +128,7 @@ const OfflineQueue = {
       try { await apiFetch(item.path, item.options); }
       catch (e) { console.warn('[OfflineQueue] Replay failed:', e.message); }
     }
-    toast('Back Online', 'Your queued actions have been sent ✅', 'success', 3000);
+    toast('Back Online', 'Your queued actions have been sent <i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'success', 3000);
   }
 };
 
@@ -181,6 +198,8 @@ function toast(title, body = '', type = 'info', duration = 4000) {
     ${body ? `<div class="toast-body">${body}</div>` : ''}
   `;
   container.appendChild(el);
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  
   setTimeout(() => {
     el.style.animation = 'none';
     el.style.opacity = '0';
@@ -203,6 +222,26 @@ function closeModal(id) {
   el.classList.remove('active');
   setTimeout(() => el.style.display = 'none', 200);
 }
+
+// ─── Auto-Refresh Icons (MutationObserver) ────────────────────
+(function() {
+  if (typeof window === 'undefined') return;
+  const observer = new MutationObserver((mutations) => {
+    let shouldRefresh = false;
+    for (const m of mutations) {
+      if (m.addedNodes.length > 0) {
+        shouldRefresh = true;
+        break;
+      }
+    }
+    if (shouldRefresh && typeof lucide !== 'undefined') {
+      lucide.createIcons();
+    }
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+})();
 
 // ─── Format Helpers ────────────────────────────────────────────
 function formatTime(isoStr) {
@@ -267,7 +306,7 @@ async function showRegistrationModal(onSuccess) {
       });
       Session.set(client);
       closeModal('reg-modal');
-      toast('Welcome!', `Hi ${client.name} 👋`, 'success');
+      toast('Welcome!', `Hi ${client.name} <i data-lucide="hand" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>`, 'success');
       onSuccess(client);
     } catch (err) {
       toast('Registration Failed', err.message, 'error');
@@ -294,7 +333,7 @@ function injectRegModal() {
     <div class="modal-overlay" id="reg-modal">
       <div class="modal">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-          <div class="brand-icon">🧾</div>
+          <div class="brand-icon"><i data-lucide="receipt" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
           <span style="font-family:Outfit,sans-serif;font-weight:800;font-size:1.1rem;">Jomish</span>
         </div>
         <h2 class="modal-title mt-12">Quick Registration</h2>

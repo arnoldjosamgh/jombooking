@@ -48,7 +48,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       setupBiz(biz);
     } else {
       document.getElementById('no-biz').innerHTML = `
-        <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+        <div style="font-size:2rem;margin-bottom:12px"><i data-lucide="alert-triangle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
         <p>No business linked to your account. Contact tech support.</p>
       `;
     }
@@ -86,7 +86,7 @@ function setupBiz(biz) {
   }
 
   const type = biz.type;
-  document.getElementById('dashboard-type').textContent = type === 'product' ? '🛍️ Point of Sale' : type === 'service' ? '📅 Service Calendar' : '🛍️ POS & 📅 Calendar';
+  document.getElementById('dashboard-type').textContent = type === 'product' ? '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Point of Sale' : type === 'service' ? '<i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Calendar' : '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> POS & <i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Calendar';
 
   renderTabs(type);
 
@@ -125,7 +125,7 @@ async function showSetupPrompts() {
   // 1. Check Push Notifications
   if (('Notification' in window) && Notification.permission === 'default' && !localStorage.getItem('prompted_push_' + username)) {
     localStorage.setItem('prompted_push_' + username, '1');
-    if (confirm('🔔 Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
+    if (confirm('<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
       await enablePushNotifications();
     }
   }
@@ -255,7 +255,7 @@ function renderProductGrid() {
     <div class="pos-product-card" onclick="addToCart(${p.id})">
       <div class="pos-product-name">${p.title}</div>
       <div class="pos-product-price">${formatCurrency(p.price)}</div>
-      <div class="pos-product-stock ${p.stock_quantity <= 0 ? 'text-red' : ''}">${p.stock_quantity <= 0 ? '❌ Out of Stock' : `${p.stock_quantity} in stock`}</div>
+      <div class="pos-product-stock ${p.stock_quantity <= 0 ? 'text-red' : ''}">${p.stock_quantity <= 0 ? '<i data-lucide="x" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Out of Stock' : `${p.stock_quantity} in stock`}</div>
     </div>
   `).join('');
 }
@@ -333,7 +333,7 @@ async function checkoutPos() {
 
     // Show receipt
     const lines = result.items.map(i => `${i.product} x${i.qty} = ${formatCurrency(i.price * i.qty)}`).join('\n');
-    alert(`✅ Sale Complete!\n\n${lines}\n\nTotal: ${formatCurrency(result.total)}\nThank you!`);
+    alert(`<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Sale Complete!\n\n${lines}\n\nTotal: ${formatCurrency(result.total)}\nThank you!`);
 
     posCart = {};
     renderCart();
@@ -808,12 +808,12 @@ function initSocket(biz) {
   socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
 
   socket.on('order:waiting', (data) => {
-    toast(`🔔 New Order — ${data.clientName}`, `${data.productTitle} ×${data.quantity}`, 'info', 8000);
+    toast(`<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> New Order — ${data.clientName}`, `${data.productTitle} ×${data.quantity}`, 'info', 8000);
     if (selectedBiz?.type === 'product') loadProducts();
   });
 
   socket.on('booking:new', (data) => {
-    toast(`📅 New Booking — ${data.clientName}`, `Booked for ${new Date(data.bookingTime).toLocaleString()}`, 'info', 6000);
+    toast(`<i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> New Booking — ${data.clientName}`, `Booked for ${new Date(data.bookingTime).toLocaleString()}`, 'info', 6000);
     if (selectedBiz?.type === 'service') loadWeek();
   });
 
@@ -1066,7 +1066,7 @@ async function renderPending() {
     if (selectedBiz.type === 'product' || selectedBiz.type === 'both') {
       const orders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=pending`);
       if (orders.length > 0) {
-        html += `<h4>🛍️ Product Orders</h4><div class="list-group mb-24">`;
+        html += `<h4><i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Product Orders</h4><div class="list-group mb-24">`;
         html += orders.map(o => `
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
@@ -1074,7 +1074,7 @@ async function renderPending() {
               <span class="text-dim text-sm">${o.client_name} • ${new Date(o.created_at).toLocaleString()}</span>
             </div>
             <div style="display:flex; gap:8px;">
-              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')">✉️ Message</button>
+              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Message</button>
               <button class="btn btn-primary btn-sm" onclick="completeOrder(${o.id})">Mark Delivered</button>
             </div>
           </div>
@@ -1088,7 +1088,7 @@ async function renderPending() {
       const bookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
       const pendingBookings = bookings.filter(b => new Date(b.booking_time) > new Date(Date.now() - 86400000)); // Only show recent/upcoming
       if (pendingBookings.length > 0) {
-        html += `<h4>📅 Service Bookings</h4><div class="list-group">`;
+        html += `<h4><i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Bookings</h4><div class="list-group">`;
         html += pendingBookings.map(b => {
           pendingBookingsMap.set(b.id, b);
           return `
@@ -1098,7 +1098,7 @@ async function renderPending() {
               <span class="text-dim text-sm">${b.client_name} • ${new Date(b.booking_time).toLocaleString()}</span>
             </div>
             <div style="display:flex; gap:8px;">
-              <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')">✉️ Message</button>
+              <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Message</button>
               <button class="btn btn-primary btn-sm" onclick="completeBooking(${b.id})">Mark Completed</button>
             </div>
           </div>
@@ -1193,7 +1193,7 @@ async function renderHistory() {
         <div style="text-align:right">
           <div class="font-bold">${formatCurrency(i.price || 0)}</div>
           <div class="text-xs" style="color:var(--accent-green);font-weight:bold;margin-bottom:6px;">Sold by: ${i.seller || '—'}</div>
-          <button class="btn btn-outline" style="padding:6px 14px;font-size:0.78rem;" onclick="showReceipt(${idx})">🧾 Receipt</button>
+          <button class="btn btn-outline" style="padding:6px 14px;font-size:0.78rem;" onclick="showReceipt(${idx})"><i data-lucide="receipt" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Receipt</button>
         </div>
       </div>
     `).join('') + '</div>';
@@ -1332,7 +1332,7 @@ async function confirmCompleteBooking() {
       `━━━━━━━━━━━━━━━━━━━━`,
       `TOTAL    : ${formatCurrency2(finalPrice)}`,
       `━━━━━━━━━━━━━━━━━━━━`,
-      `Status   : PAID ✅`,
+      `Status   : PAID <i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>`,
       `Thank you for your visit!`,
     ].join('\n');
 
@@ -1501,21 +1501,21 @@ async function enablePushNotifications() {
     toast('Not Supported', 'Push notifications are not supported on this device/browser.', 'error');
     return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Requesting permission…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Requesting permission…'; }
   try {
     const permission = await Notification.requestPermission();
     if (permission === 'denied') {
       toast(
-        '🔔 Notifications Blocked',
+        '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Notifications Blocked',
         'To enable: open your browser Settings → Site Settings → Notifications → find this site and set to Allow.',
         'info',
         7000
       );
-      if (btn) { btn.disabled = false; btn.textContent = '🔔 Enable Push Notifications'; }
+      if (btn) { btn.disabled = false; btn.textContent = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
       return;
     }
     if (permission !== 'granted') {
-      if (btn) { btn.disabled = false; btn.textContent = '🔔 Enable Push Notifications'; }
+      if (btn) { btn.disabled = false; btn.textContent = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
       return;
     }
     // Get VAPID public key
@@ -1530,11 +1530,11 @@ async function enablePushNotifications() {
 
     // Save subscription to server
     await apiFetch('/api/push/subscribe', { method: 'POST', body: subscription });
-    toast('Notifications On! 🔔', 'You will now receive push notifications for new orders and bookings.', 'success', 4000);
-    if (btn) btn.textContent = '✅ Notifications Enabled';
+    toast('Notifications On! <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'You will now receive push notifications for new orders and bookings.', 'success', 4000);
+    if (btn) btn.textContent = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Notifications Enabled';
   } catch (err) {
     toast('Error', err.message, 'error');
-    if (btn) { btn.disabled = false; btn.textContent = '🔔 Enable Push Notifications'; }
+    if (btn) { btn.disabled = false; btn.textContent = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
   }
 }
 
@@ -1552,7 +1552,7 @@ async function setupBiometrics() {
     toast('Not Supported', 'Biometrics are not supported on this device/browser.', 'error');
     return;
   }
-  if (btn) { btn.disabled = true; btn.textContent = '⏳ Setting up…'; }
+  if (btn) { btn.disabled = true; btn.textContent = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Setting up…'; }
   try {
     const SimpleWebAuthnBrowser = window.SimpleWebAuthnBrowser;
     if (!SimpleWebAuthnBrowser) throw new Error('WebAuthn library not loaded');
@@ -1566,7 +1566,7 @@ async function setupBiometrics() {
       const username = localStorage.getItem('last_username') || '';
       if (username) localStorage.setItem('bio_registered_' + username, '1');
       toast('Biometrics Enabled 👆', 'You can now use fingerprint/face to log in next time!', 'success', 4000);
-      if (btn) btn.textContent = '✅ Biometrics Active';
+      if (btn) btn.textContent = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Biometrics Active';
     }
   } catch (err) {
     console.error('[biometrics]', err);

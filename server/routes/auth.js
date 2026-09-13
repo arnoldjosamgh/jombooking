@@ -54,19 +54,20 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
 
     // If owner, fetch their business (via seller.business_id or owner_id)
     let business_slug = null;
+    let business_name = null;
     if (role !== 'tech') {
       let bizRes;
       if (seller.business_id) {
         // Preferred: direct business_id link (multi-seller companies)
         bizRes = await db.query(
-          `SELECT slug, status FROM businesses WHERE id = $1 LIMIT 1`,
+          `SELECT slug, name, status FROM businesses WHERE id = $1 LIMIT 1`,
           [seller.business_id]
         );
       }
       if (!bizRes || bizRes.rows.length === 0) {
         // Fallback: check if this seller is the owner of a business
         bizRes = await db.query(
-          `SELECT slug, status FROM businesses WHERE owner_id = $1 ORDER BY id LIMIT 1`,
+          `SELECT slug, name, status FROM businesses WHERE owner_id = $1 ORDER BY id LIMIT 1`,
           [seller.id]
         );
       }
@@ -75,12 +76,13 @@ router.post('/login', requireFields('username', 'password'), async (req, res) =>
           return res.status(403).json({ error: 'This business account is currently paused. Please contact support.' });
         }
         business_slug = bizRes.rows[0].slug;
+        business_name = bizRes.rows[0].name;
       }
     }
 
     // Success — generate token
     const token = jwt.sign({ id: seller.id, role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, seller: { id: seller.id, username: seller.username, role, name: seller.name }, business_slug, has_biometrics: !!seller.webauthn_cred_id });
+    res.json({ token, seller: { id: seller.id, username: seller.username, role, name: seller.name }, business_slug, business_name, has_biometrics: !!seller.webauthn_cred_id });
   } catch (err) {
     console.error('[auth] Login error:', err.message);
     res.status(500).json({ error: 'Server error' });
@@ -110,7 +112,8 @@ router.post('/demo-login', async (req, res) => {
     res.json({
       token,
       seller: { id: 0, username: 'DEMO', role: 'owner', name: 'Demo User', is_demo: true },
-      business_slug: bizSlug
+      business_slug: bizSlug,
+      business_name: bizRes.rows.length > 0 ? bizRes.rows[0].name : 'Demo Business'
     });
   } catch (err) {
     console.error('[auth] Demo login error:', err.message);
@@ -138,29 +141,33 @@ router.post('/setup-password', requireFields('token', 'password'), async (req, r
 
     const role = seller.role || 'owner';
 
-    // Fetch business slug for this seller (prefer business_id, fallback to owner_id)
     let business_slug = null;
+    let business_name = null;
     let bizRes;
     if (seller.business_id) {
       bizRes = await db.query(
-        `SELECT slug FROM businesses WHERE id = $1 LIMIT 1`,
+        `SELECT slug, name FROM businesses WHERE id = $1 LIMIT 1`,
         [seller.business_id]
       );
     }
     if (!bizRes || bizRes.rows.length === 0) {
       bizRes = await db.query(
-        `SELECT slug FROM businesses WHERE owner_id = $1 ORDER BY id LIMIT 1`,
+        `SELECT slug, name FROM businesses WHERE owner_id = $1 ORDER BY id LIMIT 1`,
         [seller.id]
       );
     }
-    if (bizRes.rows.length > 0) business_slug = bizRes.rows[0].slug;
+    if (bizRes.rows.length > 0) {
+      business_slug = bizRes.rows[0].slug;
+      business_name = bizRes.rows[0].name;
+    }
 
     const jwtToken = jwt.sign({ id: seller.id, role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });
     res.json({
       message: 'Password set successfully',
       token: jwtToken,
       seller: { id: seller.id, username: seller.username, role, name: seller.name },
-      business_slug
+      business_slug,
+      business_name
     });
   } catch (err) {
     console.error('[auth] Setup password error:', err.message);
@@ -365,8 +372,18 @@ router.post('/webauthn/auth-verify', async (req, res) => {
       await db.query('UPDATE sellers SET webauthn_counter = $1 WHERE id = $2', [authenticationInfo.newCounter, seller.id]);
       delete userChallenges[seller.id];
       
+      let business_slug = null;
+      let business_name = null;
+      if (seller.role !== 'tech') {
+        const bizRes = await db.query('SELECT slug, name FROM businesses WHERE owner_id = $1 OR id = $2 LIMIT 1', [seller.id, seller.business_id]);
+        if (bizRes.rows.length > 0) {
+          business_slug = bizRes.rows[0].slug;
+          business_name = bizRes.rows[0].name;
+        }
+      }
+
       const token = jwt.sign({ id: seller.id, role: seller.role, username: seller.username }, JWT_SECRET, { expiresIn: '7d' });
-      res.json({ verified: true, token, seller: { id: seller.id, username: seller.username, role: seller.role, name: seller.name } });
+      res.json({ verified: true, token, seller: { id: seller.id, username: seller.username, role: seller.role, name: seller.name }, business_slug, business_name });
     } else {
       res.status(400).json({ error: 'Verification failed' });
     }

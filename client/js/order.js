@@ -71,7 +71,7 @@ async function loadProducts() {
 // ─── Render ────────────────────────────────────────────────────
 function renderHeader() {
   document.getElementById('biz-name').textContent = business.name;
-  document.getElementById('biz-badge').textContent = '🛍️ Order Menu';
+  document.getElementById('biz-badge').textContent = '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Order Menu';
 }
 
 function renderSkeleton() {
@@ -114,7 +114,7 @@ function getProductEmoji(title = '') {
   if (t.includes('coffee') || t.includes('espresso') || t.includes('latte') || t.includes('cappuccino')) return '☕';
   if (t.includes('tea')) return '🍵';
   if (t.includes('cake') || t.includes('pastry') || t.includes('croissant')) return '🥐';
-  if (t.includes('burger')) return '🍔';
+  if (t.includes('burger')) return '<i data-lucide="utensils" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>';
   if (t.includes('pizza')) return '🍕';
   if (t.includes('sandwich')) return '🥪';
   if (t.includes('juice') || t.includes('drink')) return '🥤';
@@ -265,7 +265,7 @@ function showOrderSuccess(orders) {
         document.getElementById('main-content').innerHTML = `
           <div class="container-sm" style="padding-top:32px;text-align:center;">
             <div class="success-screen" style="border: 2px solid var(--accent-green);">
-              <div class="success-icon" style="background:var(--accent-green);">🎉</div>
+              <div class="success-icon" style="background:var(--accent-green);"><i data-lucide="party-popper" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
               <h2 style="color:var(--accent-green);font-size:2rem;margin-top:16px;">Delivered!</h2>
               <p class="mt-8">Thank you for your order from <strong>${business.name}</strong>.</p>
               
@@ -313,7 +313,7 @@ function showOrderSuccess(orders) {
           ${summary}
         </div>
         <button class="btn btn-primary btn-lg mt-20 pulse" id="waiting-btn" onclick="iAmWaiting()">
-          🔔 I'm Waiting — Notify Seller
+          <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> I'm Waiting — Notify Seller
         </button>
         <div class="mt-20">
           <h3 style="margin-bottom:12px">Chat with ${business.name}</h3>
@@ -414,7 +414,7 @@ async function sendMsg() {
 function renderError(msg) {
   document.getElementById('main-content').innerHTML = `
     <div class="loading-center" style="padding:80px">
-      <div style="font-size:2.5rem">⚠️</div>
+      <div style="font-size:2.5rem"><i data-lucide="alert-triangle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
       <h2 style="margin-top:12px">Something went wrong</h2>
       <p>${msg}</p>
     </div>
@@ -521,7 +521,7 @@ function showPwaPromptIfAvailable() {
     display:flex; align-items:center; gap:14px; animation: slideUp 0.4s ease;
   `;
   banner.innerHTML = `
-    <div style="font-size:2rem">📲</div>
+    <div style="font-size:2rem"><i data-lucide="smartphone" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
     <div style="flex:1">
       <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">Install Jomish App</div>
       <div style="font-size:0.78rem;opacity:0.85">Add to your home screen for faster ordering and notifications</div>
@@ -541,7 +541,7 @@ async function installPwa() {
   _pwaPromptEvent = null;
   const banner = document.getElementById('pwa-banner');
   if (banner) banner.remove();
-  if (outcome === 'accepted') toast('App Installed! 🎉', 'Jomish has been added to your home screen.', 'success');
+  if (outcome === 'accepted') toast('App Installed! <i data-lucide="party-popper" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'Jomish has been added to your home screen.', 'success');
 }
 
 // ─── RECEIPT DOWNLOAD ──────────────────────────────────────────────────────────

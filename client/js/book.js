@@ -487,7 +487,7 @@ function showPwaPromptIfAvailable() {
     display:flex; align-items:center; gap:14px; animation: slideUp 0.4s ease;
   `;
   banner.innerHTML = `
-    <div style="font-size:2rem">📲</div>
+    <div style="font-size:2rem"><i data-lucide="smartphone" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
     <div style="flex:1">
       <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">Install Jomish App</div>
       <div style="font-size:0.78rem;opacity:0.85">Add to your home screen for faster bookings and notifications</div>
@@ -507,7 +507,7 @@ async function installPwa() {
   _pwaPromptEvent = null;
   const banner = document.getElementById('pwa-banner');
   if (banner) banner.remove();
-  if (outcome === 'accepted') toast('App Installed! 🎉', 'Jomish has been added to your home screen.', 'success');
+  if (outcome === 'accepted') toast('App Installed! <i data-lucide="party-popper" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'Jomish has been added to your home screen.', 'success');
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
@@ -517,7 +517,7 @@ function dateStr(d)  { return d.toISOString().split('T')[0]; }
 function renderError(msg) {
   document.getElementById('booking-view').innerHTML = `
     <div class="loading-center" style="padding:80px">
-      <div style="font-size:2.5rem">⚠️</div>
+      <div style="font-size:2.5rem"><i data-lucide="alert-triangle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
       <h2 style="margin-top:12px">Something went wrong</h2>
       <p>${msg}</p>
     </div>`;

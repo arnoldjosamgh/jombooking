@@ -52,14 +52,20 @@ async function generateSlots(businessId, dateStr, serviceId) {
     lunchEndMin   = leh * 60 + lem;
   }
 
-  // Build all possible slot timestamps, skipping lunch
+  // Build all possible slot timestamps
   const allSlots = [];
+  const lunchSlots = new Set();
+  
   for (let m = openMinutes; m + duration <= closeMinutes; m += duration) {
-    // Skip slots that overlap with the lunch break
-    if (lunchStartMin !== null && m < lunchEndMin && m + duration > lunchStartMin) continue;
     const h   = Math.floor(m / 60);
     const min = m % 60;
-    allSlots.push(`${dateStr}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`);
+    const slotTime = `${dateStr}T${String(h).padStart(2,'0')}:${String(min).padStart(2,'0')}:00`;
+    
+    // Check if slot overlaps with the lunch break
+    if (lunchStartMin !== null && m < lunchEndMin && m + duration > lunchStartMin) {
+      lunchSlots.add(slotTime);
+    }
+    allSlots.push(slotTime);
   }
 
   // Count confirmed bookings for each slot
@@ -88,11 +94,13 @@ async function generateSlots(businessId, dateStr, serviceId) {
   const blockedSet = new Set(blockedRes.rows.map(r => r.slot));
 
   return allSlots.map(slot => {
+    const isLunch = lunchSlots.has(slot);
     const booked = bookedCounts[slot] || 0;
     return {
       time: slot,
-      available: (booked < maxClients) && !blockedSet.has(slot),
+      available: !isLunch && (booked < maxClients) && !blockedSet.has(slot),
       blocked_by_seller: blockedSet.has(slot),
+      is_lunch_break: isLunch
     };
   });
 }

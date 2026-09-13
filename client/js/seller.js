@@ -705,7 +705,15 @@ async function loadWeek() {
           const timeStr = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
           const el      = document.createElement('div');
 
-          if (!slot.available && !slot.blocked_by_seller) {
+          if (slot.is_lunch_break) {
+            el.className = 'cal-slot';
+            el.style.background = '#e2e8f0';
+            el.style.color = '#64748b';
+            el.style.border = '1px dashed #cbd5e1';
+            el.style.cursor = 'not-allowed';
+            el.innerHTML = `${timeStr} 🍔`;
+            el.title = 'Lunch Break';
+          } else if (!slot.available && !slot.blocked_by_seller) {
             // Booked by a client
             el.className = 'cal-slot cal-slot-booked';
             el.innerHTML = `${timeStr} 🔒`;
@@ -1663,45 +1671,39 @@ function showReceipt(transactionId, type) {
   const t = window._historyData.find(x => x.id === transactionId && x._type === type);
   if (!t) return;
   
-  const date = new Date(t.created_at).toLocaleString();
-  const title = type === 'order' ? `${t.product_title} ×${t.quantity}` : `${t.service_name || 'Booking'}`;
-  const price = type === 'order' ? t.price * t.quantity : t.service_price || 0;
+  const symbol = selectedBiz?.currency_symbol || '$';
+  const logoUrl = selectedBiz?.logo_url || '';
   
-  document.getElementById('receipt-content').innerHTML = `
-    <div style="text-align:center; margin-bottom:24px;">
-      <h2 style="margin:0; font-size:1.5rem; color:var(--text-primary);">${selectedBiz.name}</h2>
-      <div style="color:var(--text-muted); font-size:0.85rem;">Official Receipt</div>
-    </div>
-    <div style="border-top:1px dashed #ccc; border-bottom:1px dashed #ccc; padding:16px 0; margin-bottom:24px;">
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="color:var(--text-muted)">Date:</span>
-        <span style="font-weight:600">${date}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="color:var(--text-muted)">Client:</span>
-        <span style="font-weight:600">${t.client_name}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="color:var(--text-muted)">Item:</span>
-        <span style="font-weight:600">${title}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="color:var(--text-muted)">Served By:</span>
-        <span style="font-weight:600">${t.seller_username || 'Staff'}</span>
-      </div>
-      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-        <span style="color:var(--text-muted)">Status:</span>
-        <span style="font-weight:600; text-transform:uppercase;">${t.status}</span>
-      </div>
-    </div>
-    <div style="display:flex; justify-content:space-between; font-size:1.2rem; font-weight:700;">
-      <span>TOTAL</span>
-      <span>${formatCurrency(price, selectedBiz.currency_symbol)}</span>
-    </div>
-    <div style="text-align:center; margin-top:32px; font-size:0.75rem; color:var(--text-muted);">
+  const price = type === 'order' ? t.price * t.quantity : t.service_price || 0;
+  const title = type === 'order' ? `${t.product_title} ×${t.quantity}` : `${t.service_name || 'Booking'}`;
+  
+  // Populate the modern PDF template
+  document.getElementById('receipt-biz-name').textContent = selectedBiz.name;
+  document.getElementById('receipt-biz-location').textContent = selectedBiz.location || '';
+  const phoneEl = document.getElementById('receipt-biz-phone');
+  if (phoneEl) phoneEl.textContent = selectedBiz.phone_number || '';
+  
+  const logoEl = document.getElementById('receipt-logo');
+  if (logoEl) { logoEl.src = logoUrl; logoEl.style.display = logoUrl ? 'block' : 'none'; }
+  const wmEl = document.getElementById('receipt-watermark');
+  if (wmEl) { wmEl.src = logoUrl; wmEl.style.display = logoUrl ? 'block' : 'none'; }
+  
+  document.getElementById('receipt-id').textContent = t.receipt_number || t.id;
+  document.getElementById('receipt-date').textContent = new Date(t.created_at).toLocaleString();
+  document.getElementById('receipt-client').textContent = t.client_name || 'Guest';
+  
+  document.getElementById('receipt-service').textContent = title;
+  document.getElementById('receipt-price').textContent = symbol + parseFloat(price).toFixed(2);
+  document.getElementById('receipt-total').textContent = symbol + parseFloat(price).toFixed(2);
+  
+  // Copy to modal
+  const contentHtml = document.getElementById('receipt-content').innerHTML;
+  document.getElementById('seller-receipt-content').innerHTML = `
+    <div style="font-family:'Outfit',Arial,sans-serif;font-size:12px;color:#1a1a2e;position:relative;overflow:hidden;background:#fff;">
+      ${contentHtml}
     </div>
   `;
-  document.getElementById('receipt-modal').style.display = 'flex';
+  document.getElementById('seller-receipt-modal').style.display = 'flex';
 }
 
 // ─── CHAT ──────────────────────────────────────────────────────────────────────

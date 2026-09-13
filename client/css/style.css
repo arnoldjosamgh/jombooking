@@ -853,3 +853,5 @@ td { padding: 16px; font-weight: 500; border-bottom: 1px solid rgba(0,0,0,0.05);
 .mr-8 { margin-right: 8px; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+@ m e d i a   p r i n t   {   b o d y   *   {   v i s i b i l i t y :   h i d d e n ;   }   # s e l l e r - r e c e i p t - m o d a l ,   # s e l l e r - r e c e i p t - m o d a l   *   {   v i s i b i l i t y :   v i s i b l e ;   }   # s e l l e r - r e c e i p t - m o d a l   {   p o s i t i o n :   a b s o l u t e ;   l e f t :   0 ;   t o p :   0 ;   }   }  
+ 

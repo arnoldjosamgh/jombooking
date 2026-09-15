@@ -45,7 +45,7 @@ router.get('/:slug', async (req, res) => {
     const result = await db.query(
       `SELECT id, name, type, slug, logo_url, open_time, close_time,
               open_days, session_duration_minutes, currency_symbol, pusher_channel,
-              lunch_start, lunch_end, status, phone_number, location
+              lunch_start, lunch_end, status, phone_number, location, low_stock_threshold
        FROM businesses WHERE slug = $1`,
       [slug]
     );
@@ -92,7 +92,8 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
       lunch_end,
       currency_symbol,
       phone_number,
-      location
+      location,
+      low_stock_threshold
     } = req.body;
 
     // Parse duration — empty string or 0 should keep existing
@@ -110,7 +111,8 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
          lunch_end = $7,
          currency_symbol = COALESCE($8, currency_symbol),
          phone_number = $10,
-         location = $11
+         location = $11,
+         low_stock_threshold = COALESCE($12, low_stock_threshold)
        WHERE slug = $9 RETURNING id, slug`,
       [
         open_time || null,
@@ -123,7 +125,8 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
         currency_symbol || null,
         slug,
         phone_number || null,
-        location || null
+        location || null,
+        low_stock_threshold ? parseInt(low_stock_threshold) : 10
       ]
     );
     if (result.rows.length === 0) {

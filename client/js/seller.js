@@ -270,10 +270,157 @@ async function loadProducts() {
   try {
     posProducts = await apiFetch(`/api/products/${selectedBiz.slug}`);
     renderProductGrid();
+    checkLowStock();
   } catch (err) {
     toast('Error', 'Could not load products', 'error');
   }
 }
+
+function checkLowStock() {
+  const threshold = selectedBiz.low_stock_threshold || 10;
+  const lowStockItems = posProducts.filter(p => p.stock_quantity <= threshold);
+  
+  const fab = document.getElementById('fab-lowstock');
+  const badge = document.getElementById('fab-lowstock-badge');
+  if (fab && badge) {
+    if (lowStockItems.length > 0) {
+      fab.style.display = 'flex';
+      badge.style.display = 'block';
+      badge.textContent = lowStockItems.length;
+      fab.style.animation = 'pulse 2s infinite';
+    } else {
+      fab.style.display = 'none';
+      fab.style.animation = 'none';
+    }
+  }
+}
+
+// ─── INVENTORY MANAGEMENT ───────────────────────────────────────────────────────
+async function renderInventory() {
+  setActiveTab("tab-inventory");
+  const main = document.getElementById('seller-content');
+  const tpl = document.getElementById('tpl-inventory');
+  main.innerHTML = '';
+  main.appendChild(tpl.content.cloneNode(true));
+
+  await loadProducts();
+
+  const list = document.getElementById('inventory-list');
+  if (!list) return;
+
+  const threshold = selectedBiz.low_stock_threshold || 10;
+  
+  if (!posProducts.length) {
+    list.innerHTML = `<div class="text-dim text-center mt-24">No products found.</div>`;
+    return;
+  }
+
+  list.innerHTML = posProducts.map(p => {
+    const isLow = p.stock_quantity <= threshold;
+    const badgeHtml = isLow ? `<span class="badge badge-red ml-8">Low Stock!</span>` : '';
+    const imgHtml = p.image_url 
+      ? `<img src="${p.image_url}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;margin-right:16px;">` 
+      : `<div style="width:48px;height:48px;background:#e2e8f0;border-radius:6px;margin-right:16px;display:flex;align-items:center;justify-content:center"><i data-lucide="package" style="color:#94a3b8"></i></div>`;
+    
+    return `
+      <div class="card flex justify-between items-center" style="padding:16px; ${isLow ? 'border:1px solid #fca5a5;background:#fef2f2;' : ''}">
+        <div class="flex items-center">
+          ${imgHtml}
+          <div>
+            <div class="font-bold text-lg">${p.title} ${badgeHtml}</div>
+            <div class="text-dim text-sm">${p.barcode ? 'Barcode: ' + p.barcode : 'No Barcode'} • Price: ${formatCurrency(p.price)}</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-16">
+          <div class="text-right">
+            <div class="text-dim text-xs">Current Stock</div>
+            <div class="font-bold text-xl ${isLow ? 'text-red' : ''}">${p.stock_quantity}</div>
+          </div>
+          <button class="btn btn-outline" onclick="openEditStockModal(${p.id}, '${p.title.replace(/'/g, "\\'")}', ${p.stock_quantity})">Update</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  if (window.lucide) lucide.createIcons();
+}
+
+function openEditStockModal(id, title, currentQty) {
+  document.getElementById('es-product-id').value = id;
+  document.getElementById('edit-stock-product-name').textContent = title;
+  document.getElementById('es-stock-qty').value = currentQty;
+  openModal('edit-stock-modal');
+  
+  // Auto-focus input
+  setTimeout(() => document.getElementById('es-stock-qty').focus(), 100);
+}
+
+document.getElementById('edit-stock-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('es-product-id').value;
+  const qty = document.getElementById('es-stock-qty').value;
+  const btn = e.target.querySelector('[type=submit]');
+  btn.disabled = true; btn.textContent = 'Updating...';
+
+  try {
+    await apiFetch(`/api/products/manage/${id}/stock`, {
+      method: 'PATCH',
+      body: { stock_quantity: qty }
+    });
+    toast('Success', 'Stock updated successfully', 'success');
+    closeModal('edit-stock-modal');
+    await loadProducts();
+    if (document.getElementById('tab-inventory').classList.contains('btn-primary')) {
+      renderInventory();
+    }
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Update Stock';
+  }
+});
+
+// Hardware Barcode Scanner Listener
+let barcodeBuffer = '';
+let barcodeTimeout = null;
+document.addEventListener('keydown', (e) => {
+  // Only intercept if we are on the Inventory tab
+  const invTab = document.getElementById('tab-inventory');
+  if (!invTab || !invTab.classList.contains('btn-primary')) return;
+
+  // Don't intercept if user is typing in an input/textarea
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // Most hardware scanners simulate keyboard typing very quickly and end with "Enter"
+  if (e.key === 'Enter') {
+    if (barcodeBuffer.length > 2) { // arbitrary minimum length for a barcode
+      handleHardwareBarcodeScan(barcodeBuffer);
+    }
+    barcodeBuffer = '';
+    return;
+  }
+
+  // Only capture single printable characters
+  if (e.key.length === 1) {
+    barcodeBuffer += e.key;
+    // Clear buffer if typing is too slow (human typing vs scanner)
+    clearTimeout(barcodeTimeout);
+    barcodeTimeout = setTimeout(() => { barcodeBuffer = ''; }, 100); // 100ms timeout
+  }
+});
+
+function handleHardwareBarcodeScan(barcode) {
+  if (!posProducts || posProducts.length === 0) return;
+  const product = posProducts.find(p => p.barcode === barcode);
+  
+  if (product) {
+    toast('Scanned', `Found: ${product.title}`, 'info');
+    openEditStockModal(product.id, product.title, product.stock_quantity);
+  } else {
+    toast('Not Found', `No product with barcode ${barcode}`, 'error');
+  }
+}
+
 
 function renderProductGrid() {
   const grid = document.getElementById('pos-product-grid');
@@ -1072,6 +1219,7 @@ function renderTabs(type) {
   let html = '';
   if (type === 'product' || type === 'both') {
     html += `<button class="btn btn-outline" id="tab-pos" onclick="renderPOS()">Point of Sale</button>`;
+    html += `<button class="btn btn-outline" id="tab-inventory" onclick="renderInventory()">Inventory</button>`;
   }
   if (type === 'service' || type === 'both') {
     html += `<button class="btn btn-outline" id="tab-calendar" onclick="renderCalendar()">Calendar</button>`;
@@ -1498,6 +1646,7 @@ function openSettings() {
   document.getElementById('s-open-time').value = trimTime(selectedBiz.open_time);
   document.getElementById('s-close-time').value = trimTime(selectedBiz.close_time);
   document.getElementById('s-max-clients').value = selectedBiz.max_clients_per_slot || 1;
+  document.getElementById('s-low-stock').value = selectedBiz.low_stock_threshold || 10;
   document.getElementById('s-lunch-start').value = trimTime(selectedBiz.lunch_start);
   document.getElementById('s-lunch-end').value = trimTime(selectedBiz.lunch_end);
   document.getElementById('s-duration').value = selectedBiz.session_duration_minutes || 30;
@@ -1533,6 +1682,7 @@ async function saveSettings(e) {
       open_time: document.getElementById('s-open-time').value,
       close_time: document.getElementById('s-close-time').value,
       max_clients_per_slot: document.getElementById('s-max-clients').value || 1,
+      low_stock_threshold: document.getElementById('s-low-stock').value || 10,
       lunch_start: orNull(document.getElementById('s-lunch-start').value),
       lunch_end: orNull(document.getElementById('s-lunch-end').value),
       session_duration_minutes: document.getElementById('s-duration').value || null,

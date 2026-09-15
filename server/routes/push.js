@@ -4,28 +4,59 @@ const webpush = require('web-push');
 const db = require('../db');
 const { authenticate } = require('./auth');
 
-// Generate VAPID keys if they don't exist
-// In production, these should be in .env and persistent
-const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY;
-const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY;
-const EMAIL = process.env.VAPID_EMAIL || 'mailto:admin@jomish.com';
+const path = require('path');
+const fs   = require('fs');
 
+// VAPID key persistence — keys are saved to vapid_keys.json so they survive restarts
+// (rotating keys would invalidate all existing push subscriptions)
+const VAPID_KEYS_FILE = path.join(__dirname, '..', 'vapid_keys.json');
+const EMAIL = process.env.VAPID_EMAIL || 'mailto:admin@jomish.com';
 let activeVapidPublicKey = null;
 let keysValid = false;
-if (VAPID_PUBLIC && VAPID_PRIVATE) {
-  webpush.setVapidDetails(EMAIL, VAPID_PUBLIC, VAPID_PRIVATE);
-  activeVapidPublicKey = VAPID_PUBLIC;
-  keysValid = true;
-  console.log('[Web Push] VAPID keys loaded successfully.');
-} else {
-  console.log('[Web Push] WARNING: VAPID keys missing. Generating temporary ones for local dev...');
+
+function loadOrCreateVapidKeys() {
+  // 1) Prefer environment variables (production)
+  if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+    webpush.setVapidDetails(EMAIL, process.env.VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
+    activeVapidPublicKey = process.env.VAPID_PUBLIC_KEY;
+    keysValid = true;
+    console.log('[Web Push] VAPID keys loaded from environment.');
+    return;
+  }
+
+  // 2) Load from persisted file (dev / first run)
+  try {
+    if (fs.existsSync(VAPID_KEYS_FILE)) {
+      const saved = JSON.parse(fs.readFileSync(VAPID_KEYS_FILE, 'utf8'));
+      if (saved.publicKey && saved.privateKey) {
+        webpush.setVapidDetails(EMAIL, saved.publicKey, saved.privateKey);
+        activeVapidPublicKey = saved.publicKey;
+        keysValid = true;
+        console.log('[Web Push] VAPID keys loaded from vapid_keys.json');
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('[Web Push] Could not read vapid_keys.json, generating new keys...', e.message);
+  }
+
+  // 3) Generate fresh keys and persist them
   const vapidKeys = webpush.generateVAPIDKeys();
   webpush.setVapidDetails(EMAIL, vapidKeys.publicKey, vapidKeys.privateKey);
   activeVapidPublicKey = vapidKeys.publicKey;
-  console.log(`\nTemporary VAPID_PUBLIC_KEY=${vapidKeys.publicKey}`);
-  console.log(`Temporary VAPID_PRIVATE_KEY=${vapidKeys.privateKey}\n`);
   keysValid = true;
+  try {
+    fs.writeFileSync(VAPID_KEYS_FILE, JSON.stringify(vapidKeys, null, 2), 'utf8');
+    console.log('[Web Push] New VAPID keys generated and saved to vapid_keys.json');
+    console.log('[Web Push] Add these to your .env to use in production:');
+    console.log(`  VAPID_PUBLIC_KEY=${vapidKeys.publicKey}`);
+    console.log(`  VAPID_PRIVATE_KEY=${vapidKeys.privateKey}`);
+  } catch (writeErr) {
+    console.error('[Web Push] Could not save vapid_keys.json:', writeErr.message);
+  }
 }
+
+loadOrCreateVapidKeys();
 
 // ─── Get Public Key for Service Worker ───
 router.get('/vapidPublicKey', (req, res) => {

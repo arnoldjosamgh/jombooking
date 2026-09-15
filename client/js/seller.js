@@ -910,15 +910,10 @@ async function loadWeek() {
           const timeStr = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
           const el      = document.createElement('div');
 
-          if (slot.is_lunch_break) {
-            el.className = 'cal-slot';
-            el.style.background = '#e2e8f0';
-            el.style.color = '#64748b';
-            el.style.border = '1px dashed #cbd5e1';
-            el.style.cursor = 'not-allowed';
-            el.innerHTML = `${timeStr} 🍔`;
-            el.title = 'Lunch Break';
-          } else if (!slot.available && !slot.blocked_by_seller) {
+          // Skip lunch break slots — they must not appear on calendar
+          if (slot.is_lunch_break) return;
+
+          if (!slot.available && !slot.blocked_by_seller) {
             // Ordered by a client
             el.className = 'cal-slot cal-slot-booked';
             el.innerHTML = `${timeStr} 🔒`;
@@ -1064,10 +1059,10 @@ function initSocket(biz) {
 
   // Also listen for incoming client chat messages
   socket.on('chat:message', async (msg) => {
-    if (typeof activeChatClient !== 'undefined' && activeChatClient && msg.client_id == activeChatClient) {
-      const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
-      renderChatMessages(messages);
-    } else if (msg.sender === 'client') {
+    // Dispatch a DOM event so the chat modal can react without duplicate socket bindings
+    window.dispatchEvent(new CustomEvent('chat:incoming', { detail: msg }));
+
+    if (msg.sender === 'client') {
       toast('💬 New Message', 'New message from a client', 'info');
       // Refresh threads if panel is open, otherwise just show badge
       if (document.getElementById('seller-chat-panel').style.display === 'flex') {
@@ -2009,25 +2004,58 @@ function closeChat() {
   activeChatClient = null;
 }
 
+function buildChatMessageHTML(m) {
+  const isMe = m.sender === 'seller';
+  const isReceipt = m.content && m.content.startsWith('[RECEIPT]');
+  const displayContent = isReceipt ? m.content.replace('[RECEIPT]', '<strong>🧾 Receipt</strong>') : m.content;
+  const downloadBtn = isReceipt
+    ? `<button onclick="downloadReceiptText(${JSON.stringify(m.content)})" style="margin-top:6px;padding:5px 12px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;display:block;">⬇ Download Invoice</button>`
+    : '';
+  return `
+    <div style="display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}" data-msg-id="${m.id || ''}">
+      <div style="max-width:80%; padding:10px 14px; border-radius:12px; font-size:0.85rem; ${isMe ? 'background:#5b67f6; color:#fff;' : 'background:#e2e8f0; color:#1a2461;'}">
+        ${displayContent}
+        ${downloadBtn}
+      </div>
+      <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">
+        ${new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+      </div>
+    </div>
+  `;
+}
+
+function downloadReceiptText(content) {
+  const blob = new Blob([content.replace('[RECEIPT] ', '')], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Invoice_${Date.now()}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Downloaded', 'Invoice saved to your device.', 'success');
+}
+
 function renderChatMessages(messages) {
   const container = document.getElementById('chat-messages');
   if (messages.length === 0) {
     container.innerHTML = '<div class="text-dim text-center mt-24">No messages yet. Send a message to start chatting!</div>';
     return;
   }
-  container.innerHTML = messages.map(m => {
-    const isMe = m.sender === 'seller';
-    return `
-      <div style="display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}">
-        <div style="max-width:80%; padding:10px 14px; border-radius:12px; font-size:0.85rem; ${isMe ? 'background:#5b67f6; color:#fff;' : 'background:#e2e8f0; color:#1a2461;'}">
-          ${m.content}
-        </div>
-        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:4px;">
-          ${new Date(m.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-        </div>
-      </div>
-    `;
-  }).join('');
+  container.innerHTML = messages.map(m => buildChatMessageHTML(m)).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function appendChatMessage(m) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  // Remove the "no messages" placeholder if present
+  const placeholder = container.querySelector('.text-dim');
+  if (placeholder) placeholder.remove();
+  const div = document.createElement('div');
+  div.innerHTML = buildChatMessageHTML(m);
+  container.appendChild(div.firstElementChild);
   container.scrollTop = container.scrollHeight;
 }
 
@@ -2044,7 +2072,7 @@ if (chatForm) {
       btn.disabled = true;
 
       try {
-        await apiFetch('/api/messages', {
+        const sent = await apiFetch('/api/messages', {
           method: 'POST',
           body: {
             business_id: selectedBiz.id,
@@ -2054,9 +2082,8 @@ if (chatForm) {
           }
         });
         input.value = '';
-        // Re-fetch messages
-        const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
-        renderChatMessages(messages);
+        // Append immediately without re-fetching
+        appendChatMessage({ sender: 'seller', content: content, created_at: new Date().toISOString(), id: sent?.id });
       } catch (err) {
         toast('Message Error', err.message, 'error');
       } finally {
@@ -2065,33 +2092,15 @@ if (chatForm) {
     });
   }
   
-  // Listen for socket messages
-  if (typeof socket !== 'undefined' && socket) {
-    socket.on('chat:message', async (msg) => {
-      if (activeChatClient && msg.client_id == activeChatClient) {
-        const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
-        renderChatMessages(messages);
-      } else if (msg.sender === 'client') {
-        toast('💬 New Message', `New message from a client`, 'info');
-        // Badge the chat tab if visible
-        pollPending();
-      }
-    });
-  } else {
-    // Socket hasn't been initialized yet, listen for it via event
-    window.addEventListener('socket:ready', () => {
-      if (socket) {
-        socket.on('chat:message', async (msg) => {
-          if (activeChatClient && msg.client_id == activeChatClient) {
-            const messages = await apiFetch(`/api/messages/${selectedBiz.id}/${activeChatClient}`);
-            renderChatMessages(messages);
-          } else if (msg.sender === 'client') {
-            toast('💬 New Message', `New message from a client`, 'info');
-          }
-        });
-      }
-    });
-  }
+  // Listen for real-time socket messages in the chat modal (deduped with top-level listener)
+  // The top-level socket listener (set up in initSocket) handles badge updates.
+  // This second binding handles appending messages in the open chat window.
+  window.addEventListener('chat:incoming', (e) => {
+    const msg = e.detail;
+    if (activeChatClient && msg.client_id == activeChatClient && msg.sender !== 'seller') {
+      appendChatMessage(msg);
+    }
+  });
 
 // ─── TV DISPLAY MEDIA MANAGER ──────────────────────────────────────────────────
 async function openTvMediaManager() {

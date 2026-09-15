@@ -221,12 +221,25 @@ router.patch('/:id/status', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(
-      `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price) WHERE id = $4 RETURNING id, status, price`,
+      `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price) WHERE id = $4 RETURNING id, status, price, business_id`,
       [status, req.user.id, final_price !== undefined ? final_price : null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
+    
+    // Emit socket event to update TV
+    const io = req.app.get('io');
+    if (io) {
+      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [result.rows[0].business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${result.rows[0].business_id}`;
+        // Emit 'order:status' which the TV listens to for reloading
+        io.to(`seller-${channel}`).emit('order:status', { bookingId: req.params.id, status });
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
+    console.error('[bookings] PATCH status error:', err.message);
     res.status(500).json({ error: 'Server error' });
   }
 });

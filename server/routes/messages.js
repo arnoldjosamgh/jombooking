@@ -66,12 +66,18 @@ router.post('/', requireFields('business_id', 'client_id', 'sender', 'content'),
       [business_id, client_id, sender, content.trim()]
     );
 
-    // Emit to socket room — done from index.js after calling this route
-    const msg = result.rows[0];
+    // Emit to socket room — includes client_id so seller UI can identify the thread
+    const msg = { ...result.rows[0], client_id, business_id };
     const io = req.app.get('io');
     if (io) {
       const room = `chat-${business_id}-${client_id}`;
       io.to(room).emit('chat:message', msg);
+      // Also emit to the seller room so seller sees messages from clients
+      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${business_id}`;
+        io.to(`seller-${channel}`).emit('chat:message', msg);
+      }
     }
 
     res.status(201).json(msg);

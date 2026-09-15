@@ -325,13 +325,34 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
 
       const order = await client.query(
         `INSERT INTO orders (business_id, client_id, product_id, quantity, status, total_price, notes, seller_id)
-         VALUES ($1, $2, $3, $4, 'completed', $5, $6, $7) RETURNING id`,
+         VALUES ($1, $2, $3, $4, 'ready', $5, $6, $7) RETURNING id`,
         [business_id, clientId, item.product_id, qty, price * qty, notes || null, req.user.id]
       );
       createdOrders.push({ id: order.rows[0].id, product: stock.rows[0].title, qty, price });
     }
 
+    // Assign receipt numbers to POS orders
+    for (const ord of createdOrders) {
+      await client.query(
+        `UPDATE orders SET receipt_number = 'ORD-' || LPAD($1::text, 5, '0') WHERE id = $1`,
+        [ord.id]
+      );
+    }
+
     await client.query('COMMIT');
+
+    // Emit socket event to update TV
+    const io = req.app.get('io');
+    if (io) {
+      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${business_id}`;
+        // We can just emit once to trigger a reload on the TV
+        if (createdOrders.length > 0) {
+          io.to(`seller-${channel}`).emit('order:status', { orderId: createdOrders[0].id, status: 'ready' });
+        }
+      }
+    }
 
     res.status(201).json({ success: true, total, items: createdOrders, client_id: clientId });
   } catch (err) {

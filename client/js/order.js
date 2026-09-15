@@ -9,6 +9,7 @@ let products = [];
 let cart     = {}; // { productId: quantity }
 let socket   = null;
 let orderId  = null;
+const sentMsgIds = new Set(); // deduplicate socket echo
 
 // ─── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -344,12 +345,48 @@ async function iAmWaiting() {
   toast('Seller Notified', 'Your seller has been alerted you\'re waiting.', 'success');
 }
 
+
 // ─── Socket.io ─────────────────────────────────────────────────
 function initSocket() {
   if (typeof io === 'undefined') return;
   socket = io();
-  // Join seller notifications room isn't needed client-side; just for chat
+
+  // Join chat room as soon as socket is ready so we receive seller messages in real-time
+  socket.on('connect', () => {
+    if (business && client) {
+      socket.emit('join:chat', { businessId: business.id, clientId: client.id });
+    }
+  });
+
+  // If already connected, join immediately
+  if (socket.connected && business && client) {
+    socket.emit('join:chat', { businessId: business.id, clientId: client.id });
+  }
+
+  // Listen for incoming seller messages and show notification on the float button
+  socket.on('chat:message', (msg) => {
+    if (msg.sender !== 'seller') return;
+
+    // If chat panel is open, render immediately
+    if (clientChatOpen) {
+      renderClientChatMsg(msg);
+    } else {
+      // Otherwise show a notification dot on the floating chat button
+      const btn = document.getElementById('float-chat-btn');
+      if (btn) {
+        btn.style.background = 'linear-gradient(135deg,#ef4444,#dc2626)';
+        // Add a pulsing dot if not already there
+        if (!document.getElementById('chat-notif-dot')) {
+          const dot = document.createElement('span');
+          dot.id = 'chat-notif-dot';
+          dot.style.cssText = 'position:absolute;top:4px;right:4px;width:12px;height:12px;background:#fff;border-radius:50%;border:2px solid #ef4444;';
+          btn.appendChild(dot);
+        }
+      }
+    }
+  });
 }
+
 
 // ─── Chat ──────────────────────────────────────────────────────
 let chatLoaded = false;
@@ -445,17 +482,19 @@ function toggleClientChat() {
   if (!modal) return;
   clientChatOpen = !clientChatOpen;
   modal.style.display = clientChatOpen ? 'flex' : 'none';
-  if (clientChatOpen && !clientChatLoaded) {
-    loadClientChatHistory();
-    clientChatLoaded = true;
-    if (socket && business && client) {
-      socket.emit('join:chat', { businessId: business.id, clientId: client.id });
-      socket.on('chat:message', (msg) => {
-        if (msg.sender === 'seller') renderClientChatMsg(msg);
-      });
-    }
-  }
+
   if (clientChatOpen) {
+    // Clear notification dot
+    const btn = document.getElementById('float-chat-btn');
+    if (btn) btn.style.background = 'linear-gradient(135deg,#5b67f6,#8b5cf6)';
+    const dot = document.getElementById('chat-notif-dot');
+    if (dot) dot.remove();
+
+    if (!clientChatLoaded) {
+      loadClientChatHistory();
+      clientChatLoaded = true;
+    }
+
     setTimeout(() => {
       const box = document.getElementById('client-chat-msgs');
       if (box) box.scrollTop = box.scrollHeight;
@@ -502,17 +541,18 @@ async function sendClientMsg() {
   if (!input) return;
   const content = input.value.trim();
   if (!content || !client || !business) return;
-  
-  // Optimistic render
+
+  // Render immediately (optimistic)
   renderClientChatMsg({ sender: 'client', content, created_at: new Date().toISOString() });
   input.value = '';
-  
+
   try {
     const msg = await apiFetch('/api/messages', {
       method: 'POST',
       body: { business_id: business.id, client_id: client.id, sender: 'client', content }
     });
-    // We already rendered it, so we don't call renderClientChatMsg here again.
+    // Track sent ID to avoid socket double-render
+    if (msg.id) sentMsgIds.add(msg.id);
   } catch (err) {
     toast('Send failed', err.message, 'error');
   }

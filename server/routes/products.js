@@ -9,6 +9,45 @@ const { requireFields } = require('../middleware/validate');
 const { authenticate } = require('./auth');
 const { sendPushToSeller } = require('./push');
 
+// ─── GET /api/orders/list/:business_id ────────────────────────────────────────
+// MUST be defined before /:business_slug wildcard to avoid being shadowed
+// Accepts business_id (numeric) OR business slug
+router.get('/list/:business_id', async (req, res) => {
+  try {
+    const { status } = req.query;
+    const bizParam = req.params.business_id;
+    // Determine if it's a slug or numeric id
+    const isNumeric = /^\d+$/.test(bizParam);
+    const bizFilter = isNumeric
+      ? 'o.business_id = $1'
+      : 'o.business_id = (SELECT id FROM businesses WHERE slug = $1 LIMIT 1)';
+
+    let query = `
+      SELECT o.id, o.order_group_id, o.quantity, o.status, o.created_at, o.total_price, o.notes, o.seller_id,
+             o.receipt_number,
+             p.title AS product_title, p.price,
+             c.id AS client_id, c.name AS client_name, c.location AS client_location,
+             s.username AS seller_username,
+             biz.name AS business_name, biz.location AS business_location,
+             biz.phone_number AS business_phone, biz.logo_url AS business_logo
+      FROM orders o
+      JOIN products p ON o.product_id = p.id
+      JOIN clients c ON o.client_id = c.id
+      JOIN businesses biz ON o.business_id = biz.id
+      LEFT JOIN sellers s ON o.seller_id = s.id
+      WHERE ${bizFilter}
+    `;
+    const params = [bizParam];
+    if (status) { query += ` AND o.status = $2`; params.push(status); }
+    query += ' ORDER BY o.created_at DESC LIMIT 100';
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('[orders] GET /list/:id error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ─── GET /api/products/:business_slug ─────────────────────────────────────────
 router.get('/:business_slug', async (req, res) => {
   try {
@@ -304,43 +343,7 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
   }
 });
 
-// ─── GET /api/orders/list/:business_id ────────────────────────────────────────
-// Accepts business_id (numeric) OR business slug
-router.get('/list/:business_id', async (req, res) => {
-  try {
-    const { status } = req.query;
-    const bizParam = req.params.business_id;
-    // Determine if it's a slug or numeric id
-    const isNumeric = /^\d+$/.test(bizParam);
-    const bizFilter = isNumeric
-      ? 'o.business_id = $1'
-      : 'o.business_id = (SELECT id FROM businesses WHERE slug = $1 LIMIT 1)';
-
-    let query = `
-      SELECT o.id, o.quantity, o.status, o.created_at, o.total_price, o.notes, o.seller_id,
-             o.receipt_number,
-             p.title AS product_title, p.price,
-             c.id AS client_id, c.name AS client_name, c.location AS client_location,
-             s.username AS seller_username,
-             biz.name AS business_name, biz.location AS business_location,
-             biz.phone_number AS business_phone, biz.logo_url AS business_logo
-      FROM orders o
-      JOIN products p ON o.product_id = p.id
-      JOIN clients c ON o.client_id = c.id
-      JOIN businesses biz ON o.business_id = biz.id
-      LEFT JOIN sellers s ON o.seller_id = s.id
-      WHERE ${bizFilter}
-    `;
-    const params = [bizParam];
-    if (status) { query += ` AND o.status = $2`; params.push(status); }
-    query += ' ORDER BY o.created_at DESC LIMIT 100';
-    const result = await db.query(query, params);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('[orders] GET /list/:id error:', err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
+// (GET /api/orders/list/:business_id is now defined at the top of this file, before the wildcard route)
 
 // ─── PATCH /api/orders/:id/status ─────────────────────────────────────────────
 router.patch('/:id/status', authenticate, async (req, res) => {

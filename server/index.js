@@ -64,13 +64,13 @@ app.use('/api/bookings',   require('./routes/bookings'));   // clients need to c
 app.use('/api/messages',   require('./routes/messages'));   // clients need to chat
 app.use('/api/tv-media',   require('./routes/tv_media'));   // TV display media (public GET)
 app.use('/api/push',       require('./routes/push').router); // push VAPID key is public
+app.use('/api/products',   require('./routes/products'));
+app.use('/api/orders',     require('./routes/products'));
 
 // ─── Auth Middleware for protected routes ────────────────────────────
 app.use('/api', (req, res, next) => {
   authenticate(req, res, () => { demoGuard(req, res, next); });
 });
-app.use('/api/products',   require('./routes/products'));
-app.use('/api/orders',     require('./routes/products'));   // products router handles both
 app.use('/api/tech',       require('./routes/tech'));
 
 // ─── Pusher: Notify Seller on Order (I'm Waiting button) ─────────────────────

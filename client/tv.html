@@ -537,10 +537,8 @@
       try {
         const orders = await fetch(`/api/orders/list/${businessId}`).then(r => r.json());
         const pending = orders.filter(o => o.status === 'pending');
-        const ready   = orders.filter(o =>
-          o.status === 'completed' &&
-          (Date.now() - new Date(o.created_at).getTime()) < 25 * 60_000
-        );
+        const ready   = orders.filter(o => o.status === 'completed').slice(0, 8);
+        
         renderOrderList('preparing-list', 'preparing-count', pending, 'No orders yet');
         renderOrderList('ready-list',     'ready-count',     ready,   'Nothing ready yet');
       } catch(e) { console.error('[orders]', e); }

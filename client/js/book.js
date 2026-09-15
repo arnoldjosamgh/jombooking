@@ -31,7 +31,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     document.title = `Book — ${business.name} | Jomish`;
     document.getElementById('biz-name').textContent = business.name;
-    document.getElementById('biz-sub').textContent  = 'Book an Appointment';
+    document.getElementById('biz-sub').textContent  = 'Place an Order';
 
     if (business.phone_number) {
       const callBtn = document.getElementById('call-btn');
@@ -163,7 +163,7 @@ function showDateSlotStep() {
       </div>
 
       <div class="card mt-16" id="confirm-panel" style="display:none;padding:24px">
-        <h3 style="margin-bottom:16px">4. Confirm Booking</h3>
+        <h3 style="margin-bottom:16px">4. Confirm Order</h3>
         <div class="flex justify-between items-center mb-8 text-sm">
           <span class="text-dim">Service</span>
           <span class="font-bold">${selectedSvc.name}</span>
@@ -180,7 +180,7 @@ function showDateSlotStep() {
           <span class="text-dim">Time</span>
           <span class="font-bold" id="confirm-time"></span>
         </div>
-        <button class="btn btn-primary btn-full" id="confirm-btn" onclick="confirmBooking()">Confirm Booking →</button>
+        <button class="btn btn-primary btn-full" id="confirm-btn" onclick="confirmBooking()">Confirm Order →</button>
       </div>
 
     </div>
@@ -273,9 +273,9 @@ async function finalizeBooking() {
 
     showBookingSuccess();
   } catch (err) {
-    toast('Booking Failed', err.message, 'error');
+    toast('Order Failed', err.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Confirm Booking →'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Confirm Order →'; }
   }
 }
 
@@ -300,7 +300,7 @@ function showBookingSuccess() {
         <p class="mt-8">Your booking at <strong>${business.name}</strong> is locked in.</p>
         <div class="card mt-20" style="text-align:left;padding:20px">
           <div class="flex justify-between mt-8 text-sm">
-            <span class="text-dim">Booking ID</span>
+            <span class="text-dim">Order ID</span>
             <span class="font-bold">#${booking.id}</span>
           </div>
           <div class="flex justify-between mt-8 text-sm">
@@ -326,7 +326,7 @@ function showBookingSuccess() {
         </div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center">
           <button class="btn btn-primary" onclick="downloadReceipt()">📥 Download Invoice</button>
-          <button class="btn btn-outline" onclick="window.location.reload()">Book Another</button>
+          <button class="btn btn-outline" onclick="window.location.reload()">Order Another</button>
         </div>
       </div>
     </div>
@@ -345,7 +345,7 @@ function downloadReceipt() {
     '=============================',
     `Business  : ${business.name}`,
     `Client    : ${client.name}`,
-    `Booking ID: #${booking.id}`,
+    `Order ID: #${booking.id}`,
     `Service   : ${selectedSvc.name}`,
     `Date/Time : ${formatDateTime(booking.booking_time)}`,
     `Duration  : ${selectedSvc.duration_minutes} minutes`,

@@ -714,10 +714,10 @@ async function loadWeek() {
             el.innerHTML = `${timeStr} 🍔`;
             el.title = 'Lunch Break';
           } else if (!slot.available && !slot.blocked_by_seller) {
-            // Booked by a client
+            // Ordered by a client
             el.className = 'cal-slot cal-slot-booked';
             el.innerHTML = `${timeStr} 🔒`;
-            el.title     = 'Booked by client — click for details';
+            el.title     = 'Ordered by client — click for details';
             el.onclick   = () => showBookingAtTime(slot.time);
           } else if (slot.blocked_by_seller) {
             // Manually blocked — can unblock
@@ -826,7 +826,7 @@ async function submitCancelBooking() {
     });
     closeModal('cancel-modal');
     loadWeek();
-    toast('Cancelled', 'Booking cancelled and client notified', 'success');
+    toast('Cancelled', 'Order cancelled and client notified', 'success');
   } catch (err) {
     toast('Error', err.message, 'error');
   }
@@ -853,7 +853,7 @@ function initSocket(biz) {
   });
 
   socket.on('booking:new', (data) => {
-    toast(`<i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> New Booking — ${data.clientName}`, `Booked for ${new Date(data.bookingTime).toLocaleString()}`, 'info', 6000);
+    toast(`<i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> New Order — ${data.clientName}`, `Ordered for ${new Date(data.bookingTime).toLocaleString()}`, 'info', 6000);
     if (selectedBiz?.type === 'service') loadWeek();
   });
 
@@ -1129,7 +1129,7 @@ async function renderPending() {
       const bookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
       const pendingBookings = bookings.filter(b => new Date(b.booking_time) > new Date(Date.now() - 86400000)); // Only show recent/upcoming
       if (pendingBookings.length > 0) {
-        html += `<h4><i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Bookings</h4><div class="list-group">`;
+        html += `<h4><i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Orders</h4><div class="list-group">`;
         html += pendingBookings.map(b => {
           pendingBookingsMap.set(b.id, b);
           return `
@@ -1329,7 +1329,7 @@ const pendingBookingsMap = new Map();
 function completeBooking(bookingId) {
   const booking = pendingBookingsMap.get(Number(bookingId)) || pendingBookingsMap.get(bookingId);
   if (!booking) {
-    toast('Error', 'Booking not found. Please refresh and try again.', 'error');
+    toast('Error', 'Order not found. Please refresh and try again.', 'error');
     return;
   }
   currentBookingToComplete = booking;
@@ -1357,7 +1357,7 @@ async function confirmCompleteBooking() {
     });
     
     closeModal('complete-modal');
-    toast('Success', 'Booking marked as completed.', 'success');
+    toast('Success', 'Order marked as completed.', 'success');
     renderPending();
     pollPending();
     

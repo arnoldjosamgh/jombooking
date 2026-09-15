@@ -380,7 +380,7 @@ async function subscribeClientToPush(clientId) {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
     const reg = await navigator.serviceWorker.ready;
-    const vapidKey = await apiFetch('/api/push/vapidPublicKey', { method: 'GET' });
+    const vapidKey = await fetch('/api/push/vapidPublicKey').then(r => r.text());
     if (!vapidKey) return;
     
     // Convert VAPID key to Uint8Array

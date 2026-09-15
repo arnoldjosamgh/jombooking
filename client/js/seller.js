@@ -2009,7 +2009,10 @@ function buildChatMessageHTML(m) {
   const isReceipt = m.content && m.content.startsWith('[RECEIPT]');
   const displayContent = isReceipt ? m.content.replace('[RECEIPT]', '<strong>🧾 Receipt</strong>') : m.content;
   const downloadBtn = isReceipt
-    ? `<button onclick="downloadReceiptText(${JSON.stringify(m.content)})" style="margin-top:6px;padding:5px 12px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;display:block;">⬇ Download Invoice</button>`
+    ? `<div style="display:flex;gap:8px;margin-top:6px;">
+         <button onclick='downloadReceiptText(${JSON.stringify(m.content)})' style="padding:5px 12px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;">⬇ Download</button>
+         <button onclick='printReceiptText(${JSON.stringify(m.content)})' style="padding:5px 12px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;">🖨 Print</button>
+       </div>`
     : '';
   return `
     <div style="display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}" data-msg-id="${m.id || ''}">
@@ -2035,6 +2038,20 @@ function downloadReceiptText(content) {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Downloaded', 'Invoice saved to your device.', 'success');
+}
+
+function printReceiptText(content) {
+  const text = content.replace('[RECEIPT] ', '');
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write('<html><head><title>Receipt</title><style>body{font-family:monospace;white-space:pre-wrap;padding:20px;}</style></head><body>' + text + '</body></html>');
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+    setTimeout(() => { printWindow.close(); }, 500);
+  } else {
+    toast('Popup Blocked', 'Please allow popups to print receipts.', 'error');
+  }
 }
 
 function renderChatMessages(messages) {

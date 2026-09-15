@@ -125,10 +125,15 @@ async function showSetupPrompts() {
   if (!username) return;
   
   // 1. Check Push Notifications
-  if (('Notification' in window) && Notification.permission === 'default' && !localStorage.getItem('prompted_push_' + username)) {
-    localStorage.setItem('prompted_push_' + username, '1');
-    if (confirm('Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
-      await enablePushNotifications();
+  if ('Notification' in window && 'serviceWorker' in navigator) {
+    if (Notification.permission === 'granted') {
+      // Permission already granted — silently ensure subscription is registered on server
+      enablePushNotifications(true);
+    } else if (Notification.permission === 'default' && !localStorage.getItem('prompted_push_' + username)) {
+      localStorage.setItem('prompted_push_' + username, '1');
+      if (confirm('Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
+        await enablePushNotifications();
+      }
     }
   }
   
@@ -139,7 +144,7 @@ async function showSetupPrompts() {
       if (confirm('👆 Set Up Biometric Login?\n\nUse your fingerprint or Face ID to log in next time securely.')) {
         setupBiometrics();
       }
-    }, 1000); // Wait a second before second prompt so they don't overlap awkwardly
+    }, 1000);
   }
 }
 
@@ -1521,12 +1526,15 @@ async function saveSettings(e) {
       days.push(parseInt(cb.value));
     });
 
+    // Convert empty strings to null so breaks can be cleared
+    const orNull = v => (v && v.trim()) ? v.trim() : null;
+
     const payload = {
       open_time: document.getElementById('s-open-time').value,
       close_time: document.getElementById('s-close-time').value,
       max_clients_per_slot: document.getElementById('s-max-clients').value || 1,
-      lunch_start: document.getElementById('s-lunch-start').value,
-      lunch_end: document.getElementById('s-lunch-end').value,
+      lunch_start: orNull(document.getElementById('s-lunch-start').value),
+      lunch_end: orNull(document.getElementById('s-lunch-end').value),
       session_duration_minutes: document.getElementById('s-duration').value || null,
       currency_symbol: document.getElementById('s-currency').value,
       phone_number: document.getElementById('s-phone').value,
@@ -1555,46 +1563,60 @@ async function saveSettings(e) {
 
 
 // ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
-async function enablePushNotifications() {
+async function enablePushNotifications(silent = false) {
   const btn = document.getElementById('push-enable-btn');
   if (!('Notification' in window) || !('serviceWorker' in navigator)) {
-    toast('Not Supported', 'Push notifications are not supported on this device/browser.', 'error');
+    if (!silent) toast('Not Supported', 'Push notifications are not supported on this device/browser.', 'error');
     return;
   }
-  if (btn) { btn.disabled = true; btn.innerHTML = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Requesting permission…'; }
+  if (btn && !silent) { btn.disabled = true; btn.innerHTML = '<i data-lucide="hourglass" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Requesting permission…'; }
   try {
-    const permission = await Notification.requestPermission();
-    if (permission === 'denied') {
-      toast(
+    // If already denied, show instructions and bail
+    if (Notification.permission === 'denied') {
+      if (!silent) toast(
         '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Notifications Blocked',
         'To enable: open your browser Settings → Site Settings → Notifications → find this site and set to Allow.',
         'info',
         7000
       );
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+      if (btn && !silent) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
       return;
+    }
+
+    // Request permission if not yet granted
+    let permission = Notification.permission;
+    if (permission !== 'granted') {
+      permission = await Notification.requestPermission();
     }
     if (permission !== 'granted') {
-      if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+      if (btn && !silent) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
       return;
     }
+
     // Get VAPID public key
     const vapidPublicKey = await fetch('/api/push/vapidPublicKey').then(r => r.text());
     if (!vapidPublicKey) throw new Error('Server VAPID key missing');
 
     const sw = await navigator.serviceWorker.ready;
-    const subscription = await sw.pushManager.subscribe({
+
+    // Check if already subscribed with the current key — resubscribe to ensure server has it
+    let subscription = await sw.pushManager.getSubscription();
+    if (subscription) {
+      // Unsubscribe old subscription so we can re-subscribe with current VAPID key
+      await subscription.unsubscribe();
+    }
+    subscription = await sw.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
     });
 
     // Save subscription to server
     await apiFetch('/api/push/subscribe', { method: 'POST', body: subscription });
-    toast('Notifications On! <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'You will now receive push notifications for new orders and bookings.', 'success', 4000);
+    if (!silent) toast('Notifications On! <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'You will now receive push notifications for new orders and bookings.', 'success', 4000);
     if (btn) btn.innerHTML = '<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Notifications Enabled';
   } catch (err) {
-    toast('Error', err.message, 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
+    if (!silent) toast('Error', err.message, 'error');
+    if (btn && !silent) { btn.disabled = false; btn.innerHTML = '<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Enable Push Notifications'; }
   } finally {
     if (window.lucide) lucide.createIcons();
   }

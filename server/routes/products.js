@@ -205,9 +205,21 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
 
     await client.query('COMMIT');
 
-    const bizRes = await db.query('SELECT owner_id FROM businesses WHERE id = $1', [business_id]);
+    const bizRes = await db.query('SELECT owner_id, pusher_channel FROM businesses WHERE id = $1', [business_id]);
     if (bizRes.rows.length > 0) {
-      sendPushToSeller(bizRes.rows[0].owner_id, {
+      const biz = bizRes.rows[0];
+      
+      const io = req.app.get('io');
+      if (io) {
+        const channel = biz.pusher_channel || `biz-${business_id}`;
+        io.to(`seller-${channel}`).emit('order:waiting', {
+          orderId: createdOrders[0].id,
+          clientName: createdOrders[0].client_name,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      sendPushToSeller(biz.owner_id, {
         title: 'New Order Request',
         body: `You received a new order with ${items.length} item(s).`,
         url: '/seller'
@@ -351,6 +363,15 @@ router.patch('/:id/status', authenticate, async (req, res) => {
         }
       } catch (err) {
         console.error('[orders] Failed to send receipt message:', err.message);
+      }
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [order.business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${order.business_id}`;
+        io.to(`seller-${channel}`).emit('order:status', { orderId: order.id, status });
       }
     }
 

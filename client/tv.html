@@ -503,6 +503,7 @@
       try {
         const biz = await fetch(`/api/businesses/${slug}`).then(r => r.json());
         businessId = biz.id;
+        currentBiz = biz;
         document.getElementById('biz-title').textContent = biz.name;
         document.title = `${biz.name} — TV Display`;
 
@@ -531,13 +532,48 @@
       }
     }
 
-    // ── Orders ──────────────────────────────────────────────
+    // ── Orders & Bookings ───────────────────────────────────
+    let currentBiz = null;
     async function loadOrders() {
-      if (!businessId) return;
+      if (!businessId || !currentBiz) return;
       try {
-        const orders = await fetch(`/api/orders/list/${businessId}`).then(r => r.json());
-        const pending = orders.filter(o => o.status === 'pending');
-        const ready   = orders.filter(o => o.status === 'completed').slice(0, 8);
+        let items = [];
+
+        // Fetch Orders (for product / hybrid businesses)
+        if (currentBiz.type === 'product' || currentBiz.type === 'both') {
+          const orders = await fetch(`/api/orders/list/${businessId}`).then(r => r.json());
+          items = items.concat(orders.map(o => ({
+            id: o.id,
+            receipt: o.receipt_number || ('#' + o.id),
+            group_key: o.order_group_id || o.receipt_number || o.id,
+            name: o.client_name,
+            loc: o.client_location,
+            status: o.status,
+            date: new Date(o.created_at)
+          })));
+        }
+
+        // Fetch Bookings (for service / hybrid businesses)
+        if (currentBiz.type === 'service' || currentBiz.type === 'both') {
+          const bookings = await fetch(`/api/bookings/list/${businessId}`).then(r => r.json());
+          // Only include recent/upcoming bookings (past 24h) and normalize status
+          const recentBookings = bookings.filter(b => new Date(b.booking_time) > new Date(Date.now() - 86400000));
+          items = items.concat(recentBookings.map(b => ({
+            id: b.id,
+            receipt: b.receipt_number || ('#' + b.id),
+            group_key: b.receipt_number || b.id,
+            name: b.client_name,
+            loc: b.client_location,
+            status: b.status === 'confirmed' ? 'pending' : b.status, // Map confirmed -> pending
+            date: new Date(b.booking_time)
+          })));
+        }
+
+        // Sort by newest first
+        items.sort((a, b) => b.date - a.date);
+
+        const pending = items.filter(o => o.status === 'pending');
+        const ready   = items.filter(o => o.status === 'completed').slice(0, 8);
         
         renderOrderList('preparing-list', 'preparing-count', pending, 'No orders yet');
         renderOrderList('ready-list',     'ready-count',     ready,   'Nothing ready yet');
@@ -551,12 +587,12 @@
       // Group by order group or receipt number
       const grouped = {};
       items.forEach(i => {
-        const key = i.order_group_id || i.receipt_number || i.id;
+        const key = i.group_key;
         if (!grouped[key]) {
           grouped[key] = {
-            receipt: i.receipt_number || ('#' + i.id),
-            name:    i.client_name,
-            loc:     i.client_location
+            receipt: i.receipt,
+            name:    i.name,
+            loc:     i.loc
           };
         }
       });

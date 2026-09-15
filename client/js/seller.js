@@ -72,6 +72,12 @@ function setupBiz(biz) {
   document.getElementById('seller-content').style.display = 'block';
   document.getElementById('dashboard-title').textContent = biz.name;
 
+  // Dynamically update PWA manifest for this business
+  const manifestLink = document.getElementById('dynamic-manifest');
+  if (manifestLink) {
+    manifestLink.href = `/api/businesses/manifest/${biz.slug}`;
+  }
+
   // Show demo banner if applicable
   if (localStorage.getItem('is_demo') === '1') {
     const banner = document.getElementById('demo-banner');
@@ -119,34 +125,81 @@ function setupBiz(biz) {
   setTimeout(showSetupPrompts, 2000);
 }
 
-// ─── POST-LOGIN SETUP PROMPTS ────────────────────────────────────────────────
+// ─── WIZARD SETUP PROMPTS ──────────────────────────────────────────────────
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
 async function showSetupPrompts() {
   const username = localStorage.getItem('last_username');
   if (!username) return;
   
-  // 1. Check Push Notifications
-  if ('Notification' in window && 'serviceWorker' in navigator) {
-    if (Notification.permission === 'granted') {
-      // Permission already granted — silently ensure subscription is registered on server
-      enablePushNotifications(true);
-    } else if (Notification.permission === 'default' && !localStorage.getItem('prompted_push_' + username)) {
-      localStorage.setItem('prompted_push_' + username, '1');
-      if (confirm('Enable Push Notifications?\n\nGet notified instantly when you receive new orders or bookings.')) {
-        await enablePushNotifications();
-      }
-    }
-  }
+  const needsPush = ('Notification' in window && 'serviceWorker' in navigator && Notification.permission !== 'granted' && !localStorage.getItem('prompted_push_' + username));
+  const needsBio = (window.PublicKeyCredential && !localStorage.getItem('bio_registered_' + username) && !localStorage.getItem('prompted_bio_' + username));
   
-  // 2. Check Biometrics
-  if (window.PublicKeyCredential && !localStorage.getItem('bio_registered_' + username) && !localStorage.getItem('prompted_bio_' + username)) {
-    localStorage.setItem('prompted_bio_' + username, '1');
-    setTimeout(() => {
-      if (confirm('👆 Set Up Biometric Login?\n\nUse your fingerprint or Face ID to log in next time securely.')) {
-        setupBiometrics();
-      }
-    }, 1000);
+  if (needsPush || needsBio || deferredPrompt) {
+    // Open wizard
+    document.getElementById('wiz-step-1').style.display = needsPush ? 'block' : 'none';
+    document.getElementById('wiz-step-2').style.display = (!needsPush && needsBio) ? 'block' : 'none';
+    document.getElementById('wiz-step-3').style.display = (!needsPush && !needsBio && deferredPrompt) ? 'block' : 'none';
+    
+    // If none are actually visible (e.g. they skipped earlier), just abort
+    if (!needsPush && !needsBio && !deferredPrompt) return;
+    
+    document.getElementById('onboarding-wizard-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('onboarding-wizard-modal').classList.add('active'), 10);
+  } else if ('Notification' in window && Notification.permission === 'granted') {
+    enablePushNotifications(true);
   }
 }
+
+function wizNextStep(step) {
+  document.getElementById('wiz-step-1').style.display = step === 1 ? 'block' : 'none';
+  
+  const username = localStorage.getItem('last_username');
+  const needsBio = (window.PublicKeyCredential && !localStorage.getItem('bio_registered_' + username));
+  
+  if (step === 2 && !needsBio) {
+    step = 3; // Skip bio if not supported or already registered
+  }
+  
+  document.getElementById('wiz-step-2').style.display = step === 2 ? 'block' : 'none';
+  
+  if (step === 3 && !deferredPrompt) {
+    closeModal('onboarding-wizard-modal'); // Skip install if not installable
+    return;
+  }
+  
+  document.getElementById('wiz-step-3').style.display = step === 3 ? 'block' : 'none';
+}
+
+async function wizEnablePush() {
+  const username = localStorage.getItem('last_username');
+  localStorage.setItem('prompted_push_' + username, '1');
+  await enablePushNotifications();
+  wizNextStep(2);
+}
+
+function wizEnableBio() {
+  const username = localStorage.getItem('last_username');
+  localStorage.setItem('prompted_bio_' + username, '1');
+  setupBiometrics();
+  wizNextStep(3);
+}
+
+async function wizInstallApp() {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      deferredPrompt = null;
+    }
+  }
+  closeModal('onboarding-wizard-modal');
+}
+
 
 
 // ─── FIRST LOGIN ONBOARDING ────────────────────────────────────────────────────
@@ -193,7 +246,7 @@ function generateTableQR() {
   const table = document.getElementById('ob-table-num').value.trim();
   if (!table) return toast('Error', 'Enter a table number', 'error');
   
-  const clientLink = `${window.location.origin}/c/${selectedBiz.slug}?table=${encodeURIComponent(table)}`;
+  const clientLink = `${window.location.origin}/c/${selectedBiz.slug}?loc=${encodeURIComponent(table)}`;
   const qrEl = document.getElementById('ob-table-qrcode');
   qrEl.style.display = 'inline-block';
   qrEl.innerHTML = '';
@@ -1257,19 +1310,29 @@ async function renderPending() {
     
     // Load Orders
     if (selectedBiz.type === 'product' || selectedBiz.type === 'both') {
-      const orders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=pending`);
+      const pendingOrders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=pending`);
+      const readyOrders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=ready`);
+      const orders = [...pendingOrders, ...readyOrders];
+      orders.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // Oldest first
+      
       if (orders.length > 0) {
         html += `<h4><i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Product Orders</h4><div class="list-group mb-24">`;
         html += orders.map(o => `
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <strong>${o.product_title}</strong> (x${o.quantity})<br>
+              <strong>${o.product_title}</strong> (x${o.quantity}) 
+              ${o.status === 'ready' ? '<span class="badge badge-success ml-4" style="background:var(--green);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">READY</span>' : ''}
+              <br>
               <span class="text-dim text-sm">${o.client_name} ${o.client_location ? `• Table/Loc: ${o.client_location}` : ''} • ${new Date(o.created_at).toLocaleString()}</span>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-              <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${o.client_id}', '${o.client_name}', '${o.product_title.replace(/'/g, "\\'")}')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Ready</button>
-              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Msg</button>
-              <button class="btn btn-primary btn-sm" onclick="completeOrder(${o.id})">Mark Delivered</button>
+              ${o.status === 'pending' ? `
+                <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${o.client_id}', '${o.client_name}', '${o.product_title.replace(/'/g, "\\'")}')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Msg</button>
+                <button class="btn btn-primary btn-sm" onclick="markOrderReady(${o.id})">Mark Ready</button>
+              ` : `
+                <button class="btn btn-success btn-sm" onclick="completeOrder(${o.id})" style="background:var(--green);border:none;">Complete / Paid</button>
+              `}
+              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Chat</button>
             </div>
           </div>
         `).join('');
@@ -1279,8 +1342,13 @@ async function renderPending() {
     
     // Load Bookings
     if (selectedBiz.type === 'service' || selectedBiz.type === 'both') {
-      const bookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
+      const confirmed = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
+      const readyBooks = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=ready`);
+      const bookings = [...confirmed, ...readyBooks];
+      
       const pendingBookings = bookings.filter(b => new Date(b.booking_time) > new Date(Date.now() - 86400000)); // Only show recent/upcoming
+      pendingBookings.sort((a, b) => new Date(a.booking_time) - new Date(b.booking_time));
+      
       if (pendingBookings.length > 0) {
         html += `<h4><i data-lucide="calendar" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Service Orders</h4><div class="list-group">`;
         html += pendingBookings.map(b => {
@@ -1288,12 +1356,18 @@ async function renderPending() {
           return `
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <strong>${b.service_name || 'Booking'}</strong><br>
+              <strong>${b.service_name || 'Booking'}</strong>
+              ${b.status === 'ready' ? '<span class="badge badge-success ml-4" style="background:var(--green);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">READY</span>' : ''}
+              <br>
               <span class="text-dim text-sm">${b.client_name} ${b.client_location ? `• Table/Loc: ${b.client_location}` : ''} • ${new Date(b.booking_time).toLocaleString()}</span>
             </div>
             <div style="display:flex; gap:8px;">
-              <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Message</button>
-              <button class="btn btn-primary btn-sm" onclick="completeBooking(${b.id})">Mark Completed</button>
+              <button class="btn btn-outline btn-sm" onclick="openChat('${b.client_id}', '${b.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Chat</button>
+              ${b.status !== 'ready' ? `
+                <button class="btn btn-primary btn-sm" onclick="markBookingReady(${b.id})">Mark Ready</button>
+              ` : `
+                <button class="btn btn-success btn-sm" onclick="completeBooking(${b.id})" style="background:var(--green);border:none;">Complete / Paid</button>
+              `}
             </div>
           </div>
           `;
@@ -1463,6 +1537,27 @@ function showReceipt(idx) {
   setTimeout(() => modal.classList.add('active'), 10);
 }
 
+async function markOrderReady(orderId) {
+  try {
+    await apiFetch(`/api/orders/${orderId}/status`, { method: 'PATCH', body: { status: 'ready' }});
+    toast('Success', 'Order marked as Ready for collection.', 'success');
+    renderPending();
+    pollPending();
+  } catch(e) {
+    toast('Error', e.message, 'error');
+  }
+}
+
+async function markBookingReady(bookingId) {
+  try {
+    await apiFetch(`/api/bookings/${bookingId}/status`, { method: 'PATCH', body: { status: 'ready' }});
+    toast('Success', 'Service/Booking marked as Ready.', 'success');
+    renderPending();
+    pollPending();
+  } catch(e) {
+    toast('Error', e.message, 'error');
+  }
+}
 
 async function completeOrder(orderId) {
   try {

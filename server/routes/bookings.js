@@ -136,7 +136,7 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
 
     // Auto-generate receipt number
     await db.query(
-      `UPDATE bookings SET receipt_number = 'BKG-' || LPAD(id::text, 5, '0') WHERE id = $1`,
+      `UPDATE bookings SET receipt_number = 'ORD-' || LPAD(id::text, 5, '0') WHERE id = $1`,
       [result.rows[0].id]
     );
 
@@ -217,7 +217,7 @@ router.get('/list/:business_id', async (req, res) => {
 router.patch('/:id/status', authenticate, async (req, res) => {
   try {
     const { status, final_price } = req.body;
-    if (!['confirmed', 'completed', 'cancelled'].includes(status)) {
+    if (!['confirmed', 'ready', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(

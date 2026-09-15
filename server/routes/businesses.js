@@ -10,25 +10,34 @@ const { authenticate } = require('./auth');
 router.get('/manifest/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const result = await db.query('SELECT name FROM businesses WHERE slug = $1', [slug]);
-    const businessName = result.rows.length > 0 ? result.rows[0].name : 'Jomish BDM';
+    const result = await db.query('SELECT name, logo_url FROM businesses WHERE slug = $1', [slug]);
+    const biz = result.rows[0];
+    const businessName = biz && biz.name ? biz.name : 'Jomish BDM';
+    const logoUrl = biz && biz.logo_url ? biz.logo_url : null;
     const shortName = businessName.length > 12 ? businessName.substring(0, 12) : businessName;
     const initial = shortName.charAt(0).toUpperCase();
     
-    const iconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%25' y='65%25' font-size='50' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>${initial}</text></svg>`;
+    const defaultIconSvg = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%23f4a81d'/><text x='50%25' y='65%25' font-size='50' text-anchor='middle' fill='%23050c1a' font-family='sans-serif'>${initial}</text></svg>`;
     
+    // Fallback to our initial SVG if no custom logo is set
+    const icons = [];
+    if (logoUrl) {
+      icons.push({ src: logoUrl, sizes: '192x192 512x512', type: 'image/png' });
+      icons.push({ src: logoUrl, sizes: '192x192 512x512', type: 'image/jpeg', purpose: 'any maskable' });
+    } else {
+      icons.push({ src: defaultIconSvg, sizes: '192x192', type: 'image/svg+xml' });
+      icons.push({ src: defaultIconSvg, sizes: '512x512', type: 'image/svg+xml' });
+    }
+
     const manifest = {
       name: businessName,
       short_name: shortName,
       description: 'Booking and delivery management platform',
-      start_url: '/seller.html',
+      start_url: '/seller',
       display: 'standalone',
       background_color: '#050c1a',
       theme_color: '#f4a81d',
-      icons: [
-        { src: iconSvg, sizes: '192x192', type: 'image/svg+xml' },
-        { src: iconSvg, sizes: '512x512', type: 'image/svg+xml' }
-      ]
+      icons: icons
     };
     res.setHeader('Content-Type', 'application/manifest+json');
     res.json(manifest);

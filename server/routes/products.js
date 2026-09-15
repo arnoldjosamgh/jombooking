@@ -7,7 +7,7 @@ const router = express.Router();
 const db = require('../db');
 const { requireFields } = require('../middleware/validate');
 const { authenticate } = require('./auth');
-const { sendPushToSeller } = require('./push');
+const { sendPushToSeller, sendPushToClient } = require('./push');
 
 // ─── GET /api/orders/list/:business_id ────────────────────────────────────────
 // MUST be defined before /:business_slug wildcard to avoid being shadowed
@@ -349,7 +349,7 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
 router.patch('/:id/status', authenticate, async (req, res) => {
   try {
     const { status } = req.body;
-    if (!['pending', 'completed', 'cancelled'].includes(status)) {
+    if (!['pending', 'ready', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
     const result = await db.query(
@@ -360,11 +360,11 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     
     const order = result.rows[0];
     
-    // Auto-send receipt in messages if completed
-    if (status === 'completed' && order.client_id) {
+    // Auto-send receipt in messages if ready or completed
+    if ((status === 'ready' || status === 'completed') && order.client_id) {
       try {
         const prodRes = await db.query(
-          `SELECT p.title, p.price FROM products p JOIN orders o ON o.product_id = p.id WHERE o.id = $1`,
+          `SELECT p.title, p.price, b.slug FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id WHERE o.id = $1`,
           [order.id]
         );
         if (prodRes.rows.length > 0) {
@@ -375,9 +375,17 @@ router.patch('/:id/status', authenticate, async (req, res) => {
             `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`,
             [order.business_id, order.client_id, receiptContent]
           );
+
+          if (status === 'ready') {
+            sendPushToClient(order.client_id, {
+              title: 'Receipt Received & Order Ready',
+              body: `Your order for ${p.title} is ready. Click to view/download receipt.`,
+              url: `/c/${p.slug}?action=download-receipt`
+            });
+          }
         }
       } catch (err) {
-        console.error('[orders] Failed to send receipt message:', err.message);
+        console.error('[orders] Failed to send receipt message or push:', err.message);
       }
     }
 

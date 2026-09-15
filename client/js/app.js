@@ -311,6 +311,21 @@ async function showRegistrationModal(onSuccess) {
       Session.set(client);
       closeModal('reg-modal');
       toast('Welcome!', `Hi ${client.name} <i data-lucide="hand" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>`, 'success');
+      
+      // Prompt for notifications so client can be alerted when order is ready
+      if ('Notification' in window) {
+        setTimeout(async () => {
+          if (Notification.permission === 'default') {
+            if (confirm('Enable notifications to be alerted when your order is ready?')) {
+              const perm = await Notification.requestPermission();
+              if (perm === 'granted') subscribeClientToPush(client.id);
+            }
+          } else if (Notification.permission === 'granted') {
+            subscribeClientToPush(client.id);
+          }
+        }, 1500);
+      }
+
       onSuccess(client);
     } catch (err) {
       toast('Registration Failed', err.message, 'error');
@@ -332,7 +347,8 @@ function fileToBase64(file) {
 // ─── Registration Modal HTML (injected dynamically) ───────────
 function injectRegModal() {
   if (document.getElementById('reg-modal')) return;
-  const tableParam = getParam('table') || '';
+  const locParam = getParam('loc') || getParam('table') || '';
+  const locDisplay = locParam ? 'none' : 'block';
   document.body.insertAdjacentHTML('beforeend', `
     <div class="modal-overlay" id="reg-modal">
       <div class="modal">
@@ -347,9 +363,9 @@ function injectRegModal() {
             <label for="reg-name">Your Name</label>
             <input type="text" id="reg-name" placeholder="e.g. Alex Johnson" required autocomplete="name">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="display:${locDisplay}">
             <label for="reg-location">Your Location / Address / Table</label>
-            <input type="text" id="reg-location" placeholder="e.g. Table 4 or 123 Main St" value="${tableParam}" required>
+            <input type="text" id="reg-location" placeholder="e.g. Table 4 or 123 Main St" value="${locParam}" required>
           </div>
           <!-- Photo removed per request -->
           <button type="submit" class="btn btn-primary btn-full mt-8" id="reg-submit">Get Started →</button>
@@ -358,3 +374,69 @@ function injectRegModal() {
     </div>
   `);
 }
+
+// ─── Push Subscription Helper (Client) ────────────────────────
+async function subscribeClientToPush(clientId) {
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.ready;
+    const vapidKey = await apiFetch('/api/push/vapidPublicKey', { method: 'GET' });
+    if (!vapidKey) return;
+    
+    // Convert VAPID key to Uint8Array
+    const padding = '='.repeat((4 - vapidKey.length % 4) % 4);
+    const base64 = (vapidKey + padding).replace(/\-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: outputArray
+    });
+
+    await apiFetch('/api/push/subscribe-client', {
+      method: 'POST',
+      body: { subscription: sub, client_id: clientId }
+    });
+    console.log('[Push] Client subscribed successfully');
+  } catch (err) {
+    console.error('[Push] Client subscribe error:', err.message);
+  }
+}
+
+// ─── Auto-Download Receipt Action ──────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  if (getParam('action') === 'download-receipt') {
+    const client = Session.get();
+    if (!client) return;
+    try {
+      // Fetch the latest message for this client that looks like a receipt
+      // For simplicity, we just fetch all messages and find the latest [RECEIPT]
+      const slug = getParam('slug') || window.location.pathname.split('/').pop();
+      const messages = await apiFetch(`/api/messages?client_id=${client.id}&business_slug=${slug}`);
+      const receipts = messages.filter(m => m.content && m.content.startsWith('[RECEIPT]'))
+                               .sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+      if (receipts.length > 0) {
+        const latestReceipt = receipts[0].content;
+        // Trigger download
+        const blob = new Blob([latestReceipt], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Receipt_${new Date().getTime()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast('Downloaded', 'Your receipt has been downloaded.', 'success');
+      } else {
+        toast('Notice', 'No receipt found.', 'info');
+      }
+    } catch(e) {
+      console.error('[Receipt Auto-Download]', e);
+    }
+  }
+});

@@ -573,7 +573,7 @@
         items.sort((a, b) => b.date - a.date);
 
         const pending = items.filter(o => o.status === 'pending');
-        const ready   = items.filter(o => o.status === 'completed').slice(0, 8);
+        const ready   = items.filter(o => o.status === 'ready').slice(0, 8);
         
         renderOrderList('preparing-list', 'preparing-count', pending, 'No orders yet');
         renderOrderList('ready-list',     'ready-count',     ready,   'Nothing ready yet');

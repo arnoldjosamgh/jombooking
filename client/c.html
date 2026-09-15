@@ -83,10 +83,11 @@
         }
 
         // Redirect to the correct portal
+        const tableParam = params.get('table') ? `&table=${encodeURIComponent(params.get('table'))}` : '';
         if (biz.type === 'product') {
-          window.location.replace(`/order.html?slug=${biz.slug}`);
+          window.location.replace(`/order.html?slug=${biz.slug}${tableParam}`);
         } else {
-          window.location.replace(`/book.html?slug=${biz.slug}`);
+          window.location.replace(`/book.html?slug=${biz.slug}${tableParam}`);
         }
 
       } catch (err) {

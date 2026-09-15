@@ -280,7 +280,14 @@ function getParam(key) {
 
 // ─── Registration Modal (shared between order & book pages) ───
 async function showRegistrationModal(onSuccess) {
-  const client = Session.get();
+  let client = Session.get();
+  const tableParam = getParam('table');
+  
+  if (client && tableParam && client.location !== tableParam) {
+    localStorage.removeItem('client_info');
+    client = null;
+  }
+
   if (client) { onSuccess(client); return; }
 
   openModal('reg-modal');

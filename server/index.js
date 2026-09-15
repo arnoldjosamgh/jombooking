@@ -42,7 +42,7 @@ app.set('pusher', pusher);
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Serve PWA static frontend
@@ -62,6 +62,7 @@ app.use('/api/services',   require('./routes/services'));   // clients need serv
 app.use('/api/slots',      require('./routes/bookings'));   // clients need to see available slots
 app.use('/api/bookings',   require('./routes/bookings'));   // clients need to create bookings
 app.use('/api/messages',   require('./routes/messages'));   // clients need to chat
+app.use('/api/tv-media',   require('./routes/tv_media'));   // TV display media (public GET)
 app.use('/api/push',       require('./routes/push').router); // push VAPID key is public
 
 // ─── Auth Middleware for protected routes ────────────────────────────

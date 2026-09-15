@@ -326,10 +326,34 @@ router.patch('/:id/status', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status value' });
     }
     const result = await db.query(
-      `UPDATE orders SET status = $1, seller_id = $2 WHERE id = $3 RETURNING id, status`,
+      `UPDATE orders SET status = $1, seller_id = $2 WHERE id = $3 RETURNING id, status, client_id, business_id, receipt_number, quantity`,
       [status, req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    
+    const order = result.rows[0];
+    
+    // Auto-send receipt in messages if completed
+    if (status === 'completed' && order.client_id) {
+      try {
+        const prodRes = await db.query(
+          `SELECT p.title, p.price FROM products p JOIN orders o ON o.product_id = p.id WHERE o.id = $1`,
+          [order.id]
+        );
+        if (prodRes.rows.length > 0) {
+          const p = prodRes.rows[0];
+          const total = (parseFloat(p.price) * order.quantity).toFixed(2);
+          const receiptContent = `[RECEIPT] Order ${order.receipt_number || '#' + order.id}\n${p.title} x${order.quantity}\nTotal: $${total}`;
+          await db.query(
+            `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`,
+            [order.business_id, order.client_id, receiptContent]
+          );
+        }
+      } catch (err) {
+        console.error('[orders] Failed to send receipt message:', err.message);
+      }
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     console.error('[orders] PATCH /status error:', err.message);

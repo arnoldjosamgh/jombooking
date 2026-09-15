@@ -386,7 +386,17 @@ function renderMsg(msg) {
   if (!box) return;
   const el = document.createElement('div');
   el.className = `msg-bubble ${msg.sender}`;
-  el.innerHTML = `${msg.content}<div class="msg-time">${formatTime(msg.created_at)}</div>`;
+  
+  let contentHtml = msg.content;
+  if (contentHtml.startsWith('[RECEIPT]')) {
+    const text = contentHtml.replace('[RECEIPT]', '').trim();
+    contentHtml = `
+      <div style="border:1px dashed rgba(0,0,0,0.2); padding:10px; border-radius:8px; font-family:monospace; white-space:pre-wrap; background:rgba(255,255,255,0.5); color:#1a2461;">${text}</div>
+      <button onclick="downloadReceiptText('${encodeURIComponent(text)}')" style="margin-top:8px; padding:6px 12px; background:var(--accent-green); color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;">Download Receipt</button>
+    `;
+  }
+
+  el.innerHTML = `${contentHtml}<div class="msg-time">${formatTime(msg.created_at)}</div>`;
   box.appendChild(el);
   scrollChat();
 }
@@ -466,10 +476,20 @@ function renderClientChatMsg(msg) {
   if (!box) return;
   const isMe = msg.sender === 'client';
   const el = document.createElement('div');
-  el.style.cssText = `display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'};`;
+  el.style.cssText = `display:flex; flex-direction:column; align-items:${isMe ? 'flex-end' : 'flex-start'}; margin-bottom:12px;`;
+  
+  let contentHtml = msg.content;
+  if (contentHtml.startsWith('[RECEIPT]')) {
+    const text = contentHtml.replace('[RECEIPT]', '').trim();
+    contentHtml = `
+      <div style="border:1px dashed rgba(0,0,0,0.2); padding:10px; border-radius:8px; font-family:monospace; white-space:pre-wrap; margin-bottom:8px; background:rgba(255,255,255,0.5); color:#1a2461;">${text}</div>
+      <button onclick="downloadReceiptText('${encodeURIComponent(text)}')" style="padding:6px 12px; background:var(--accent-green); color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;">Download Receipt</button>
+    `;
+  }
+
   el.innerHTML = `
     <div style="max-width:85%; padding:8px 12px; border-radius:12px; font-size:0.84rem; ${isMe ? 'background:#5b67f6; color:#fff;' : 'background:#e2e8f0; color:#1a2461;'}">
-      ${msg.content}
+      ${contentHtml}
     </div>
     <div style="font-size:0.65rem; color:#94a3b8; margin-top:2px;">${formatTime(msg.created_at)}</div>
   `;
@@ -586,3 +606,14 @@ async function downloadOrderReceipt(orderIdsStr) {
     toast('Error', 'Failed to generate receipt', 'error');
   }
 }
+
+window.downloadReceiptText = function(encodedText) {
+  const text = decodeURIComponent(encodedText);
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = \`Jomish-Receipt-\${Date.now()}.txt\`;
+  a.click();
+  URL.revokeObjectURL(url);
+};

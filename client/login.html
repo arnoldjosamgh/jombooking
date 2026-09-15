@@ -31,20 +31,10 @@
 
     <div class="login-msg" id="login-msg">Sign in to your workspace</div>
 
-    <!-- Fast Biometric Login (shown when biometrics available) -->
-    <div id="fast-login-ui" style="display:none; text-align:center; margin-bottom:16px;">
-      <p id="fast-login-name" style="font-weight:700; font-size:1.1rem; margin-bottom:4px;">Welcome back</p>
-      <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:20px;">Use biometrics to sign in instantly</p>
-      <button onclick="triggerFastLogin()" class="btn-neon-cyan" id="fast-login-btn" style="width:100%; display:flex; align-items:center; justify-content:center; gap:10px; padding:14px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12c0-.7.12-1.37.34-2"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .131-5.354 0-6"/><path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/></svg>
-        Sign In with Biometrics
-      </button>
-      <button onclick="showNormalLogin()" style="background:transparent;border:none;color:var(--text-muted);margin-top:16px;font-size:0.8rem;cursor:pointer;text-decoration:underline;">
-        Use password instead
-      </button>
-    </div>
 
-    <form id="login-form" onsubmit="event.preventDefault();">
+
+    <div id="normal-login-ui">
+      <form id="login-form" onsubmit="event.preventDefault();">
       <div class="login-form-group">
         <label>User ID</label>
         <input
@@ -86,6 +76,7 @@
       <p style="margin-top:12px; font-size:0.7rem; color:var(--text-muted); line-height:1.5;">
         Demo mode lets you explore all features. No data will be saved.
       </p>
+    </div>
     </div>
 
     <div style="margin-top: 24px; font-size: 0.7rem; color: var(--text-muted); font-weight: 600; letter-spacing:0.05em;">JOMISH ENTERPRISE WORKFORCE PLATFORM</div>

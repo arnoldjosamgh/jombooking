@@ -125,16 +125,11 @@ window.addEventListener('DOMContentLoaded', async () => {
                    || localStorage.getItem('bio_registered_' + lastUser);
 
       if (bioFlag) {
-        // Show the fast-login card (form stays visible above it)
-        const fastUi = document.getElementById('fast-login-ui');
-        if (fastUi) {
-          const bizName = localStorage.getItem('business_name');
-          const nameEl  = document.getElementById('fast-login-name');
-          if (nameEl) {
-            nameEl.textContent = bizName ? 'Welcome back to ' + bizName : 'Welcome back, ' + lastUser;
-          }
-          fastUi.style.display = 'block';
-        }
+        // Automatically attempt biometric login, hide normal form
+        const normalUi = document.getElementById('normal-login-ui');
+        if (normalUi) normalUi.style.display = 'none';
+        
+        attemptBiometricLogin(lastUser);
       }
     }
   } catch (e) {
@@ -148,21 +143,16 @@ async function triggerFastLogin() {
   const lastUser = idbUser || localStorage.getItem('last_username');
   if (!lastUser) { showNormalLogin(); return; }
 
-  const btn = document.getElementById('fast-login-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
-
   try {
     await attemptBiometricLogin(lastUser);
   } catch (_) {
     // fall through — attemptBiometricLogin handles its own fallback
   }
-
-  if (btn) { btn.disabled = false; btn.textContent = 'Sign In with Biometrics'; }
 }
 
 function showNormalLogin() {
-  const fastUi = document.getElementById('fast-login-ui');
-  if (fastUi) fastUi.style.display = 'none';
+  const normalUi = document.getElementById('normal-login-ui');
+  if (normalUi) normalUi.style.display = 'block';
   const usernameEl = document.getElementById('username');
   if (usernameEl) usernameEl.focus();
 }
@@ -194,6 +184,8 @@ async function attemptBiometricLogin(username) {
   }
 
   if (spinner) spinner.style.display = 'none';
+  // If it failed or was cancelled, show the normal login form as a fallback
+  showNormalLogin();
 }
 
 // ─── BIOMETRIC REGISTRATION (silent, after first password login) ──────────────

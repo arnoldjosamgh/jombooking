@@ -1825,3 +1825,117 @@ if (chatForm) {
       }
     });
   }
+
+// ─── TV DISPLAY MEDIA MANAGER ──────────────────────────────────────────────────
+async function openTvMediaManager() {
+  if (!selectedBiz) { toast('Error', 'No business selected', 'error'); return; }
+  openModal('tv-media-modal');
+  await loadTvMediaList();
+}
+
+async function loadTvMediaList() {
+  const list = document.getElementById('tv-media-list');
+  if (!list) return;
+  list.innerHTML = '<div class="text-dim text-center" style="padding:24px 0;">Loading…</div>';
+  try {
+    const items = await apiFetch(`/api/tv-media/${selectedBiz.slug}`);
+    if (!items.length) {
+      list.innerHTML = '<div class="text-dim text-center" style="padding:32px 0;">No media yet. Add photos, videos or text banners above.</div>';
+      return;
+    }
+    list.innerHTML = items.map(item => {
+      const typeIcon = item.type === 'image' ? '🖼️' : item.type === 'video' ? '🎬' : '📝';
+      const typeLabel = item.type === 'image' ? 'Image' : item.type === 'video' ? 'Video' : 'Text Banner';
+      const preview = item.type === 'image'
+        ? `<img src="${item.content}" style="width:80px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;" alt="preview">`
+        : item.type === 'video'
+        ? `<video src="${item.content}" style="width:80px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;" muted></video>`
+        : `<div style="width:80px;height:56px;border-radius:6px;background:linear-gradient(135deg,#1a2461,#5b67f6);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:1.3rem;">📝</div>`;
+      return `
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--card-bg,#fff);border:1px solid var(--card-border,#e2e8f0);border-radius:10px;">
+          ${preview}
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:600;font-size:0.9rem;">${typeIcon} ${item.title || typeLabel}</div>
+            ${item.type === 'text' ? `<div class="text-dim text-sm" style="margin-top:2px;white-space:pre-wrap;">${item.content.substring(0, 80)}${item.content.length > 80 ? '…' : ''}</div>` : ''}
+            <div class="text-dim" style="font-size:0.75rem;margin-top:3px;">Shows for ${item.duration}s &bull; Order: ${item.sort_order + 1}</div>
+          </div>
+          <button onclick="deleteTvMedia(${item.id})" style="background:none;border:1px solid #ef4444;color:#ef4444;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:0.8rem;flex-shrink:0;" title="Delete">✕</button>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = `<div class="text-red text-center" style="padding:24px 0;">${err.message}</div>`;
+  }
+}
+
+function tvMediaUpload(type) {
+  if (type === 'image') document.getElementById('tv-img-input').click();
+  else document.getElementById('tv-vid-input').click();
+}
+
+function tvMediaAddText() {
+  const form = document.getElementById('tv-text-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+}
+
+async function tvMediaHandleFile(event, type) {
+  const files = Array.from(event.target.files);
+  if (!files.length) return;
+  const progress = document.getElementById('tv-upload-progress');
+  if (progress) progress.style.display = 'block';
+  
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (progress) progress.textContent = `Uploading ${i + 1}/${files.length}: ${file.name}…`;
+    try {
+      const content = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      await apiFetch(`/api/tv-media/${selectedBiz.slug}`, {
+        method: 'POST',
+        body: { type, content, title: file.name.split('.')[0], duration: type === 'image' ? 6 : 30 }
+      });
+    } catch (err) {
+      toast('Upload Failed', `${file.name}: ${err.message}`, 'error');
+    }
+  }
+  
+  if (progress) progress.style.display = 'none';
+  event.target.value = '';
+  toast('Uploaded!', `${files.length} ${type}(s) added to TV display`, 'success');
+  await loadTvMediaList();
+}
+
+async function tvMediaSaveText() {
+  const content = document.getElementById('tv-text-content').value.trim();
+  const title   = document.getElementById('tv-text-title').value.trim();
+  const duration = parseInt(document.getElementById('tv-text-duration').value) || 8;
+  if (!content) { toast('Error', 'Please enter some text', 'error'); return; }
+  try {
+    await apiFetch(`/api/tv-media/${selectedBiz.slug}`, {
+      method: 'POST',
+      body: { type: 'text', content, title: title || 'Banner', duration }
+    });
+    document.getElementById('tv-text-content').value = '';
+    document.getElementById('tv-text-title').value = '';
+    document.getElementById('tv-text-form').style.display = 'none';
+    toast('Added!', 'Text banner added to TV display', 'success');
+    await loadTvMediaList();
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  }
+}
+
+async function deleteTvMedia(id) {
+  if (!confirm('Remove this item from the TV display?')) return;
+  try {
+    await apiFetch(`/api/tv-media/${id}`, { method: 'DELETE' });
+    toast('Removed', 'Media item deleted', 'success');
+    await loadTvMediaList();
+  } catch (err) {
+    toast('Error', err.message, 'error');
+  }
+}

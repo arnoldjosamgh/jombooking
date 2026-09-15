@@ -584,19 +584,19 @@
       const container = document.getElementById(listId);
       const countEl   = document.getElementById(countId);
 
-      // Group by order group or receipt number
-      const grouped = {};
+      // Group by order group or receipt number, retaining order
+      const groupedMap = new Map();
       items.forEach(i => {
         const key = i.group_key;
-        if (!grouped[key]) {
-          grouped[key] = {
+        if (!groupedMap.has(key)) {
+          groupedMap.set(key, {
             receipt: i.receipt,
             name:    i.name,
             loc:     i.loc
-          };
+          });
         }
       });
-      const orders = Object.values(grouped).slice(0, 6); // max 6 on screen
+      const orders = Array.from(groupedMap.values()).slice(0, 6); // max 6 on screen
 
       if (orders.length) {
         countEl.textContent = orders.length;

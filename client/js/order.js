@@ -312,7 +312,7 @@ function showOrderSuccess(orders) {
     </div>`
   ).join('');
 
-  const orderIds = orders.map(o => o.id);
+
   document.getElementById('main-content').innerHTML = `
     <div class="container-sm" style="padding-top:32px">
       <div class="success-screen" style="text-align:center;">

@@ -1,6 +1,6 @@
 /**
  * Jomish — Service Booking Page Logic
- * Flow: Register → Pick Service → Pick Day (dropdown) → Pick Slot (dropdown) → Confirm → Receipt
+ * Flow: Register → Pick Services (multi-select cart) → Pick Day → Pick Slot → Confirm → Receipt
  */
 
 let business     = null;
@@ -8,9 +8,12 @@ let client       = null;
 let socket       = null;
 let selectedDate = null;
 let selectedSlot = null;
-let selectedSvc  = null;
 let booking      = null;
-const sentMsgIds = new Set(); // deduplicate socket echo
+const sentMsgIds = new Set();
+
+// ─── SERVICE CART ──────────────────────────────────────────────────────────────
+let serviceCart  = {};   // { id: serviceObj }
+let allServices  = [];
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -39,7 +42,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     const chatTitle = document.getElementById('client-chat-title');
-    if (chatTitle) chatTitle.textContent = `💬 Chat with ${business.name}`;
+    if (chatTitle) chatTitle.textContent = `Chat with ${business.name}`;
 
     showRegistrationModal((c) => {
       client = c;
@@ -53,19 +56,18 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// ─── STEP 1: PICK SERVICE ──────────────────────────────────────────────────────
+// ─── STEP 1: PICK SERVICES (MULTI-SELECT CART) ─────────────────────────────────
 async function loadAndShowServices() {
   const view = document.getElementById('booking-view');
-  view.innerHTML = `<div class="loading-center"><div class="spinner"></div><p>Loading services…</p></div>`;
+  view.innerHTML = `<div class="loading-center"><div class="spinner"></div><p>Loading services...</p></div>`;
 
   try {
-    const services = await apiFetch(`/api/services/${business.slug}`);
+    allServices = await apiFetch(`/api/services/${business.slug}`);
 
-    if (!services.length) {
+    if (!allServices.length) {
       view.innerHTML = `
         <div class="container-sm" style="padding-top:32px">
           <div class="card" style="text-align:center;padding:48px">
-            <div style="font-size:2.5rem;margin-bottom:12px">📋</div>
             <h2>No Services Yet</h2>
             <p class="mt-8 text-dim">This business hasn't added any services yet. Check back soon!</p>
           </div>
@@ -73,49 +75,110 @@ async function loadAndShowServices() {
       return;
     }
 
-    view.innerHTML = `
-      <div class="container-sm" style="padding-top:24px">
-        <div class="card" style="padding:24px">
-          <h3 style="margin-bottom:4px">1. Choose a Service</h3>
-          <p class="text-dim text-sm mb-16">at ${business.name}</p>
-          <div class="service-list" id="service-list">
-            ${services.map(s => `
-              <div class="service-card" onclick="pickService(${JSON.stringify(s).replace(/"/g,'&quot;')})">
-                <div class="service-card-info">
-                  <div class="service-card-name">${s.name}</div>
-                  <div class="service-card-meta">⏱ ${s.duration_minutes} minutes</div>
-                </div>
-                <div class="service-card-price">${formatCurrency2(s.price)}</div>
-                <div class="service-card-arrow">→</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      </div>
-    `;
+    renderServicesView();
   } catch (err) {
     renderError('Could not load services: ' + err.message);
   }
 }
 
-function formatCurrency2(amount) {
-  const sym = business?.currency_symbol || '$';
-  return `${sym}${parseFloat(amount).toFixed(2)}`;
+function renderServicesView() {
+  const view = document.getElementById('booking-view');
+  const cartCount = Object.keys(serviceCart).length;
+  const cartTotal = Object.values(serviceCart).reduce((s, sv) => s + parseFloat(sv.price), 0);
+  const cartDuration = Object.values(serviceCart).reduce((s, sv) => s + parseInt(sv.duration_minutes), 0);
+
+  view.innerHTML = `
+    <div class="container-sm" style="padding-top:24px">
+      <div class="card" style="padding:24px">
+        <h3 style="margin-bottom:4px">1. Choose Services</h3>
+        <p class="text-dim text-sm mb-16">at ${business.name} — select one or more</p>
+        <div id="service-list">
+          ${allServices.map(s => {
+            const inCart = !!serviceCart[s.id];
+            return `
+            <div class="service-card ${inCart ? 'service-card-selected' : ''}" 
+                 id="svc-card-${s.id}"
+                 onclick="toggleServiceCart(${JSON.stringify(s).replace(/"/g,'&quot;')})"
+                 style="cursor:pointer; transition: all 0.2s;">
+              <div class="service-card-info">
+                <div class="service-card-name">${s.name}</div>
+                <div class="service-card-meta">${s.duration_minutes} min</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="service-card-price">${formatCurrency2(s.price)}</div>
+                <div class="svc-check-box" id="svc-check-${s.id}" style="
+                  width:24px;height:24px;border-radius:50%;border:2px solid ${inCart ? '#22c55e' : '#cbd5e1'};
+                  display:flex;align-items:center;justify-content:center;
+                  background:${inCart ? '#22c55e' : 'transparent'};
+                  color:#fff;font-size:0.85rem;font-weight:bold;flex-shrink:0;
+                ">${inCart ? '✓' : ''}</div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      ${cartCount > 0 ? `
+      <!-- Cart Summary -->
+      <div class="card mt-16" style="padding:20px; border:2px solid #22c55e;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <h3 style="margin:0">${cartCount} Service${cartCount > 1 ? 's' : ''} Selected</h3>
+          <span class="badge badge-green">Cart</span>
+        </div>
+        ${Object.values(serviceCart).map(sv => `
+          <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:6px">
+            <span>${sv.name}</span>
+            <span class="font-bold">${formatCurrency2(sv.price)}</span>
+          </div>
+        `).join('')}
+        <hr style="margin:12px 0;border-color:#e2e8f0">
+        <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin-bottom:4px">
+          <span class="text-dim">Total Duration</span>
+          <span class="font-bold">${cartDuration} min</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin-bottom:16px">
+          <span class="text-dim">Total Price</span>
+          <span class="font-bold">${formatCurrency2(cartTotal)}</span>
+        </div>
+        <button class="btn btn-primary btn-full" onclick="goToDateStep()">
+          Pick a Time Slot →
+        </button>
+      </div>` : `
+      <div class="card mt-16" style="padding:16px;text-align:center;border:1px dashed #cbd5e1">
+        <p class="text-dim text-sm">Select one or more services above to continue</p>
+      </div>
+      `}
+    </div>
+  `;
 }
 
-function pickService(svcObj) {
-  selectedSvc  = typeof svcObj === 'string' ? JSON.parse(svcObj) : svcObj;
+function toggleServiceCart(svcObj) {
+  const svc = typeof svcObj === 'string' ? JSON.parse(svcObj) : svcObj;
+  if (serviceCart[svc.id]) {
+    delete serviceCart[svc.id];
+  } else {
+    serviceCart[svc.id] = svc;
+  }
+  renderServicesView();
+}
+
+// ─── STEP 2: PICK DATE → PICK SLOT ────────────────────────────────────────────
+function goToDateStep() {
+  if (!Object.keys(serviceCart).length) return;
   selectedDate = null;
   selectedSlot = null;
   showDateSlotStep();
 }
 
-// ─── STEP 2: PICK DATE (dropdown) → PICK SLOT (dropdown) ──────────────────────
 function showDateSlotStep() {
-  // Build next 14 days as dropdown options
+  const totalDuration = Object.values(serviceCart).reduce((s, sv) => s + parseInt(sv.duration_minutes), 0);
+  const totalPrice    = Object.values(serviceCart).reduce((s, sv) => s + parseFloat(sv.price), 0);
+  const serviceCount  = Object.keys(serviceCart).length;
+  const serviceNames  = Object.values(serviceCart).map(s => s.name).join(', ');
+
   const days = [];
   const now  = new Date();
-  const dayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const dayNames    = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   const shortMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   for (let i = 0; i < 14; i++) {
     const d = new Date(now);
@@ -132,12 +195,14 @@ function showDateSlotStep() {
         <span class="text-dim text-sm">Back to services</span>
       </div>
 
-      <div class="card mb-16" style="padding:16px 20px;display:flex;align-items:center;justify-content:space-between">
-        <div>
-          <div class="font-bold">${selectedSvc.name}</div>
-          <div class="text-dim text-sm">⏱ ${selectedSvc.duration_minutes} min &bull; ${formatCurrency2(selectedSvc.price)}</div>
+      <!-- Cart Summary pill -->
+      <div class="card mb-16" style="padding:14px 18px;">
+        <div style="font-weight:700;margin-bottom:6px">${serviceCount} Service${serviceCount > 1 ? 's' : ''}</div>
+        <div class="text-dim text-sm" style="margin-bottom:4px">${serviceNames}</div>
+        <div style="display:flex;gap:16px;font-size:0.85rem">
+          <span class="badge badge-blue">${totalDuration} min total</span>
+          <span class="font-bold">${formatCurrency2(totalPrice)}</span>
         </div>
-        <span class="badge badge-blue">Selected</span>
       </div>
 
       <div class="card" style="padding:24px">
@@ -158,23 +223,26 @@ function showDateSlotStep() {
           <select id="slot-select" onchange="onSlotSelect(this.value)" class="login-input" style="background:#f8fafc;color:#1a2461;border:1px solid #e2e8f0;margin-bottom:0;cursor:pointer;">
             <option value="">— Choose a time —</option>
           </select>
-          <div id="slot-loading" style="display:none" class="text-dim text-sm mt-8">Loading available slots…</div>
+          <div id="slot-loading" style="display:none" class="text-dim text-sm mt-8">Loading available slots...</div>
         </div>
       </div>
 
       <div class="card mt-16" id="confirm-panel" style="display:none;padding:24px">
         <h3 style="margin-bottom:16px">4. Confirm Order</h3>
+        ${Object.values(serviceCart).map(sv => `
+          <div class="flex justify-between items-center mb-8 text-sm">
+            <span class="text-dim">${sv.name}</span>
+            <span class="font-bold">${formatCurrency2(sv.price)}</span>
+          </div>
+        `).join('')}
+        <hr style="margin:12px 0;border-color:#e2e8f0">
         <div class="flex justify-between items-center mb-8 text-sm">
-          <span class="text-dim">Service</span>
-          <span class="font-bold">${selectedSvc.name}</span>
+          <span class="text-dim">Total Duration</span>
+          <span class="font-bold">${totalDuration} min</span>
         </div>
         <div class="flex justify-between items-center mb-8 text-sm">
-          <span class="text-dim">Duration</span>
-          <span class="font-bold">${selectedSvc.duration_minutes} min</span>
-        </div>
-        <div class="flex justify-between items-center mb-8 text-sm">
-          <span class="text-dim">Price</span>
-          <span class="font-bold">${formatCurrency2(selectedSvc.price)}</span>
+          <span class="text-dim">Total Price</span>
+          <span class="font-bold">${formatCurrency2(totalPrice)}</span>
         </div>
         <div class="flex justify-between items-center mb-20 text-sm">
           <span class="text-dim">Time</span>
@@ -198,21 +266,23 @@ async function onDaySelect(dateString) {
   const confirmPanel = document.getElementById('confirm-panel');
 
   slotSection.style.display = 'block';
-  slotSelect.innerHTML = '<option value="">Loading…</option>';
+  slotSelect.innerHTML = '<option value="">Loading...</option>';
   slotSelect.disabled = true;
   if (slotLoading) slotLoading.style.display = 'block';
   if (confirmPanel) confirmPanel.style.display = 'none';
 
+  // Use total duration for slot availability
+  const totalDuration = Object.values(serviceCart).reduce((s, sv) => s + parseInt(sv.duration_minutes), 0);
+  const primarySvcId  = Object.values(serviceCart)[0]?.id || '';
+
   if (socket) socket.emit('join:slots', { businessId: business.id, date: selectedDate });
 
   try {
-    const data = await apiFetch(`/api/slots/${business.slug}?date=${dateString}&service_id=${selectedSvc.id}`);
+    const data = await apiFetch(`/api/slots/${business.slug}?date=${dateString}&service_id=${primarySvcId}&duration=${totalDuration}`);
     const now = new Date();
-    
-    // Filter: only available, and if today's date, must be in the future (with 5 min buffer)
+
     const available = (data.slots || []).filter(s => {
       if (!s.available) return false;
-      // For today, hide slots that have already passed (add 5 min buffer)
       const slotTime = new Date(s.time + 'Z');
       if (dateString === dateStr(now) && slotTime <= new Date(now.getTime() + 5 * 60000)) return false;
       return true;
@@ -246,8 +316,9 @@ function onSlotSelect(time) {
 async function confirmBooking() {
   if (!selectedSlot) return;
 
-  // Show T&C modal first
-  const late = Math.ceil(selectedSvc.duration_minutes * 0.25);
+  // T&C modal — use total duration to compute late threshold
+  const totalDuration = Object.values(serviceCart).reduce((s, sv) => s + parseInt(sv.duration_minutes), 0);
+  const late = Math.ceil(totalDuration * 0.25);
   document.getElementById('tc-late-mins').textContent = late;
   openModal('tc-modal');
 }
@@ -255,7 +326,9 @@ async function confirmBooking() {
 async function finalizeBooking() {
   closeModal('tc-modal');
   const btn = document.getElementById('confirm-btn');
-  btn.disabled = true; btn.textContent = 'Confirming…';
+  btn.disabled = true; btn.textContent = 'Confirming...';
+
+  const serviceIdsArray = Object.values(serviceCart).map(sv => sv.id);
 
   try {
     booking = await apiFetch('/api/bookings', {
@@ -264,7 +337,7 @@ async function finalizeBooking() {
         business_id:  business.id,
         client_id:    client.id,
         booking_time: selectedSlot,
-        service_id:   selectedSvc.id,
+        service_ids:  serviceIdsArray,
       }
     });
 
@@ -289,8 +362,12 @@ async function notifySeller() {
   } catch { /* non-critical */ }
 }
 
-// ─── SUCCESS + IN-APP RECEIPT ──────────────────────────────────────────────────
+// ─── SUCCESS + RECEIPT ─────────────────────────────────────────────────────────
 function showBookingSuccess() {
+  const totalPrice    = Object.values(serviceCart).reduce((s, sv) => s + parseFloat(sv.price), 0);
+  const totalDuration = Object.values(serviceCart).reduce((s, sv) => s + parseInt(sv.duration_minutes), 0);
+  const serviceCount  = Object.keys(serviceCart).length;
+
   const view = document.getElementById('booking-view');
   view.innerHTML = `
     <div class="container-sm" style="padding-top:32px">
@@ -304,20 +381,20 @@ function showBookingSuccess() {
             <span class="font-bold">#${booking.id}</span>
           </div>
           <div class="flex justify-between mt-8 text-sm">
-            <span class="text-dim">Service</span>
-            <span class="font-bold">${selectedSvc.name}</span>
+            <span class="text-dim">${serviceCount > 1 ? 'Services' : 'Service'}</span>
+            <span class="font-bold">${Object.values(serviceCart).map(sv => sv.name).join(', ')}</span>
           </div>
           <div class="flex justify-between mt-8 text-sm">
             <span class="text-dim">Date &amp; Time</span>
             <span class="font-bold">${formatDateTime(booking.booking_time)}</span>
           </div>
           <div class="flex justify-between mt-8 text-sm">
-            <span class="text-dim">Duration</span>
-            <span class="font-bold">${selectedSvc.duration_minutes} minutes</span>
+            <span class="text-dim">Total Duration</span>
+            <span class="font-bold">${totalDuration} min</span>
           </div>
           <div class="flex justify-between mt-8 text-sm">
-            <span class="text-dim">Price</span>
-            <span class="font-bold">${formatCurrency2(selectedSvc.price)}</span>
+            <span class="text-dim">Total Price</span>
+            <span class="font-bold">${formatCurrency2(totalPrice)}</span>
           </div>
           <div class="flex justify-between mt-8 text-sm">
             <span class="text-dim">Status</span>
@@ -325,43 +402,94 @@ function showBookingSuccess() {
           </div>
         </div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center">
-          <button class="btn btn-primary" onclick="downloadReceipt()">📥 Download Invoice</button>
-          <button class="btn btn-outline" onclick="window.location.reload()">Order Another</button>
+          <button class="btn btn-primary" onclick="downloadBookingReceipt()">Download Invoice</button>
+          <button class="btn btn-outline" onclick="window.location.reload()">Book Another</button>
         </div>
       </div>
     </div>
   `;
 
-  // Show PWA install prompt after successful booking
   showPwaPromptIfAvailable();
 }
 
-// ─── INVOICE DOWNLOAD ────────────────────────────────────────────────────────────
-function downloadReceipt() {
-  const lines = [
-    '=============================',
-    '       JOMISH BOOKING        ',
-    '       INVOICE               ',
-    '=============================',
-    `Business  : ${business.name}`,
-    `Client    : ${client.name}`,
-    `Order ID: #${booking.id}`,
-    `Service   : ${selectedSvc.name}`,
-    `Date/Time : ${formatDateTime(booking.booking_time)}`,
-    `Duration  : ${selectedSvc.duration_minutes} minutes`,
-    `Price     : ${formatCurrency2(selectedSvc.price)}`,
-    `Status    : Confirmed`,
-    '=============================',
-    `Generated : ${new Date().toLocaleString()}`,
-  ].join('\n');
+// ─── INVOICE DOWNLOAD ─────────────────────────────────────────────────────────
+function downloadBookingReceipt() {
+  const sym          = business?.currency_symbol || '$';
+  const totalPrice   = Object.values(serviceCart).reduce((s, sv) => s + parseFloat(sv.price), 0);
+  const totalDuration= Object.values(serviceCart).reduce((s, sv) => s + parseInt(sv.duration_minutes), 0);
+  const serviceList  = Object.values(serviceCart);
 
-  const blob = new Blob([lines], { type: 'text/plain' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = `Jomish-Invoice-${booking.id}.txt`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const element = document.createElement('div');
+  element.style.padding = '30px';
+  element.style.fontFamily = 'Arial, sans-serif';
+  element.style.color = '#000';
+
+  element.innerHTML = `
+    <h1 style="font-size:24px;font-weight:bold;margin-bottom:5px">${business.name}</h1>
+    <h2 style="font-size:18px;color:#555;margin-bottom:20px">Booking Invoice</h2>
+    <p style="font-size:14px;margin-bottom:5px"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+    <p style="font-size:14px;margin-bottom:5px"><strong>Client:</strong> ${client.name}</p>
+    <p style="font-size:14px;margin-bottom:5px"><strong>Appointment:</strong> ${formatDateTime(booking.booking_time)}</p>
+    <p style="font-size:14px;margin-bottom:20px"><strong>Status:</strong> Confirmed</p>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:20px">
+      <thead>
+        <tr style="border-bottom:2px solid #000">
+          <th style="text-align:left;padding:8px 0">Service</th>
+          <th style="text-align:center;padding:8px 0">Duration</th>
+          <th style="text-align:right;padding:8px 0">Price</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${serviceList.map(sv => `
+          <tr style="border-bottom:1px solid #ccc">
+            <td style="padding:8px 0">${sv.name}</td>
+            <td style="text-align:center;padding:8px 0">${sv.duration_minutes} min</td>
+            <td style="text-align:right;padding:8px 0">${sym}${parseFloat(sv.price).toFixed(2)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="2" style="text-align:right;font-weight:bold;padding:12px 0">Total (${totalDuration} min):</td>
+          <td style="text-align:right;font-weight:bold;padding:12px 0;font-size:18px">${sym}${totalPrice.toFixed(2)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    <div style="text-align:center;margin-top:40px;font-size:12px;color:#777">
+      <p>Powered by Jomish Tech Hub</p>
+    </div>
+  `;
+
+  if (typeof html2pdf !== 'undefined') {
+    html2pdf().set({
+      margin: 0.5,
+      filename: `booking_invoice_${booking.id}.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2 },
+      jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+    }).from(element).save().then(() => {
+      toast('Downloaded!', 'Booking invoice saved.', 'success');
+    });
+  } else {
+    // Fallback: plain text
+    const lines = [
+      `${business.name} — Booking Invoice`,
+      `Date: ${new Date().toLocaleString()}`,
+      `Client: ${client.name}`,
+      `Appointment: ${formatDateTime(booking.booking_time)}`,
+      '---',
+      ...Object.values(serviceCart).map(sv => `${sv.name} — ${sv.duration_minutes}min — ${sym}${parseFloat(sv.price).toFixed(2)}`),
+      '---',
+      `Total Duration: ${totalDuration} min`,
+      `Total Price: ${sym}${totalPrice.toFixed(2)}`,
+    ].join('\n');
+    const blob = new Blob([lines], { type: 'text/plain' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = `booking_invoice_${booking.id}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  }
 }
 
 // ─── SOCKET.IO ─────────────────────────────────────────────────────────────────
@@ -370,14 +498,10 @@ function initSocket() {
   socket = io();
 
   socket.on('slot:taken', ({ time }) => {
-    // Mark slot as taken in the dropdown
     const sel = document.getElementById('slot-select');
     if (sel) {
       [...sel.options].forEach(opt => {
-        if (opt.value === time) {
-          opt.text += ' (taken)';
-          opt.disabled = true;
-        }
+        if (opt.value === time) { opt.text += ' (taken)'; opt.disabled = true; }
       });
     }
     if (selectedSlot === time) {
@@ -404,7 +528,6 @@ function toggleClientChat() {
     if (socket && business && client) {
       socket.emit('join:chat', { businessId: business.id, clientId: client.id });
       socket.on('chat:message', (msg) => {
-        // Only render messages from seller (client's own messages already rendered)
         if (msg.sender === 'seller') renderClientChatMsg(msg);
       });
     }
@@ -447,7 +570,6 @@ async function sendClientMsg() {
   const content = input.value.trim();
   if (!content || !client || !business) return;
 
-  // Render immediately (optimistic)
   renderClientChatMsg({ sender: 'client', content, created_at: new Date().toISOString() });
   input.value = '';
 
@@ -456,7 +578,6 @@ async function sendClientMsg() {
       method: 'POST',
       body: { business_id: business.id, client_id: client.id, sender: 'client', content }
     });
-    // Track sent ID to avoid socket double-render
     if (msg.id) sentMsgIds.add(msg.id);
   } catch (err) {
     toast('Send failed', err.message, 'error');
@@ -476,7 +597,6 @@ function setupPwaPrompt() {
 
 function showPwaPromptIfAvailable() {
   if (!_pwaPromptEvent) return;
-  // Show a nice banner
   const banner = document.createElement('div');
   banner.id = 'pwa-banner';
   banner.style.cssText = `
@@ -487,7 +607,7 @@ function showPwaPromptIfAvailable() {
     display:flex; align-items:center; gap:14px; animation: slideUp 0.4s ease;
   `;
   banner.innerHTML = `
-    <div style="font-size:2rem"><i data-lucide="smartphone" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
+    <div style="font-size:2rem">+</div>
     <div style="flex:1">
       <div style="font-weight:700;font-size:0.95rem;margin-bottom:4px">Install Jomish App</div>
       <div style="font-size:0.78rem;opacity:0.85">Add to your home screen for faster bookings and notifications</div>
@@ -507,17 +627,21 @@ async function installPwa() {
   _pwaPromptEvent = null;
   const banner = document.getElementById('pwa-banner');
   if (banner) banner.remove();
-  if (outcome === 'accepted') toast('App Installed! <i data-lucide="party-popper" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i>', 'Jomish has been added to your home screen.', 'success');
+  if (outcome === 'accepted') toast('App Installed!', 'Jomish has been added to your home screen.', 'success');
 }
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 function todayStr()  { return dateStr(new Date()); }
 function dateStr(d)  { return d.toISOString().split('T')[0]; }
 
+function formatCurrency2(amount) {
+  const sym = business?.currency_symbol || '$';
+  return `${sym}${parseFloat(amount).toFixed(2)}`;
+}
+
 function renderError(msg) {
   document.getElementById('booking-view').innerHTML = `
     <div class="loading-center" style="padding:80px">
-      <div style="font-size:2.5rem"><i data-lucide="alert-triangle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i></div>
       <h2 style="margin-top:12px">Something went wrong</h2>
       <p>${msg}</p>
     </div>`;

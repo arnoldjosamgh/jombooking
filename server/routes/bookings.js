@@ -124,14 +124,36 @@ router.get('/:business_slug', async (req, res) => {
 });
 
 // ─── POST /api/bookings ───────────────────────────────────────────────────────
-router.post('/', requireFields('business_id', 'client_id', 'booking_time'), async (req, res) => {
+router.post('/', requireFields('business_id', 'booking_time'), async (req, res) => {
   try {
-    const { business_id, client_id, booking_time, service_id } = req.body;
+    const { business_id, client_id, booking_time, service_id, service_ids } = req.body;
+
+    // Support multi-service cart (service_ids array) OR legacy single service_id
+    const serviceIdsArray = service_ids && Array.isArray(service_ids) && service_ids.length
+      ? service_ids
+      : (service_id ? [service_id] : []);
+    const primaryServiceId = serviceIdsArray[0] || null;
+
+    // Compute total duration & price from services
+    let totalDuration = 0;
+    let totalPrice = 0;
+    let serviceNames = [];
+    if (serviceIdsArray.length > 0) {
+      const svcRes = await db.query(
+        `SELECT id, name, duration_minutes, price FROM services WHERE id = ANY($1)`,
+        [serviceIdsArray]
+      );
+      svcRes.rows.forEach(s => {
+        totalDuration += parseInt(s.duration_minutes) || 0;
+        totalPrice += parseFloat(s.price) || 0;
+        serviceNames.push(s.name);
+      });
+    }
 
     const result = await db.query(
-      `INSERT INTO bookings (business_id, client_id, booking_time, service_id, status)
-       VALUES ($1, $2, $3, $4, 'confirmed') RETURNING *`,
-      [business_id, client_id, booking_time, service_id || null]
+      `INSERT INTO bookings (business_id, client_id, booking_time, service_id, service_ids, total_duration, total_price, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed') RETURNING *`,
+      [business_id, client_id, booking_time, primaryServiceId, JSON.stringify(serviceIdsArray), totalDuration, totalPrice]
     );
 
     // Auto-generate receipt number
@@ -141,12 +163,12 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
     );
 
     const full = await db.query(
-      `SELECT b.id, b.booking_time, b.status, b.created_at,
+      `SELECT b.id, b.booking_time, b.status, b.created_at, b.service_ids, b.total_duration, b.total_price,
               c.name AS client_name, c.location AS client_location,
               biz.owner_id, biz.name AS business_name,
               s.name AS service_name, s.price AS service_price
        FROM bookings b
-       JOIN clients c   ON b.client_id = c.id
+       LEFT JOIN clients c   ON b.client_id = c.id
        JOIN businesses biz ON b.business_id = biz.id
        LEFT JOIN services s ON b.service_id = s.id
        WHERE b.id = $1`,
@@ -154,11 +176,13 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
     );
 
     const bookingData = full.rows[0];
+    bookingData.service_names = serviceNames;
 
     if (bookingData.owner_id) {
+      const svcLabel = serviceNames.length > 1 ? `${serviceNames.length} services` : (serviceNames[0] || 'a slot');
       sendPushToSeller(bookingData.owner_id, {
-        title: `📅 New Booking — ${bookingData.business_name}`,
-        body: `${bookingData.client_name} booked ${bookingData.service_name || 'a slot'} for ${new Date(bookingData.booking_time).toLocaleString()}.`,
+        title: `New Booking — ${bookingData.business_name}`,
+        body: `${bookingData.client_name} booked ${svcLabel} for ${new Date(bookingData.booking_time).toLocaleString()}.`,
         url: '/seller.html'
       });
     }
@@ -173,6 +197,7 @@ router.post('/', requireFields('business_id', 'client_id', 'booking_time'), asyn
   }
 });
 
+
 // ─── GET /api/bookings/list/:business_id ──────────────────────────────────────
 // Accepts business_id (numeric) OR business slug
 router.get('/list/:business_id', async (req, res) => {
@@ -186,7 +211,7 @@ router.get('/list/:business_id', async (req, res) => {
 
     let query = `
       SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id, b.seller_id,
-             b.receipt_number,
+             b.receipt_number, b.service_ids, b.total_duration, b.total_price,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
              s.name AS service_name, s.price AS service_price, s.duration_minutes,
              sel.username AS seller_username,

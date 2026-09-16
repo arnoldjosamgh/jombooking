@@ -2,7 +2,7 @@ services:
   - type: web
     name: jomish-booking
     env: node
-    buildCommand: npm install
+    buildCommand: npm install && node server/migrate13.js
     startCommand: npm start
     envVars:
       - key: DATABASE_URL

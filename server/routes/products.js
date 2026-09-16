@@ -385,7 +385,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     if ((status === 'ready' || status === 'completed') && order.client_id) {
       try {
         const prodRes = await db.query(
-          `SELECT p.title, p.price, b.slug FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id WHERE o.id = $1`,
+          `SELECT p.title, p.price, b.slug, b.logo_url FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id WHERE o.id = $1`,
           [order.id]
         );
         if (prodRes.rows.length > 0) {
@@ -401,7 +401,8 @@ router.patch('/:id/status', authenticate, async (req, res) => {
             sendPushToClient(order.client_id, {
               title: 'Receipt Received & Order Ready',
               body: `Your order for ${p.title} is ready. Click to view/download receipt.`,
-              url: `/c/${p.slug}?action=download-receipt`
+              url: `/c/${p.slug}?action=download-receipt`,
+              icon: p.logo_url
             });
           }
         }

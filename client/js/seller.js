@@ -307,17 +307,67 @@ async function uploadSellerLogo() {
 }
 
 // ─── POS SYSTEM ────────────────────────────────────────────────────────────────
-async function renderPOS() { setActiveTab("tab-pos");
+let posServices = [];
+
+async function renderPOS() { setActiveTab('tab-pos');
   const main = document.getElementById('seller-content');
   const tpl = document.getElementById('tpl-pos');
   main.innerHTML = '';
   main.appendChild(tpl.content.cloneNode(true));
 
-  // Re-bind form submit
-  document.getElementById('add-product-form').addEventListener('submit', addProduct);
+  const isService = selectedBiz.type === 'service';
 
-  await loadProducts();
+  if (isService) {
+    // For service businesses: hide product-only controls
+    const addBtn = document.querySelector('.pos-main .btn-outline');
+    if (addBtn) addBtn.style.display = 'none';
+    const scanBtn = document.querySelector('.pos-main .btn-primary');
+    if (scanBtn) scanBtn.style.display = 'none';
+    await loadServicesForPOS();
+  } else {
+    // Re-bind add product form
+    const form = document.getElementById('add-product-form');
+    if (form) form.addEventListener('submit', addProduct);
+    await loadProducts();
+  }
 }
+
+async function loadServicesForPOS() {
+  try {
+    posServices = await apiFetch(`/api/services/${selectedBiz.slug}`);
+    renderServiceGrid();
+  } catch (err) {
+    toast('Error', 'Could not load services', 'error');
+  }
+}
+
+function renderServiceGrid() {
+  const grid = document.getElementById('pos-product-grid');
+  if (!grid) return;
+  if (!posServices.length) {
+    grid.innerHTML = `<div class="pos-empty">No services yet. Add services first.</div>`;
+    return;
+  }
+  grid.innerHTML = posServices.map(s => `
+    <div class="pos-product-card" onclick="addServiceToCart(${s.id})">
+      <div class="pos-product-name">${s.name}</div>
+      <div class="pos-product-price">${formatCurrency(s.price)}</div>
+      <div class="pos-product-stock" style="color:#64748b;font-size:0.75rem">${s.duration_minutes} min</div>
+    </div>
+  `).join('');
+}
+
+function addServiceToCart(serviceId) {
+  const svc = posServices.find(s => s.id === serviceId);
+  if (!svc) return;
+  if (posCart[serviceId]) {
+    posCart[serviceId].qty++;
+  } else {
+    posCart[serviceId] = { ...svc, qty: 1 };
+  }
+  renderCart();
+}
+
 
 async function loadProducts() {
   try {
@@ -557,24 +607,75 @@ function renderCart() {
 }
 
 async function checkoutPos() {
-  const items = Object.values(posCart).map(item => ({ product_id: item.id, qty: item.qty }));
+  const isService = selectedBiz.type === 'service';
+  const items = Object.values(posCart);
   if (!items.length) return;
 
   const customerName = prompt('Customer name (optional):') || 'Walk-in Customer';
 
   try {
-    const result = await apiFetch('/api/orders/pos-checkout', {
-      method: 'POST',
-      body: { business_id: selectedBiz.id, items, customer_name: customerName }
-    });
+    let result;
+    if (isService) {
+      // Walk-in service checkout — create a booking for "now"
+      const serviceIdsArray = items.map(i => i.id);
+      result = await apiFetch('/api/bookings', {
+        method: 'POST',
+        body: {
+          business_id: selectedBiz.id,
+          client_id: null,
+          booking_time: new Date().toISOString(),
+          service_ids: serviceIdsArray,
+        }
+      });
+      const total = items.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0);
+      result = { items: items.map(i => ({ product: i.name, qty: i.qty, price: i.price })), total };
+    } else {
+      result = await apiFetch('/api/orders/pos-checkout', {
+        method: 'POST',
+        body: { business_id: selectedBiz.id, items: items.map(i => ({ product_id: i.id, qty: i.qty })), customer_name: customerName }
+      });
+    }
 
-    // Show receipt
-    const lines = result.items.map(i => `${i.product} x${i.qty} = ${formatCurrency(i.price * i.qty)}`).join('\n');
-    alert(`<i data-lucide="check-circle" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Sale Complete!\n\n${lines}\n\nTotal: ${formatCurrency(result.total)}\nThank you!`);
+    toast('Checkout Complete', `Sale of ${formatCurrency(result.total)} recorded for ${customerName}`, 'success');
+
+    // Generate printable POS receipt PDF
+    const element = document.createElement('div');
+    element.style.cssText = 'padding:30px;font-family:Arial,sans-serif;color:#000;';
+    element.innerHTML = `
+      <h1 style="font-size:22px;font-weight:bold;margin-bottom:4px">${selectedBiz.name}</h1>
+      <h2 style="font-size:16px;color:#555;margin-bottom:16px">Walk-in Receipt</h2>
+      <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+      <p><strong>Customer:</strong> ${customerName}</p>
+      <hr style="margin:12px 0">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="border-bottom:2px solid #000">
+          <th style="text-align:left;padding:6px 0">Item</th>
+          <th style="text-align:center;padding:6px 0">Qty</th>
+          <th style="text-align:right;padding:6px 0">Total</th>
+        </tr></thead>
+        <tbody>
+          ${result.items.map(i => `
+            <tr style="border-bottom:1px solid #ccc">
+              <td style="padding:6px 0">${i.product}</td>
+              <td style="text-align:center;padding:6px 0">${i.qty}</td>
+              <td style="text-align:right;padding:6px 0">${formatCurrency(i.price * i.qty)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+        <tfoot><tr>
+          <td colspan="2" style="text-align:right;font-weight:bold;padding:10px 0">TOTAL</td>
+          <td style="text-align:right;font-weight:bold;font-size:18px;padding:10px 0">${formatCurrency(result.total)}</td>
+        </tr></tfoot>
+      </table>
+      <div style="text-align:center;margin-top:32px;font-size:11px;color:#888">Powered by Jomish Tech Hub</div>
+    `;
+    if (typeof html2pdf !== 'undefined') {
+      html2pdf().set({ margin:0.5, filename:`receipt_${Date.now()}.pdf`, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'letter'} }).from(element).save();
+    }
 
     posCart = {};
     renderCart();
-    await loadProducts(); // refresh stock
+    if (isService) await loadServicesForPOS(); else await loadProducts();
   } catch (err) {
     toast('Checkout Failed', err.message, 'error');
   }
@@ -1270,6 +1371,7 @@ function renderTabs(type) {
     html += `<button class="btn btn-outline" id="tab-inventory" onclick="renderInventory()">Inventory</button>`;
   }
   if (type === 'service' || type === 'both') {
+    html += `<button class="btn btn-outline" id="tab-pos" onclick="renderPOS()">Point of Sale</button>`;
     html += `<button class="btn btn-outline" id="tab-calendar" onclick="renderCalendar()">Calendar</button>`;
   }
   html += `<button class="btn btn-outline" id="tab-pending" onclick="renderPending()">Pending</button>`;
@@ -1631,7 +1733,7 @@ async function confirmCompleteBooking() {
     }).catch(e => console.warn('Receipt message failed:', e.message));
 
     // Also generate PDF download
-    generateReceiptPDF(bk, finalPrice);
+    // generateReceiptPDF(bk, finalPrice); // Auto-download disabled for online orders
   } catch(e) {
     toast('Error', e.message, 'error');
   } finally {

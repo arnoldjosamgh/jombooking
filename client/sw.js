@@ -65,7 +65,7 @@ self.addEventListener('push', (event) => {
     const data = event.data.json();
     const options = {
       body: data.body || 'You have a new update.',
-      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f4a81d"/><text x="50%" y="65%" font-size="60" text-anchor="middle" fill="%23050c1a" font-family="sans-serif">J</text></svg>',
+      icon: data.icon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f4a81d"/><text x="50%" y="65%" font-size="60" text-anchor="middle" fill="%23050c1a" font-family="sans-serif">J</text></svg>',
       vibrate: [100, 50, 100],
       data: { url: data.url || '/seller' }
     };

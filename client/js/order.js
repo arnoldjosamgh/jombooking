@@ -738,7 +738,7 @@ window.downloadReceiptText = function(encodedText) {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = \`Jomish-Receipt-\${Date.now()}.txt\`;
+  a.download = `Jomish-Receipt-${Date.now()}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 };

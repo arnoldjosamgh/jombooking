@@ -169,12 +169,23 @@ function scheduleMidnightReschedule() {
 
 // ─── Start Server ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`\n🚀 Jomish Booking and Delivering Management System running on http://localhost:${PORT}`);
-  console.log(`   Order flow:   http://localhost:${PORT}/order/jomish-cafe`);
-  console.log(`   Booking flow: http://localhost:${PORT}/book/jomish-salon`);
-  console.log(`   Seller view:  http://localhost:${PORT}/seller\n`);
-  scheduleMidnightReschedule();
-});
+const db = require('./db');
+
+db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_ids JSONB;`)
+  .then(() => db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_duration INT DEFAULT 0;`))
+  .then(() => db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_price NUMERIC(10,2) DEFAULT 0;`))
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`\n🚀 Jomish Booking and Delivering Management System running on http://localhost:${PORT}`);
+      console.log(`   Order flow:   http://localhost:${PORT}/order/jomish-cafe`);
+      console.log(`   Booking flow: http://localhost:${PORT}/book/jomish-salon`);
+      console.log(`   Seller view:  http://localhost:${PORT}/seller\n`);
+      scheduleMidnightReschedule();
+    });
+  })
+  .catch(err => {
+    console.error("Migration failed on startup:", err);
+    process.exit(1);
+  });
 
 module.exports = { app, server, io };

@@ -4,7 +4,7 @@
   "description": "Jomish Two-Way Ordering & Booking System — dual-mode PWA for product ordering and service booking",
   "main": "server/index.js",
   "scripts": {
-    "start": "node server/index.js",
+    "start": "node server/migrate13.js && node server/index.js",
     "dev": "node server/index.js"
   },
   "keywords": [

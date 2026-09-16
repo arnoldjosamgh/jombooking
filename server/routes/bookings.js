@@ -140,7 +140,7 @@ router.post('/', requireFields('business_id', 'booking_time'), async (req, res) 
     let serviceNames = [];
     if (serviceIdsArray.length > 0) {
       const svcRes = await db.query(
-        `SELECT id, name, duration_minutes, price FROM services WHERE id = ANY($1)`,
+        `SELECT id, name, duration_minutes, price FROM services WHERE id = ANY($1::int[])`,
         [serviceIdsArray]
       );
       svcRes.rows.forEach(s => {

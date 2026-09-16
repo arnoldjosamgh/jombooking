@@ -225,6 +225,7 @@ async function placeOrder() {
     await notifySeller(orders);
 
     cart = {};
+    document.getElementById('cart-bar').style.display = 'none';
     updateCartBar();
     showOrderSuccess(orders);
   } catch (err) {
@@ -311,28 +312,31 @@ function showOrderSuccess(orders) {
     </div>`
   ).join('');
 
+  const orderIds = orders.map(o => o.id);
   document.getElementById('main-content').innerHTML = `
     <div class="container-sm" style="padding-top:32px">
-      <div class="success-screen">
+      <div class="success-screen" style="text-align:center;">
         <div class="success-icon">✓</div>
         <h2>Order Placed!</h2>
         <p class="mt-8">Your order has been sent to ${business.name}.</p>
-        <div class="card mt-20" style="text-align:left;padding:20px">
-          <h3 style="margin-bottom:14px">Order Summary</h3>
+        <div class="card mt-20" style="text-align:left;padding:20px;border:1px solid #e2e8f0;box-shadow:none;">
+          <div class="flex justify-between mb-8 text-sm">
+            <span class="text-dim">Order ID</span>
+            <span class="font-bold">#${orderIds.join(', ')}</span>
+          </div>
+          <hr style="border:none;border-top:1px dashed #e2e8f0;margin:12px 0;">
           ${summary}
         </div>
-        <button class="btn btn-primary btn-lg mt-20 pulse" id="waiting-btn" onclick="iAmWaiting()">
-          <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> I'm Waiting — Notify Seller
-        </button>
-        <div class="mt-20">
-          <h3 style="margin-bottom:12px">Chat with ${business.name}</h3>
-          <div id="chat-container"></div>
+        <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px;align-items:center;">
+          <button class="btn btn-primary btn-full pulse" id="waiting-btn" onclick="iAmWaiting()">
+            <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> I'm Waiting — Notify Seller
+          </button>
+          <button class="btn btn-outline btn-full" onclick="downloadOrderReceipt('${orderIds.join(',')}')">📥 Download Invoice</button>
+          <button class="btn btn-outline btn-full" onclick="window.location.reload()">Place Another Order</button>
         </div>
-        <button class="btn btn-outline mt-20" onclick="window.location.reload()">Place Another Order</button>
       </div>
     </div>
   `;
-  initChat('chat-container');
 }
 
 // ─── "I'm Waiting" Button ──────────────────────────────────────

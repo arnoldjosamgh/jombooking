@@ -79,7 +79,8 @@ async function loadProducts() {
 // ─── Render ────────────────────────────────────────────────────
 function renderHeader() {
   document.getElementById('biz-name').textContent = business.name;
-  document.getElementById('biz-badge').textContent = '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Order Menu';
+  document.getElementById('biz-badge').innerHTML = '<i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Order Menu';
+  if(window.lucide) lucide.createIcons();
 }
 
 function renderSkeleton() {

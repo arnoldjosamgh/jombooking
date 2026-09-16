@@ -1662,6 +1662,7 @@ async function completeOrder(orderId) {
     toast('Success', 'Order marked as delivered/completed.', 'success');
     renderPending();
     pollPending(); // update badge
+    renderPOS(); // Take user to POS
   } catch(e) {
     toast('Error', e.message, 'error');
   }
@@ -1705,6 +1706,7 @@ async function confirmCompleteBooking() {
     toast('Success', 'Order marked as completed.', 'success');
     renderPending();
     pollPending();
+    renderPOS(); // Take user to POS
     
     // Send receipt as message to client automatically
     const receiptMsg = [

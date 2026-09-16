@@ -662,3 +662,104 @@ window.downloadReceiptText = function(encodedText) {
 };
 
 window.printReceiptText=function(t){const d=decodeURIComponent(t);const w=window.open('','_blank');if(w){w.document.write('<html><head><title>Receipt</title><style>body{font-family:monospace;white-space:pre-wrap;padding:20px;}</style></head><body>'+d+'</body></html>');w.document.close();w.focus();w.print();setTimeout(()=>{w.close();},500);}else{toast('Popup Blocked','Please allow popups to print receipts.','error');}};
+// ─── PDF Generation (Invoice & Receipt) ────────────────────────
+async function generateInvoice(e) {
+  if (e) e.preventDefault();
+  const entries = Object.entries(cart).filter(([, qty]) => qty > 0);
+  if (!entries.length) { toast('Cart is empty', 'Add items first.', 'error'); return; }
+
+  const items = entries.map(([productId, qty]) => {
+    const p = products.find(x => x.id === parseInt(productId));
+    return { name: p.title, price: p.price, qty: qty, total: p.price * qty };
+  });
+
+  generatePdfDoc('Invoice', items, 'Pending Payment');
+}
+
+async function downloadOrderReceipt(ids) {
+  try {
+    const res = await apiFetch(`/api/orders/list/${business.id}`);
+    const myOrders = res.filter(o => ids.split(',').includes(o.id.toString()));
+    if (!myOrders.length) return;
+
+    const items = myOrders.map(o => ({
+      name: o.product_title,
+      price: o.price,
+      qty: o.quantity,
+      total: o.price * o.quantity
+    }));
+
+    generatePdfDoc('Receipt', items, 'Paid & Completed');
+  } catch (err) {
+    toast('Error', 'Could not fetch receipt details.', 'error');
+  }
+}
+
+function generatePdfDoc(title, items, status) {
+  if (typeof html2pdf === 'undefined') {
+    toast('Error', 'PDF library not loaded.', 'error');
+    return;
+  }
+
+  const total = items.reduce((sum, i) => sum + i.total, 0);
+  const dateStr = new Date().toLocaleString();
+
+  const element = document.createElement('div');
+  element.style.padding = '30px';
+  element.style.fontFamily = 'Arial, sans-serif';
+  element.style.color = '#000';
+  element.style.width = '100%';
+  
+  element.innerHTML = `
+    <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">${business.name}</h1>
+    <h2 style="font-size: 18px; color: #555; margin-bottom: 20px;">${title}</h2>
+    <p style="font-size: 14px; margin-bottom: 5px;"><strong>Date:</strong> ${dateStr}</p>
+    <p style="font-size: 14px; margin-bottom: 20px;"><strong>Status:</strong> ${status}</p>
+    
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+      <thead>
+        <tr style="border-bottom: 2px solid #000;">
+          <th style="text-align: left; padding: 8px 0;">Item</th>
+          <th style="text-align: center; padding: 8px 0;">Qty</th>
+          <th style="text-align: right; padding: 8px 0;">Price</th>
+          <th style="text-align: right; padding: 8px 0;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${items.map(i => `
+          <tr style="border-bottom: 1px solid #ccc;">
+            <td style="padding: 8px 0;">${i.name}</td>
+            <td style="text-align: center; padding: 8px 0;">${i.qty}</td>
+            <td style="text-align: right; padding: 8px 0;">${formatCurrency(i.price, business.currency_symbol)}</td>
+            <td style="text-align: right; padding: 8px 0;">${formatCurrency(i.total, business.currency_symbol)}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="3" style="text-align: right; font-weight: bold; padding: 12px 0;">Grand Total:</td>
+          <td style="text-align: right; font-weight: bold; padding: 12px 0; font-size: 18px;">${formatCurrency(total, business.currency_symbol)}</td>
+        </tr>
+      </tfoot>
+    </table>
+    
+    <div style="text-align: center; margin-top: 40px; font-size: 12px; color: #777;">
+      <p>Powered by Jomish Tech Hub</p>
+    </div>
+  `;
+
+  const opt = {
+    margin:       0.5,
+    filename:     `${title.toLowerCase()}_${new Date().getTime()}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+  };
+
+  html2pdf().set(opt).from(element).save().then(() => {
+    toast('Success', `${title} downloaded!`, 'success');
+  }).catch(e => {
+    console.error(e);
+    toast('Error', `Could not generate ${title}.`, 'error');
+  });
+}

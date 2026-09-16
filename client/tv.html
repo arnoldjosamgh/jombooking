@@ -192,8 +192,9 @@
     .tv-order-item:hover { transform: translateY(-2px); }
 
     .col-preparing .tv-order-item { 
-      border-left: 4px solid var(--border);
-      opacity: 0.8;
+      border-left: 4px solid var(--red);
+      background-color: rgba(224, 16, 16, 0.05); /* Slight red tint */
+      opacity: 0.9;
     }
     
     .col-ready .tv-order-item { 
@@ -202,6 +203,16 @@
       border: 1px solid var(--white);
       border-left: 6px solid var(--red);
       box-shadow: 6px 6px 0px var(--red);
+    }
+    
+    /* Animation for moving to ready */
+    .animate-to-ready {
+      animation: slideReady 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    
+    @keyframes slideReady {
+      0%   { transform: translateX(-50px) scale(0.9); opacity: 0; }
+      100% { transform: translateX(0) scale(1); opacity: 1; }
     }
 
     /* ── Large readable text ── */
@@ -212,7 +223,7 @@
       letter-spacing: -0.02em;
       line-height: 1;
     }
-    .col-preparing .order-num { color: var(--muted); }
+    .col-preparing .order-num { color: var(--red); }
     .col-ready     .order-num { color: var(--dark); }
 
     .order-name {
@@ -221,7 +232,7 @@
       font-weight: 700;
       margin-top: 6px;
     }
-    .col-preparing .order-name { color: var(--muted); }
+    .col-preparing .order-name { color: var(--red); opacity: 0.8; }
     .col-ready     .order-name { color: var(--dark); font-weight: 900; }
     
     .order-sub {
@@ -231,7 +242,7 @@
       font-weight: 600;
       letter-spacing: 0.02em;
     }
-    .col-preparing .order-sub { color: var(--muted); }
+    .col-preparing .order-sub { color: var(--red); opacity: 0.6; }
     .col-ready     .order-sub { color: #555555; }
 
     /* Empty state */
@@ -573,6 +584,8 @@
       } catch(e) { console.error('[orders]', e); }
     }
 
+    let previousReadyIds = [];
+
     function renderOrderList(listId, countId, items, emptyMsg) {
       const container = document.getElementById(listId);
       const countEl   = document.getElementById(countId);
@@ -583,6 +596,7 @@
         const key = i.group_key;
         if (!groupedMap.has(key)) {
           groupedMap.set(key, {
+            id: i.id,
             receipt: i.receipt,
             name:    i.name,
             loc:     i.loc
@@ -600,21 +614,34 @@
 
       if (!orders.length) {
         container.innerHTML = `<div class="tv-empty">${emptyMsg}</div>`;
+        if (listId === 'ready-list') previousReadyIds = [];
         return;
       }
 
       const newHtml = orders.map(o => {
         const num = (o.receipt || '').replace(/^ORD-0+/, '#').replace(/^ORD-/, '#') || '#?';
         const loc = o.loc ? `<div class="order-sub">${o.loc}</div>` : '';
+        
+        let extraClass = '';
+        if (listId === 'ready-list' && !previousReadyIds.includes(o.id)) {
+          extraClass = 'animate-to-ready';
+        }
+        
         return `
-          <div class="tv-order-item">
+          <div class="tv-order-item ${extraClass}">
             <div class="order-num">${num}</div>
             <div class="order-name">${o.name}</div>
             ${loc}
           </div>`;
       }).join('');
 
-      if (container.innerHTML !== newHtml) container.innerHTML = newHtml;
+      if (container.innerHTML !== newHtml) {
+        container.innerHTML = newHtml;
+      }
+      
+      if (listId === 'ready-list') {
+        previousReadyIds = orders.map(o => o.id);
+      }
     }
 
     // ── Media Slideshow ─────────────────────────────────────

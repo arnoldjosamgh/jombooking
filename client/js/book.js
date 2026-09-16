@@ -50,6 +50,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       initSocket();
       const floatBtn = document.getElementById('float-chat-btn');
       if (floatBtn) floatBtn.style.display = 'flex';
+
+      // Register for push notifications so seller can notify client
+      registerClientPush(c.id);
     });
   } catch (err) {
     renderError('Business not found. Check your link and try again.');
@@ -497,6 +500,16 @@ function initSocket() {
   if (typeof io === 'undefined') return;
   socket = io();
 
+  // Join chat room on connect so server can route events back to this client
+  socket.on('connect', () => {
+    if (business && client) {
+      socket.emit('join:chat', { businessId: business.id, clientId: client.id });
+    }
+  });
+  if (socket.connected && business && client) {
+    socket.emit('join:chat', { businessId: business.id, clientId: client.id });
+  }
+
   socket.on('slot:taken', ({ time }) => {
     const sel = document.getElementById('slot-select');
     if (sel) {
@@ -511,6 +524,104 @@ function initSocket() {
       toast('Slot Taken', 'Someone just booked that slot. Please choose another.', 'error');
     }
   });
+
+  // Seller marked booking complete — auto-download receipt on client side
+  socket.on('booking:completed', ({ bookingId, bizSlug }) => {
+    toast('Service Complete', 'Your receipt is ready. Downloading now...', 'success');
+    setTimeout(() => triggerBookingReceiptDownload(bookingId, bizSlug || (business && business.slug)), 800);
+  });
+
+  // Seller cancelled booking — show reason
+  socket.on('booking:cancelled', ({ reason }) => {
+    const msg = reason
+      ? `Your booking was cancelled. Reason: ${reason}`
+      : 'Your booking was cancelled by the seller.';
+    toast('Booking Cancelled', msg, 'error');
+  });
+}
+
+// Register this client device for web push notifications
+async function registerClientPush(clientId) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const vapidKey = await fetch('/api/push/vapidPublicKey').then(r => r.text());
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
+    }
+    await fetch('/api/push/subscribe-client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, client_id: clientId })
+    });
+  } catch (err) { console.error('[push] Client push registration failed:', err); }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const out = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) out[i] = rawData.charCodeAt(i);
+  return out;
+}
+
+// Service worker postMessage — fired when user taps a push notification
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (!event.data) return;
+    if (event.data.type === 'download-receipt') {
+      const urlParams = new URLSearchParams(new URL(event.data.url, window.location.origin).search);
+      const bId = urlParams.get('booking_id');
+      if (bId) triggerBookingReceiptDownload(bId, business ? business.slug : null);
+    } else if (event.data.type === 'cancelled') {
+      toast('Booking Cancelled', 'Your booking was cancelled by the seller.', 'error');
+    }
+  });
+}
+
+async function triggerBookingReceiptDownload(bookingId, bizSlug) {
+  try {
+    const services = Object.values(serviceCart);
+    const svcNames = services.length ? services.map(s => s.name).join(', ') : ((booking && booking.service_name) || 'Service');
+    const total = services.reduce((sum, s) => sum + parseFloat(s.price || 0), 0) || parseFloat((booking && (booking.total_price || booking.price)) || 0);
+    if (typeof html2pdf !== 'undefined') {
+      html2pdf().set({
+        margin: 0.5,
+        filename: `receipt_booking_${bookingId}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'in', format: 'letter' }
+      }).from(buildReceiptElement(svcNames, total, bookingId)).save();
+    } else {
+      toast('Receipt', 'PDF library not loaded yet. Please try again.', 'error');
+    }
+  } catch (err) {
+    toast('Error', 'Could not download receipt.', 'error');
+  }
+}
+
+function buildReceiptElement(svcNames, total, bookingId) {
+  const el = document.createElement('div');
+  el.style.cssText = 'padding:30px; font-family:Arial,sans-serif; color:#000; width:100%;';
+  const bizName = (business && business.name) || 'Business';
+  const clientName = (client && client.name) || 'Client';
+  const sym = (business && business.currency_symbol) || '$';
+  el.innerHTML = `
+    <h1 style="font-size:22px;margin-bottom:4px">${bizName}</h1>
+    <h2 style="font-size:15px;color:#555;margin-bottom:16px">Service Receipt</h2>
+    <p style="font-size:13px;margin:4px 0"><strong>Ref:</strong> BK-${String(bookingId).padStart(5,'0')}</p>
+    <p style="font-size:13px;margin:4px 0"><strong>Client:</strong> ${clientName}</p>
+    <p style="font-size:13px;margin:4px 0"><strong>Date:</strong> ${new Date().toLocaleString()}</p>
+    <hr style="margin:16px 0">
+    <p style="font-size:14px;margin:8px 0">${svcNames}</p>
+    <hr style="margin:16px 0">
+    <p style="font-size:18px;font-weight:bold">Total: ${sym}${parseFloat(total).toFixed(2)}</p>
+    <p style="font-size:12px;color:#777;margin-top:30px;text-align:center">Thank you for choosing ${bizName}. Powered by Jomish.</p>
+  `;
+  return el;
 }
 
 // ─── STANDALONE FLOATING CHAT ──────────────────────────────────────────────────

@@ -51,6 +51,9 @@ window.addEventListener('DOMContentLoaded', async () => {
       // Show floating chat button once client is registered
       const floatBtn = document.getElementById('float-chat-btn');
       if (floatBtn) floatBtn.style.display = 'flex';
+
+      // Register for push notifications so seller can notify client
+      registerClientPush(c.id);
     });
   } catch (err) {
     renderError('Business not found. Check your link and try again.');
@@ -385,6 +388,81 @@ function initSocket() {
       }
     }
   });
+
+  // Listen for order:completed — auto-download receipt on client side
+  socket.on('order:completed', ({ orderId: completedId, bizSlug }) => {
+    toast('Order Complete', 'Your receipt is ready. Downloading now...', 'success');
+    setTimeout(() => triggerClientReceiptDownload(completedId, bizSlug || (business && business.slug)), 800);
+  });
+
+  // Listen for booking:cancelled — show reason toast
+  socket.on('booking:cancelled', ({ reason }) => {
+    const msg = reason
+      ? `Your booking was cancelled. Reason: ${reason}`
+      : 'Your booking was cancelled by the seller.';
+    toast('Booking Cancelled', msg, 'error');
+  });
+}
+
+// Register this client device for web push notifications
+async function registerClientPush(clientId) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      const vapidKey = await fetch('/api/push/vapidPublicKey').then(r => r.text());
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidKey) });
+    }
+    await fetch('/api/push/subscribe-client', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub, client_id: clientId })
+    });
+  } catch (err) { console.error('[push] Client push registration failed:', err); }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const out = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) out[i] = rawData.charCodeAt(i);
+  return out;
+}
+
+// Service worker postMessage — fired when user taps a push notification
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (!event.data) return;
+    if (event.data.type === 'download-receipt') {
+      const urlParams = new URLSearchParams(new URL(event.data.url, window.location.origin).search);
+      const oId = urlParams.get('order_id');
+      if (oId) triggerClientReceiptDownload(oId, business ? business.slug : null);
+    } else if (event.data.type === 'cancelled') {
+      const urlParams = new URLSearchParams(new URL(event.data.url, window.location.origin).search);
+      toast('Booking Cancelled', 'Your booking was cancelled by the seller.', 'error');
+    }
+  });
+}
+
+async function triggerClientReceiptDownload(oId, bizSlug) {
+  try {
+    const slug = bizSlug || (business && business.slug);
+    if (!slug) return;
+    const res = await apiFetch(`/api/orders/list/${slug}`);
+    const myOrders = res.filter(o => String(o.id) === String(oId));
+    if (!myOrders.length) { toast('Receipt', 'Order details not found.', 'error'); return; }
+    const items = myOrders.map(o => ({
+      name: o.product_title, price: parseFloat(o.price || 0),
+      qty: o.quantity || 1, total: parseFloat(o.price || 0) * (o.quantity || 1)
+    }));
+    generatePdfDoc('Receipt', items, 'Paid & Completed');
+  } catch (err) {
+    toast('Error', 'Could not download receipt.', 'error');
+  }
 }
 
 

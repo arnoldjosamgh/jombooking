@@ -399,11 +399,26 @@ router.patch('/:id/status', authenticate, async (req, res) => {
 
           if (status === 'ready') {
             sendPushToClient(order.client_id, {
-              title: 'Receipt Received & Order Ready',
+              type: 'order-ready',
+              title: 'Order Ready — Collect Now',
               body: `Your order for ${p.title} is ready. Click to view/download receipt.`,
               url: `/c/${p.slug}?action=download-receipt`,
               icon: p.logo_url
             });
+          } else if (status === 'completed') {
+            sendPushToClient(order.client_id, {
+              type: 'download-receipt',
+              title: 'Receipt Ready — Download Now',
+              body: `Your receipt for ${p.title} is ready. Tap to download.`,
+              url: `/c/${p.slug}?action=download-receipt&order_id=${order.id}`,
+              icon: p.logo_url
+            });
+            // Emit socket event to client room for instant download
+            const io2 = req.app.get('io');
+            if (io2) {
+              const room = `chat-${order.business_id}-${order.client_id}`;
+              io2.to(room).emit('order:completed', { orderId: order.id, bizSlug: p.slug });
+            }
           }
         }
       } catch (err) {

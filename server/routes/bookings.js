@@ -8,7 +8,7 @@ const router  = express.Router();
 const db      = require('../db');
 const { requireFields }  = require('../middleware/validate');
 const { authenticate }   = require('./auth');
-const { sendPushToSeller } = require('./push');
+const { sendPushToSeller, sendPushToClient } = require('./push');
 
 /**
  * generateSlots(businessId, dateStr, serviceId)
@@ -246,23 +246,64 @@ router.patch('/:id/status', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(
-      `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price) WHERE id = $4 RETURNING id, status, price, business_id`,
+      `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price) WHERE id = $4 RETURNING id, status, price, business_id, client_id`,
       [status, req.user.id, final_price !== undefined ? final_price : null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });
-    
-    // Emit socket event to update TV
+    const booking = result.rows[0];
+
+    // Push notification to client on ready or completed
+    if ((status === 'ready' || status === 'completed') && booking.client_id) {
+      try {
+        const infoRes = await db.query(
+          `SELECT b.slug, b.name AS biz_name, b.logo_url, s.name AS svc_name
+           FROM bookings bk
+           JOIN businesses b ON bk.business_id = b.id
+           LEFT JOIN services s ON bk.service_id = s.id
+           WHERE bk.id = $1`, [req.params.id]
+        );
+        if (infoRes.rows.length > 0) {
+          const info = infoRes.rows[0];
+          if (status === 'ready') {
+            sendPushToClient(booking.client_id, {
+              type: 'order-ready',
+              title: 'Your Booking is Ready',
+              body: `${info.svc_name || 'Your service'} is ready. Collect now!`,
+              url: `/book.html?slug=${info.slug}`,
+              icon: info.logo_url
+            });
+          } else if (status === 'completed') {
+            sendPushToClient(booking.client_id, {
+              type: 'download-receipt',
+              title: 'Receipt Ready — Download Now',
+              body: `Your receipt for ${info.svc_name || 'your service'} is ready. Tap to download.`,
+              url: `/book.html?slug=${info.slug}&action=download-receipt&booking_id=${req.params.id}`,
+              icon: info.logo_url
+            });
+            // Also emit socket event to client room for instant download
+            const io = req.app.get('io');
+            if (io) {
+              const room = `chat-${booking.business_id}-${booking.client_id}`;
+              io.to(room).emit('booking:completed', { bookingId: req.params.id, bizSlug: info.slug });
+            }
+          }
+        }
+      } catch (pushErr) {
+        console.error('[bookings] Push/notify error:', pushErr.message);
+      }
+    }
+
+    // Emit socket event to update TV display
     const io = req.app.get('io');
     if (io) {
-      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [result.rows[0].business_id]);
+      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [booking.business_id]);
       if (bizRes.rows.length > 0) {
-        const channel = bizRes.rows[0].pusher_channel || `biz-${result.rows[0].business_id}`;
-        // Emit 'order:status' which the TV listens to for reloading
+        const channel = bizRes.rows[0].pusher_channel || `biz-${booking.business_id}`;
         io.to(`seller-${channel}`).emit('order:status', { bookingId: req.params.id, status });
       }
     }
 
-    res.json(result.rows[0]);
+    res.json(booking);
   } catch (err) {
     console.error('[bookings] PATCH status error:', err.message);
     res.status(500).json({ error: 'Server error' });
@@ -298,8 +339,8 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     const svcLabel = bk.service_name || 'your appointment';
     const timeLabel = new Date(bk.booking_time).toLocaleString();
     const msgContent = reason
-      ? `❌ Your booking for ${svcLabel} on ${timeLabel} has been cancelled.\n\nReason: ${reason}`
-      : `❌ Your booking for ${svcLabel} on ${timeLabel} has been cancelled by the seller.`;
+      ? `Your booking for ${svcLabel} on ${timeLabel} has been cancelled.\n\nReason: ${reason}`
+      : `Your booking for ${svcLabel} on ${timeLabel} has been cancelled by the seller.`;
 
     const msgResult = await db.query(
       `INSERT INTO messages (business_id, client_id, sender, content)
@@ -313,6 +354,27 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     if (io) {
       const room = `chat-${bk.business_id}-${bk.client_id}`;
       io.to(room).emit('chat:message', msg);
+      // Also emit a dedicated cancellation event the client UI listens to
+      io.to(room).emit('booking:cancelled', { bookingId: bookingId, reason: reason || null });
+    }
+
+    // Send push notification to client about the cancellation
+    if (bk.client_id) {
+      try {
+        const bizRes = await db.query('SELECT slug, logo_url FROM businesses WHERE id = $1', [bk.business_id]);
+        const biz = bizRes.rows[0] || {};
+        sendPushToClient(bk.client_id, {
+          type: 'cancelled',
+          title: 'Booking Cancelled',
+          body: reason
+            ? `Your ${svcLabel} booking was cancelled. Reason: ${reason}`
+            : `Your ${svcLabel} booking was cancelled by the seller.`,
+          url: `/book.html?slug=${biz.slug || ''}`,
+          icon: biz.logo_url || null
+        });
+      } catch (pushErr) {
+        console.error('[bookings] cancel push error:', pushErr.message);
+      }
     }
 
     res.json({ ok: true, message_sent: msg });

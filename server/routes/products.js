@@ -307,6 +307,8 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
     let total = 0;
     const createdOrders = [];
 
+    const orderGroupId = require('crypto').randomUUID();
+
     for (const item of items) {
       const qty = parseInt(item.qty);
       // Decrement stock atomically
@@ -324,9 +326,9 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
       total += price * qty;
 
       const order = await client.query(
-        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, total_price, notes, seller_id)
-         VALUES ($1, $2, $3, $4, 'ready', $5, $6, $7) RETURNING id`,
-        [business_id, clientId, item.product_id, qty, price * qty, notes || null, req.user.id]
+        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, total_price, notes, seller_id, order_group_id)
+         VALUES ($1, $2, $3, $4, 'ready', $5, $6, $7, $8) RETURNING id`,
+        [business_id, clientId, item.product_id, qty, price * qty, notes || null, req.user.id, orderGroupId]
       );
       createdOrders.push({ id: order.rows[0].id, product: stock.rows[0].title, qty, price });
     }

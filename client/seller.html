@@ -154,6 +154,14 @@
             <span>Total:</span>
             <span id="pos-total-amount">0.00</span>
           </div>
+          <div class="flex justify-between mb-8 text-sm items-center">
+            <span>Amount Given:</span>
+            <input type="number" id="pos-amount-given" class="input" style="width: 100px; padding: 4px; text-align: right;" placeholder="0.00" oninput="calculatePOSChange()">
+          </div>
+          <div class="flex justify-between mb-16 text-sm font-bold text-green" style="color: var(--accent-green);">
+            <span>Change Due:</span>
+            <span id="pos-change-due">0.00</span>
+          </div>
           <button class="btn btn-primary btn-full btn-lg" id="pos-checkout-btn" onclick="checkoutPos()" disabled
             style="display:flex;align-items:center;justify-content:center;gap:8px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/></svg>
@@ -507,7 +515,16 @@
       <h3 class="mb-16">Complete Booking</h3>
       <p class="text-dim text-sm mb-16">Finalize the amount before generating the receipt.</p>
       <label class="text-sm font-bold text-dim mb-4" style="display:block">Final Amount</label>
-      <input type="number" id="complete-final-price" class="login-input" style="background:#fff;color:#1a2461;border:1px solid #e2e8f0;margin-bottom:16px;" step="0.01">
+      <input type="number" id="complete-final-price" class="login-input" style="background:#fff;color:#1a2461;border:1px solid #e2e8f0;margin-bottom:16px;" step="0.01" oninput="calculateBookingChange()">
+      
+      <label class="text-sm font-bold text-dim mb-4" style="display:block">Amount Given</label>
+      <input type="number" id="complete-amount-given" class="login-input" style="background:#fff;color:#1a2461;border:1px solid #e2e8f0;margin-bottom:16px;" step="0.01" oninput="calculateBookingChange()">
+      
+      <div class="flex justify-between mb-16 text-sm font-bold text-green" style="color: var(--accent-green);">
+        <span>Change Due:</span>
+        <span id="complete-change-due">0.00</span>
+      </div>
+
       <input type="hidden" id="complete-booking-id">
       <div class="flex justify-end gap-8">
         <button class="btn btn-outline" onclick="closeModal('complete-modal')">Cancel</button>

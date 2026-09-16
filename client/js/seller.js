@@ -614,6 +614,23 @@ function renderCart() {
   checkoutBtn.disabled = false;
 }
 
+function calculatePOSChange() {
+  const totalText = document.getElementById('pos-total-amount').textContent;
+  const total = parseFloat(totalText.replace(/[^0-9.-]+/g, '')) || 0;
+  const given = parseFloat(document.getElementById('pos-amount-given').value) || 0;
+  let change = given - total;
+  if (change < 0) change = 0;
+  document.getElementById('pos-change-due').textContent = formatCurrency(change);
+}
+
+function calculateBookingChange() {
+  const total = parseFloat(document.getElementById('complete-final-price').value) || 0;
+  const given = parseFloat(document.getElementById('complete-amount-given').value) || 0;
+  let change = given - total;
+  if (change < 0) change = 0;
+  document.getElementById('complete-change-due').textContent = formatCurrency(change);
+}
+
 async function checkoutPos() {
   const isService = selectedBiz.type === 'service';
   const items = Object.values(posCart);
@@ -1375,22 +1392,46 @@ async function renderPending() {
       
       if (orders.length > 0) {
         html += `<h4><i data-lucide="shopping-bag" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Product Orders</h4><div class="list-group mb-24">`;
-        html += orders.map(o => `
+        
+        // Group orders by order_group_id OR client_id + status
+        const groupedMap = new Map();
+        orders.forEach(o => {
+          const key = o.order_group_id || `${o.client_id}-${o.status}`;
+          if (!groupedMap.has(key)) {
+            groupedMap.set(key, {
+              ids: [],
+              client_id: o.client_id,
+              client_name: o.client_name,
+              client_location: o.client_location,
+              status: o.status,
+              created_at: o.created_at,
+              items: []
+            });
+          }
+          const group = groupedMap.get(key);
+          group.ids.push(o.id);
+          group.items.push(`${o.product_title} (x${o.quantity})`);
+        });
+
+        html += Array.from(groupedMap.values()).map(g => `
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <strong>${o.product_title}</strong> (x${o.quantity}) 
-              ${o.status === 'ready' ? '<span class="badge badge-success ml-4" style="background:var(--green);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">READY</span>' : ''}
+              <strong>${g.client_name}</strong>
+              ${g.status === 'ready' ? '<span class="badge badge-success ml-4" style="background:var(--green);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">READY</span>' : ''}
               <br>
-              <span class="text-dim text-sm">${o.client_name} ${o.client_location ? `• Table/Loc: ${o.client_location}` : ''} • ${new Date(o.created_at).toLocaleString()}</span>
+              <span class="text-dim text-sm">${g.client_location ? `Table/Loc: ${g.client_location}` : ''} • ${new Date(g.created_at).toLocaleString()}</span>
+              <ul style="margin: 8px 0 0 16px; font-size: 0.9rem;">
+                ${g.items.map(item => `<li>${item}</li>`).join('')}
+              </ul>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-              ${o.status === 'pending' ? `
-                <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${o.client_id}', '${o.client_name}', '${o.product_title.replace(/'/g, "\\'")}')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Msg</button>
-                <button class="btn btn-primary btn-sm" onclick="markOrderReady(${o.id})">Mark Ready</button>
+              ${g.status === 'pending' ? `
+                <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${g.client_id}', '${g.client_name}', 'Your order')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Msg</button>
+                <button class="btn btn-primary btn-sm" onclick="markOrderGroupReady('${g.ids.join(',')}')">Mark Ready</button>
               ` : `
-                <button class="btn btn-success btn-sm" onclick="completeOrder(${o.id})" style="background:var(--green);border:none;">Complete / Paid</button>
+                <button class="btn btn-success btn-sm" onclick="completeOrderGroup('${g.ids.join(',')}')" style="background:var(--green);border:none;">Complete / Paid</button>
               `}
-              <button class="btn btn-outline btn-sm" onclick="openChat('${o.client_id}', '${o.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Chat</button>
+              <button class="btn btn-outline btn-sm" onclick="openChat('${g.client_id}', '${g.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Chat</button>
             </div>
           </div>
         `).join('');
@@ -1606,6 +1647,18 @@ async function markOrderReady(orderId) {
   }
 }
 
+async function markOrderGroupReady(idsStr) {
+  try {
+    const ids = idsStr.split(',');
+    await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'ready' }})));
+    toast('Success', 'Order marked as Ready for collection.', 'success');
+    renderPending();
+    pollPending();
+  } catch(e) {
+    toast('Error', e.message, 'error');
+  }
+}
+
 async function markBookingReady(bookingId) {
   try {
     await apiFetch(`/api/bookings/${bookingId}/status`, { method: 'PATCH', body: { status: 'ready' }});
@@ -1620,6 +1673,19 @@ async function markBookingReady(bookingId) {
 async function completeOrder(orderId) {
   try {
     await apiFetch(`/api/orders/${orderId}/status`, { method: 'PATCH', body: { status: 'completed' }});
+    toast('Success', 'Order marked as delivered/completed.', 'success');
+    renderPending();
+    pollPending(); // update badge
+    renderPOS(); // Take user to POS
+  } catch(e) {
+    toast('Error', e.message, 'error');
+  }
+}
+
+async function completeOrderGroup(idsStr) {
+  try {
+    const ids = idsStr.split(',');
+    await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'completed' }})));
     toast('Success', 'Order marked as delivered/completed.', 'success');
     renderPending();
     pollPending(); // update badge

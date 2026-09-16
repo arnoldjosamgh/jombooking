@@ -792,55 +792,99 @@ function generatePdfDoc(title, items, status) {
   const dateStr = new Date().toLocaleString();
 
   const element = document.createElement('div');
-  element.style.padding = '30px';
-  element.style.fontFamily = 'Arial, sans-serif';
-  element.style.color = '#000';
-  element.style.width = '100%';
+  element.style.position = 'relative';
+  element.style.maxWidth = '380px';
+  element.style.margin = '0 auto';
+  element.style.background = '#ffffff';
+  element.style.overflow = 'hidden';
   
+  const logoStr = business.logo_url ? `<img src="${business.logo_url}" style="width:52px;height:52px;object-fit:contain;border-radius:10px;margin-bottom:6px">` : '';
+  const watermarkStr = business.logo_url ? `<img src="${business.logo_url}" style="width:80px;height:80px;object-fit:contain">` : '';
+
   element.innerHTML = `
-    <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">${business.name}</h1>
-    <h2 style="font-size: 18px; color: #555; margin-bottom: 20px;">${title}</h2>
-    <p style="font-size: 14px; margin-bottom: 5px;"><strong>Date:</strong> ${dateStr}</p>
-    <p style="font-size: 14px; margin-bottom: 20px;"><strong>Status:</strong> ${status}</p>
-    
-    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-      <thead>
-        <tr style="border-bottom: 2px solid #000;">
-          <th style="text-align: left; padding: 8px 0;">Item</th>
-          <th style="text-align: center; padding: 8px 0;">Qty</th>
-          <th style="text-align: right; padding: 8px 0;">Price</th>
-          <th style="text-align: right; padding: 8px 0;">Total</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${items.map(i => `
-          <tr style="border-bottom: 1px solid #ccc;">
-            <td style="padding: 8px 0;">${i.name}</td>
-            <td style="text-align: center; padding: 8px 0;">${i.qty}</td>
-            <td style="text-align: right; padding: 8px 0;">${formatCurrency(i.price, business.currency_symbol)}</td>
-            <td style="text-align: right; padding: 8px 0;">${formatCurrency(i.total, business.currency_symbol)}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="3" style="text-align: right; font-weight: bold; padding: 12px 0;">Grand Total:</td>
-          <td style="text-align: right; font-weight: bold; padding: 12px 0; font-size: 18px;">${formatCurrency(total, business.currency_symbol)}</td>
-        </tr>
-      </tfoot>
-    </table>
-    
-    <div style="text-align: center; margin-top: 40px; font-size: 12px; color: #777;">
-      <p>Powered by Jomish Tech Hub</p>
+    <!-- Watermark -->
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);opacity:0.05;z-index:0;pointer-events:none;text-align:center">
+      ${watermarkStr}
+    </div>
+
+    <!-- Inner padded content -->
+    <div style="padding:6mm 5mm;position:relative;z-index:1;font-family:sans-serif;">
+
+      <!-- Header: logo + biz name -->
+      <div style="text-align:center;margin-bottom:10px">
+        ${logoStr}
+        <div style="font-size:15px;font-weight:800;letter-spacing:-0.02em;color:#1a2461">${business.name}</div>
+        <div style="font-size:9px;color:#64748b;margin-top:2px">${business.location || ''}</div>
+        <div style="font-size:9px;color:#64748b">${business.phone_number || ''}</div>
+      </div>
+
+      <!-- Gradient divider -->
+      <div style="height:2px;background:linear-gradient(90deg,#1a2461,#f4a81d,#1a2461);border-radius:2px;margin-bottom:10px"></div>
+
+      <!-- RECEIPT badge -->
+      <div style="text-align:center;margin-bottom:10px">
+        <span style="background:#1a2461;color:#f4a81d;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;text-transform:uppercase">OFFICIAL RECEIPT</span>
+      </div>
+
+      <!-- Order meta -->
+      <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:#64748b">Receipt No.</span>
+          <span style="font-weight:700;color:#1a2461">${title}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+          <span style="color:#64748b">Date</span>
+          <span style="color:#1a2461">${dateStr}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:#64748b">Client</span>
+          <span style="font-weight:600;color:#1a2461">${localStorage.getItem('clientName') || 'Guest'}</span>
+        </div>
+      </div>
+
+      <!-- Line items header -->
+      <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#94a3b8;margin-bottom:6px;padding:0 2px">
+        <span>Description</span><span>Amount</span>
+      </div>
+      <div style="border-top:1px dashed #e2e8f0;margin-bottom:6px"></div>
+
+      <!-- Line items -->
+      ${items.map(i => `
+      <div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 2px;margin-bottom:4px;color:#1a2461">
+        <span style="flex:1;padding-right:8px">${i.name} (x${i.qty})</span>
+        <span style="font-weight:600">${formatCurrency(i.total, business.currency_symbol)}</span>
+      </div>
+      `).join('')}
+
+      <div style="border-top:1px dashed #e2e8f0;margin-bottom:8px"></div>
+
+      <!-- Total -->
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#1a2461;color:#fff;border-radius:8px;padding:8px 10px">
+        <span style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em">Total</span>
+        <span style="font-size:14px;font-weight:800;color:#f4a81d">${formatCurrency(total, business.currency_symbol)}</span>
+      </div>
+
+      <!-- Paid stamp -->
+      ${status.toLowerCase().includes('paid') || status.toLowerCase().includes('completed') || status.toLowerCase().includes('ready') ? `
+      <div style="text-align:center;margin:10px 0">
+        <span style="border:2px solid #10b981;color:#10b981;font-size:10px;font-weight:800;letter-spacing:0.1em;padding:3px 12px;border-radius:4px;text-transform:uppercase">✓ PAID</span>
+      </div>
+      ` : ''}
+
+      <!-- Footer -->
+      <div style="text-align:center;margin-top:15px;font-size:8px;color:#94a3b8">
+        Thank you for your business!<br>
+        Powered by Jomish Business Suite
+      </div>
     </div>
   `;
 
   const opt = {
-    margin:       0.5,
-    filename:     `${title.toLowerCase()}_${new Date().getTime()}.pdf`,
+    margin:       [4, 4, 4, 4],
+    filename:     `receipt_${new Date().getTime()}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
-    html2canvas:  { scale: 2 },
-    jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: [90, 200], orientation: 'portrait' }
   };
 
   html2pdf().set(opt).from(element).save().then(() => {

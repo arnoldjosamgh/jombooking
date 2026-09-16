@@ -181,15 +181,28 @@
     .tv-order-item {
       padding: 20px 24px;
       border-radius: 0;
+      background-color: var(--dark);
+      background-image: radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px);
+      background-size: 10px 10px;
       border: 1px solid var(--border);
-      background: transparent;
       animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      transition: background 0.2s;
+      transition: all 0.2s;
+      position: relative;
     }
-    .tv-order-item:hover { background: rgba(255,255,255,0.05); }
+    .tv-order-item:hover { transform: translateY(-2px); }
 
-    .col-preparing .tv-order-item { border-left: 4px solid var(--border); }
-    .col-ready     .tv-order-item { border-left: 4px solid var(--red); }
+    .col-preparing .tv-order-item { 
+      border-left: 4px solid var(--border);
+      opacity: 0.8;
+    }
+    
+    .col-ready .tv-order-item { 
+      background-color: var(--white);
+      background-image: radial-gradient(rgba(0,0,0,0.15) 1px, transparent 1px);
+      border: 1px solid var(--white);
+      border-left: 6px solid var(--red);
+      box-shadow: 6px 6px 0px var(--red);
+    }
 
     /* ── Large readable text ── */
     .order-num {
@@ -200,23 +213,26 @@
       line-height: 1;
     }
     .col-preparing .order-num { color: var(--muted); }
-    .col-ready     .order-num { color: var(--text); }
+    .col-ready     .order-num { color: var(--dark); }
 
     .order-name {
       font-family: 'Doto', monospace;
       font-size: 1.35rem;
       font-weight: 700;
-      color: var(--text);
       margin-top: 6px;
     }
+    .col-preparing .order-name { color: var(--muted); }
+    .col-ready     .order-name { color: var(--dark); font-weight: 900; }
+    
     .order-sub {
       font-family: 'Doto', monospace;
       font-size: 1.05rem;
-      color: var(--muted);
       margin-top: 4px;
       font-weight: 600;
       letter-spacing: 0.02em;
     }
+    .col-preparing .order-sub { color: var(--muted); }
+    .col-ready     .order-sub { color: #555555; }
 
     /* Empty state */
     .tv-empty {

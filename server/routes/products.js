@@ -23,7 +23,7 @@ router.get('/list/:business_id', async (req, res) => {
       : 'o.business_id = (SELECT id FROM businesses WHERE slug = $1 LIMIT 1)';
 
     let query = `
-      SELECT o.id, o.order_group_id, o.quantity, o.status, o.created_at, o.total_price, o.notes, o.seller_id,
+      SELECT o.id, o.order_group_id, o.quantity, o.status, o.created_at, o.updated_at, o.total_price, o.notes, o.seller_id,
              o.receipt_number,
              p.title AS product_title, p.price,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
@@ -39,7 +39,7 @@ router.get('/list/:business_id', async (req, res) => {
     `;
     const params = [bizParam];
     if (status) { query += ` AND o.status = $2`; params.push(status); }
-    query += ' ORDER BY o.created_at DESC LIMIT 100';
+    query += ' ORDER BY COALESCE(o.updated_at, o.created_at) DESC LIMIT 100';
     const result = await db.query(query, params);
     res.json(result.rows);
   } catch (err) {
@@ -374,7 +374,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status value' });
     }
     const result = await db.query(
-      `UPDATE orders SET status = $1, seller_id = $2 WHERE id = $3 RETURNING id, status, client_id, business_id, receipt_number, quantity`,
+      `UPDATE orders SET status = $1, seller_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id, status, client_id, business_id, receipt_number, quantity`,
       [status, req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });

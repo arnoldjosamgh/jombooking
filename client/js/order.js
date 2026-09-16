@@ -54,6 +54,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 
       // Register for push notifications so seller can notify client
       registerClientPush(c.id);
+
+      if (socket && socket.connected) {
+        socket.emit('join:chat', { businessId: business.id, clientId: c.id });
+      }
     });
   } catch (err) {
     renderError('Business not found. Check your link and try again.');

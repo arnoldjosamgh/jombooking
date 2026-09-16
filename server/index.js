@@ -174,6 +174,8 @@ const db = require('./db');
 db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_ids JSONB;`)
   .then(() => db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_duration INT DEFAULT 0;`))
   .then(() => db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS total_price NUMERIC(10,2) DEFAULT 0;`))
+  .then(() => db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`))
+  .then(() => db.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;`))
   .then(() => {
     server.listen(PORT, () => {
       console.log(`\n🚀 Jomish Booking and Delivering Management System running on http://localhost:${PORT}`);

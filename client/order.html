@@ -97,6 +97,13 @@
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/app.js"></script>
   <script src="/js/order.js"></script>
-  <script>if(window.lucide) lucide.createIcons();</script>
+  <script>
+    if(window.lucide) lucide.createIcons();
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(err => console.error('SW init failed:', err));
+      });
+    }
+  </script>
 </body>
 </html>

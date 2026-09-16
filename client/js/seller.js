@@ -1520,7 +1520,7 @@ async function renderHistory() {
         type: 'Product',
         title: `${o.product_title} (x${o.quantity})`,
         client: o.client_name,
-        date: new Date(o.created_at),
+        date: new Date(o.updated_at || o.created_at),
         seller: o.seller_username || 'Unknown',
         price: o.total_price,
         raw: o
@@ -1533,7 +1533,7 @@ async function renderHistory() {
         type: 'Service',
         title: b.service_name || 'Booking',
         client: b.client_name,
-        date: new Date(b.booking_time),
+        date: new Date(b.updated_at || b.booking_time),
         seller: b.seller_username || 'Unknown',
         price: b.service_price,
         raw: b

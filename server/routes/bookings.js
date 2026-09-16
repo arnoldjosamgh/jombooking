@@ -210,7 +210,7 @@ router.get('/list/:business_id', async (req, res) => {
       : 'b.business_id = (SELECT id FROM businesses WHERE slug = $1 LIMIT 1)';
 
     let query = `
-      SELECT b.id, b.booking_time, b.status, b.created_at, b.service_id, b.seller_id,
+      SELECT b.id, b.booking_time, b.status, b.created_at, b.updated_at, b.service_id, b.seller_id,
              b.receipt_number, b.service_ids, b.total_duration, b.total_price,
              c.id AS client_id, c.name AS client_name, c.location AS client_location,
              s.name AS service_name, s.price AS service_price, s.duration_minutes,
@@ -228,7 +228,11 @@ router.get('/list/:business_id', async (req, res) => {
     if (date)       { params.push(date);       query += ` AND DATE(b.booking_time) = $${params.length}::date`; }
     if (status)     { params.push(status);     query += ` AND b.status = $${params.length}`; }
     if (service_id) { params.push(service_id); query += ` AND b.service_id = $${params.length}`; }
-    query += ' ORDER BY b.booking_time ASC LIMIT 300';
+    if (status === 'completed') {
+      query += ' ORDER BY COALESCE(b.updated_at, b.created_at, b.booking_time) DESC LIMIT 300';
+    } else {
+      query += ' ORDER BY b.booking_time ASC LIMIT 300';
+    }
 
     const result = await db.query(query, params);
     res.json(result.rows);
@@ -246,7 +250,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
     const result = await db.query(
-      `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price) WHERE id = $4 RETURNING id, status, price, business_id, client_id`,
+      `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, status, price, business_id, client_id`,
       [status, req.user.id, final_price !== undefined ? final_price : null, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Booking not found' });

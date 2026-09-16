@@ -409,7 +409,6 @@ function showBookingSuccess() {
           </div>
         </div>
         <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center">
-          <button class="btn btn-primary" onclick="downloadBookingReceipt()">Download Invoice</button>
           <button class="btn btn-outline" onclick="window.location.reload()">Book Another</button>
         </div>
       </div>

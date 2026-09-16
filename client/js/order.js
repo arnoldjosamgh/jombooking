@@ -294,7 +294,7 @@ function showOrderSuccess(orders) {
               </div>
               
               <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;justify-content:center">
-                <button class="btn btn-primary" onclick="downloadOrderReceipt('${orderIds.join(',')}')">📥 Download Receipt</button>
+                <button class="btn btn-primary" onclick="downloadOrderReceipt('${orderIds.join(',')}')">📥 Download Invoice</button>
                 <button class="btn btn-outline" onclick="window.location.reload()">Place Another</button>
               </div>
             </div>
@@ -331,7 +331,6 @@ function showOrderSuccess(orders) {
           <button class="btn btn-primary btn-full pulse" id="waiting-btn" onclick="iAmWaiting()">
             <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> I'm Waiting — Notify Seller
           </button>
-          <button class="btn btn-outline btn-full" onclick="downloadOrderReceipt('${orderIds.join(',')}')">📥 Download Invoice</button>
           <button class="btn btn-outline btn-full" onclick="window.location.reload()">Place Another Order</button>
         </div>
       </div>

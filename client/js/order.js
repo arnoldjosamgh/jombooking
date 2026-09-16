@@ -24,7 +24,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     business = await apiFetch(`/api/businesses/${slug}`);
     Session.setBusiness(business);
 
-    if (business.type !== 'product') {
+    if (business.type === 'service') {
       window.location.href = `/book.html?slug=${slug}`;
       return;
     }

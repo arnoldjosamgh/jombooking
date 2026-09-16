@@ -12,10 +12,7 @@
   <meta name="theme-color" content="#f4a81d">
   <link rel="icon" href="/img/logo.png">
   <link rel="stylesheet" href="/css/style.css">
-  <!-- ZXing for barcode scanning -->
-  <script type="text/javascript" src="https://unpkg.com/@zxing/browser@latest"></script>
   <!-- Modern QR Code Styling -->
-  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
   <!-- Lucide SVG icons -->
   <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
   <!-- SimpleWebAuthn for biometric setup -->
@@ -135,17 +132,10 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add Product
             </button>
-            <button class="btn btn-primary ml-8" onclick="startBarcodeScanner()" style="display:inline-flex;align-items:center;gap:6px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="4" height="16"/><rect x="8" y="4" width="2" height="16"/><rect x="12" y="4" width="3" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="21" y="4" width="1" height="16"/></svg>
-              Scan Barcode
-            </button>
           </div>
         </div>
 
-        <div id="scanner-container" style="display:none;margin-bottom:16px">
-          <video id="video" width="100%" height="200" style="border-radius:8px;background:#000"></video>
-          <button class="btn btn-outline btn-full mt-8" onclick="stopBarcodeScanner()">Cancel Scan</button>
-        </div>
+
 
         <div class="product-grid" id="pos-product-grid"></div>
       </div>
@@ -314,7 +304,7 @@
         </div>
         <div class="form-group">
           <label>Barcode <span class="text-dim text-xs">(optional)</span></label>
-          <input type="text" id="ap-barcode" placeholder="Scan or type barcode number">
+          <input type="text" id="ap-barcode" placeholder="Scan or type barcode number" onkeydown="if(event.key==='Enter')event.preventDefault()">
         </div>
         <div class="form-group">
           <label>Initial Stock Quantity</label>

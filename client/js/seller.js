@@ -9,9 +9,7 @@ let businesses  = [];
 let socket      = null;
 let posCart     = {}; // { product_id: { ...product, qty } }
 let posProducts = [];
-let scannerActive = false;
 let currentWeekStart = null;
-let codeReader = null;
 
 // Format currency for receipts
 function formatCurrency2(amount) {
@@ -487,9 +485,14 @@ document.getElementById('edit-stock-form').addEventListener('submit', async (e) 
 let barcodeBuffer = '';
 let barcodeTimeout = null;
 document.addEventListener('keydown', (e) => {
-  // Only intercept if we are on the Inventory tab
+  // We want to intercept if we are on the Inventory tab OR the POS tab
   const invTab = document.getElementById('tab-inventory');
-  if (!invTab || !invTab.classList.contains('btn-primary')) return;
+  const posTab = document.getElementById('tab-pos');
+  
+  const isInv = invTab && invTab.classList.contains('btn-primary');
+  const isPos = posTab && posTab.classList.contains('btn-primary');
+
+  if (!isInv && !isPos) return;
 
   // Don't intercept if user is typing in an input/textarea
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
@@ -497,7 +500,7 @@ document.addEventListener('keydown', (e) => {
   // Most hardware scanners simulate keyboard typing very quickly and end with "Enter"
   if (e.key === 'Enter') {
     if (barcodeBuffer.length > 2) { // arbitrary minimum length for a barcode
-      handleHardwareBarcodeScan(barcodeBuffer);
+      handleHardwareBarcodeScan(barcodeBuffer, isPos);
     }
     barcodeBuffer = '';
     return;
@@ -512,13 +515,18 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-function handleHardwareBarcodeScan(barcode) {
+function handleHardwareBarcodeScan(barcode, isPos) {
   if (!posProducts || posProducts.length === 0) return;
   const product = posProducts.find(p => p.barcode === barcode);
   
   if (product) {
-    toast('Scanned', `Found: ${product.title}`, 'info');
-    openEditStockModal(product.id, product.title, product.stock_quantity);
+    if (isPos) {
+      toast('Scanned', `Added ${product.title} to cart`, 'success');
+      addToCart(product.id);
+    } else {
+      toast('Scanned', `Found: ${product.title}`, 'info');
+      openEditStockModal(product.id, product.title, product.stock_quantity);
+    }
   } else {
     toast('Not Found', `No product with barcode ${barcode}`, 'error');
   }
@@ -681,54 +689,7 @@ async function checkoutPos() {
   }
 }
 
-// ─── BARCODE SCANNER ───────────────────────────────────────────────────────────
-async function startBarcodeScanner() {
-  if (scannerActive) return;
-  if (!window.ZXingBrowser) { toast('Error', 'Scanner library not loaded', 'error'); return; }
-
-  const container = document.getElementById('scanner-container');
-  const video = document.getElementById('video');
-  container.style.display = 'block';
-
-  try {
-    const hints = new Map();
-    codeReader = new ZXingBrowser.BrowserMultiFormatReader();
-    scannerActive = true;
-
-    const devices = await ZXingBrowser.BrowserCodeReader.listVideoInputDevices();
-    const deviceId = devices[0]?.deviceId;
-
-    codeReader.decodeFromVideoDevice(deviceId, video, async (result, err) => {
-      if (result && scannerActive) {
-        const code = result.getText();
-        stopBarcodeScanner();
-
-        // Look up product by barcode
-        try {
-          const product = await apiFetch(`/api/products/barcode/${encodeURIComponent(code)}`);
-          addToCart(product.id);
-          toast('Scanned!', `Added ${product.title} to cart`, 'success');
-          // Merge scanned product into posProducts if not already there
-          if (!posProducts.find(p => p.id === product.id)) {
-            posProducts.push(product);
-          }
-        } catch (e) {
-          toast('Not Found', `No product with barcode ${code}`, 'error');
-        }
-      }
-    });
-  } catch (err) {
-    toast('Camera Error', 'Cannot access camera: ' + err.message, 'error');
-    stopBarcodeScanner();
-  }
-}
-
-function stopBarcodeScanner() {
-  scannerActive = false;
-  if (codeReader) { try { codeReader.reset(); } catch(e) {} codeReader = null; }
-  const c = document.getElementById('scanner-container');
-  if (c) c.style.display = 'none';
-}
+// Camera scanner removed. USB hardware scanner is used instead.
 
 // ─── ADD PRODUCT ───────────────────────────────────────────────────────────────
 function openAddProductModal() {

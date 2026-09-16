@@ -529,9 +529,9 @@ function initSocket() {
     }
   });
 
-  // Seller marked booking complete — auto-download receipt on client side
+  // Seller marked booking complete — auto-download invoice on client side
   socket.on('booking:completed', ({ bookingId, bizSlug }) => {
-    toast('Service Complete', 'Your receipt is ready. Downloading now...', 'success');
+    toast('Service Complete', 'Your invoice is ready. Downloading now...', 'success');
     setTimeout(() => triggerBookingReceiptDownload(bookingId, bizSlug || (business && business.slug)), 800);
   });
 
@@ -595,15 +595,15 @@ async function triggerBookingReceiptDownload(bookingId, bizSlug) {
     if (typeof html2pdf !== 'undefined') {
       html2pdf().set({
         margin: 0.5,
-        filename: `receipt_booking_${bookingId}.pdf`,
+        filename: `invoice_booking_${bookingId}.pdf`,
         html2canvas: { scale: 2 },
         jsPDF: { unit: 'in', format: 'letter' }
       }).from(buildReceiptElement(svcNames, total, bookingId)).save();
     } else {
-      toast('Receipt', 'PDF library not loaded yet. Please try again.', 'error');
+      toast('Invoice', 'PDF library not loaded yet. Please try again.', 'error');
     }
   } catch (err) {
-    toast('Error', 'Could not download receipt.', 'error');
+    toast('Error', 'Could not download invoice.', 'error');
   }
 }
 
@@ -615,7 +615,7 @@ function buildReceiptElement(svcNames, total, bookingId) {
   const sym = (business && business.currency_symbol) || '$';
   el.innerHTML = `
     <h1 style="font-size:22px;margin-bottom:4px">${bizName}</h1>
-    <h2 style="font-size:15px;color:#555;margin-bottom:16px">Service Receipt</h2>
+    <h2 style="font-size:15px;color:#555;margin-bottom:16px">Service Invoice</h2>
     <p style="font-size:13px;margin:4px 0"><strong>Ref:</strong> BK-${String(bookingId).padStart(5,'0')}</p>
     <p style="font-size:13px;margin:4px 0"><strong>Client:</strong> ${clientName}</p>
     <p style="font-size:13px;margin:4px 0"><strong>Date:</strong> ${new Date().toLocaleString()}</p>

@@ -398,9 +398,9 @@ function initSocket() {
     }
   });
 
-  // Listen for order:completed — auto-download receipt on client side
+  // Listen for order:completed — auto-download invoice on client side
   socket.on('order:completed', ({ orderId: completedId, bizSlug }) => {
-    toast('Order Complete', 'Your receipt is ready. Downloading now...', 'success');
+    toast('Order Complete', 'Your invoice is ready. Downloading now...', 'success');
     setTimeout(() => triggerClientReceiptDownload(completedId, bizSlug || (business && business.slug)), 800);
   });
 
@@ -463,14 +463,14 @@ async function triggerClientReceiptDownload(oId, bizSlug) {
     if (!slug) return;
     const res = await apiFetch(`/api/orders/list/${slug}`);
     const myOrders = res.filter(o => String(o.id) === String(oId));
-    if (!myOrders.length) { toast('Receipt', 'Order details not found.', 'error'); return; }
+    if (!myOrders.length) { toast('Invoice', 'Order details not found.', 'error'); return; }
     const items = myOrders.map(o => ({
       name: o.product_title, price: parseFloat(o.price || 0),
       qty: o.quantity || 1, total: parseFloat(o.price || 0) * (o.quantity || 1)
     }));
-    generatePdfDoc('Receipt', items, 'Paid & Completed');
+    generatePdfDoc('Invoice', items, 'Paid & Completed');
   } catch (err) {
-    toast('Error', 'Could not download receipt.', 'error');
+    toast('Error', 'Could not download invoice.', 'error');
   }
 }
 
@@ -612,7 +612,7 @@ function renderClientChatMsg(msg) {
     const text = contentHtml.replace('[RECEIPT]', '').trim();
     contentHtml = `
       <div style="border:1px dashed rgba(0,0,0,0.2); padding:10px; border-radius:8px; font-family:monospace; white-space:pre-wrap; margin-bottom:8px; background:rgba(255,255,255,0.5); color:#1a2461;">${text}</div>
-      <button onclick="downloadReceiptText('${encodeURIComponent(text)}')" style="padding:6px 12px; background:var(--accent-green); color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;">Download Receipt</button>
+      <button onclick="downloadReceiptText('${encodeURIComponent(text)}')" style="padding:6px 12px; background:var(--accent-green); color:white; border:none; border-radius:4px; cursor:pointer; font-size:0.75rem;">Download Invoice</button>
     `;
   }
 
@@ -733,7 +733,7 @@ async function downloadOrderReceipt(orderIdsStr) {
     a.click();
     URL.revokeObjectURL(url);
   } catch (err) {
-    toast('Error', 'Failed to generate receipt', 'error');
+    toast('Error', 'Failed to generate invoice', 'error');
   }
 }
 
@@ -743,7 +743,7 @@ window.downloadReceiptText = function(encodedText) {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href = url;
-  a.download = `Jomish-Receipt-${Date.now()}.txt`;
+  a.download = `Jomish-Invoice-${Date.now()}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 };
@@ -776,7 +776,7 @@ async function downloadOrderReceipt(ids) {
       total: o.price * o.quantity
     }));
 
-    generatePdfDoc('Receipt', items, 'Paid & Completed');
+    generatePdfDoc('Invoice', items, 'Paid & Completed');
   } catch (err) {
     toast('Error', 'Could not fetch receipt details.', 'error');
   }
@@ -823,13 +823,13 @@ function generatePdfDoc(title, items, status) {
 
       <!-- RECEIPT badge -->
       <div style="text-align:center;margin-bottom:10px">
-        <span style="background:#1a2461;color:#f4a81d;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;text-transform:uppercase">OFFICIAL RECEIPT</span>
+        <span style="background:#1a2461;color:#f4a81d;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;text-transform:uppercase">OFFICIAL INVOICE</span>
       </div>
 
       <!-- Order meta -->
       <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:10px">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="color:#64748b">Receipt No.</span>
+          <span style="color:#64748b">Invoice No.</span>
           <span style="font-weight:700;color:#1a2461">${title}</span>
         </div>
         <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -881,7 +881,7 @@ function generatePdfDoc(title, items, status) {
 
   const opt = {
     margin:       [4, 4, 4, 4],
-    filename:     `receipt_${new Date().getTime()}.pdf`,
+    filename:     `invoice_${new Date().getTime()}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
     html2canvas:  { scale: 2, useCORS: true },
     jsPDF:        { unit: 'mm', format: [90, 200], orientation: 'portrait' }

@@ -668,7 +668,7 @@ async function checkoutPos() {
     element.style.cssText = 'padding:30px;font-family:Arial,sans-serif;color:#000;';
     element.innerHTML = `
       <h1 style="font-size:22px;font-weight:bold;margin-bottom:4px">${selectedBiz.name}</h1>
-      <h2 style="font-size:16px;color:#555;margin-bottom:16px">Walk-in Receipt</h2>
+      <h2 style="font-size:16px;color:#555;margin-bottom:16px">Walk-in Invoice</h2>
       <p><strong>Date:</strong> ${new Date().toLocaleString()}</p>
       <p><strong>Customer:</strong> ${customerName}</p>
       <hr style="margin:12px 0">
@@ -695,7 +695,7 @@ async function checkoutPos() {
       <div style="text-align:center;margin-top:32px;font-size:11px;color:#888">Powered by Jomish Tech Hub</div>
     `;
     if (typeof html2pdf !== 'undefined') {
-      html2pdf().set({ margin:0.5, filename:`receipt_${Date.now()}.pdf`, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'letter'} }).from(element).save();
+      html2pdf().set({ margin:0.5, filename:`invoice_${Date.now()}.pdf`, html2canvas:{scale:2}, jsPDF:{unit:'in',format:'letter'} }).from(element).save();
     }
 
     posCart = {};
@@ -1555,12 +1555,12 @@ async function renderHistory() {
         <div>
           <strong>${i.title}</strong> <span class="badge" style="background:#e2e8f0;color:#475569;font-size:0.7rem">${i.type}</span><br>
           <span class="text-dim text-sm">Client: ${i.client} • ${i.date.toLocaleString()}</span><br>
-          <span class="text-xs" style="color:#94a3b8;">${i.raw.receipt_number || ('#' + i.raw.id)}</span>
+          <span class="text-xs" style="color:#94a3b8;">${i.raw.invoice_number || ('#' + i.raw.id)}</span>
         </div>
         <div style="text-align:right">
           <div class="font-bold">${formatCurrency(i.price || 0)}</div>
           <div class="text-xs" style="color:var(--accent-green);font-weight:bold;margin-bottom:6px;">Sold by: ${i.seller || '—'}</div>
-          <button class="btn btn-outline" style="padding:6px 14px;font-size:0.78rem;" onclick="showReceipt(${idx})"><i data-lucide="receipt" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Receipt</button>
+          <button class="btn btn-outline" style="padding:6px 14px;font-size:0.78rem;" onclick="showInvoice(${idx})"><i data-lucide="receipt" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Invoice</button>
         </div>
       </div>
     `).join('') + '</div>';
@@ -1570,13 +1570,13 @@ async function renderHistory() {
   }
 }
 
-function showReceipt(idx) {
+function showInvoice(idx) {
   const items = window._historyData;
   if (!items || !items[idx]) return;
   const i = items[idx];
   const r = i.raw;
   
-  const receiptNum = r.receipt_number || (i.type === 'Product' ? `ORD-${String(r.id).padStart(5,'0')}` : `BKG-${String(r.id).padStart(5,'0')}`);
+  const receiptNum = r.invoice_number || (i.type === 'Product' ? `ORD-${String(r.id).padStart(5,'0')}` : `BKG-${String(r.id).padStart(5,'0')}`);
   const bizName = r.business_name || selectedBiz?.name || '—';
   const bizLocation = r.business_location || selectedBiz?.location || '';
   const bizPhone = r.business_phone || selectedBiz?.phone_number || '';
@@ -1743,7 +1743,7 @@ async function confirmCompleteBooking() {
       `Service  : ${bk.service_name || 'Service'}`,
       `Date     : ${new Date(bk.booking_time).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' })}`,
       `Client   : ${bk.client_name}`,
-      `Ref      : ${bk.receipt_number || '#' + bk.id}`,
+      `Ref      : ${bk.invoice_number || '#' + bk.id}`,
       `━━━━━━━━━━━━━━━━━━━━`,
       `TOTAL    : ${formatCurrency2(finalPrice)}`,
       `━━━━━━━━━━━━━━━━━━━━`,
@@ -1759,18 +1759,18 @@ async function confirmCompleteBooking() {
         sender: 'seller',
         content: receiptMsg
       }
-    }).catch(e => console.warn('Receipt message failed:', e.message));
+    }).catch(e => console.warn('Invoice message failed:', e.message));
 
     // Also generate PDF download
-    // generateReceiptPDF(bk, finalPrice); // Auto-download disabled for online orders
+    // generateInvoicePDF(bk, finalPrice); // Auto-download disabled for online orders
   } catch(e) {
     toast('Error', e.message, 'error');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Complete & Receipt'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Complete & Invoice'; }
   }
 }
 
-function generateReceiptPDF(bk, finalPrice) {
+function generateInvoicePDF(bk, finalPrice) {
   const symbol = selectedBiz?.currency_symbol || '$';
   const logoUrl = selectedBiz?.logo_url || bk.business_logo || '';
 
@@ -1787,7 +1787,7 @@ function generateReceiptPDF(bk, finalPrice) {
   if (wmEl) { wmEl.src = logoUrl; wmEl.style.display = logoUrl ? 'block' : 'none'; }
 
   // Order meta
-  document.getElementById('receipt-id').textContent = bk.receipt_number || bk.id;
+  document.getElementById('receipt-id').textContent = bk.invoice_number || bk.id;
   document.getElementById('receipt-date').textContent = new Date().toLocaleString();
   document.getElementById('receipt-client').textContent = bk.client_name;
 
@@ -1803,7 +1803,7 @@ function generateReceiptPDF(bk, finalPrice) {
 
   const opt = {
     margin:       0,
-    filename:     `Receipt-${bk.receipt_number || bk.id}.pdf`,
+    filename:     `Invoice-${bk.invoice_number || bk.id}.pdf`,
     image:        { type: 'jpeg', quality: 0.98 },
     html2canvas:  { scale: 2, useCORS: true },
     jsPDF:        { unit: 'mm', format: [80, 170], orientation: 'portrait' }
@@ -2060,7 +2060,7 @@ async function resetBiometrics() {
   }
 }
 
-function showReceipt(transactionId, type) {
+function showInvoice(transactionId, type) {
   const t = window._historyData.find(x => x.id === transactionId && x._type === type);
   if (!t) return;
   
@@ -2081,7 +2081,7 @@ function showReceipt(transactionId, type) {
   const wmEl = document.getElementById('receipt-watermark');
   if (wmEl) { wmEl.src = logoUrl; wmEl.style.display = logoUrl ? 'block' : 'none'; }
   
-  document.getElementById('receipt-id').textContent = t.receipt_number || t.id;
+  document.getElementById('receipt-id').textContent = t.invoice_number || t.id;
   document.getElementById('receipt-date').textContent = new Date(t.created_at).toLocaleString();
   document.getElementById('receipt-client').textContent = t.client_name || 'Guest';
   
@@ -2137,12 +2137,12 @@ function closeChat() {
 
 function buildChatMessageHTML(m) {
   const isMe = m.sender === 'seller';
-  const isReceipt = m.content && m.content.startsWith('[RECEIPT]');
-  const displayContent = isReceipt ? m.content.replace('[RECEIPT]', '<strong>🧾 Receipt</strong>') : m.content;
-  const downloadBtn = isReceipt
+  const isInvoice = m.content && m.content.startsWith('[RECEIPT]');
+  const displayContent = isInvoice ? m.content.replace('[RECEIPT]', '<strong>🧾 Invoice</strong>') : m.content;
+  const downloadBtn = isInvoice
     ? `<div style="display:flex;gap:8px;margin-top:6px;">
-         <button onclick='downloadReceiptText(${JSON.stringify(m.content)})' style="padding:5px 12px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;">⬇ Download</button>
-         <button onclick='printReceiptText(${JSON.stringify(m.content)})' style="padding:5px 12px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;">🖨 Print</button>
+         <button onclick='downloadInvoiceText(${JSON.stringify(m.content)})' style="padding:5px 12px;background:#10b981;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;">⬇ Download</button>
+         <button onclick='printInvoiceText(${JSON.stringify(m.content)})' style="padding:5px 12px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:0.75rem;cursor:pointer;">🖨 Print</button>
        </div>`
     : '';
   return `
@@ -2158,7 +2158,7 @@ function buildChatMessageHTML(m) {
   `;
 }
 
-function downloadReceiptText(content) {
+function downloadInvoiceText(content) {
   const blob = new Blob([content.replace('[RECEIPT] ', '')], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -2171,11 +2171,11 @@ function downloadReceiptText(content) {
   toast('Downloaded', 'Invoice saved to your device.', 'success');
 }
 
-function printReceiptText(content) {
+function printInvoiceText(content) {
   const text = content.replace('[RECEIPT] ', '');
   const printWindow = window.open('', '_blank');
   if (printWindow) {
-    printWindow.document.write('<html><head><title>Receipt</title><style>body{font-family:monospace;white-space:pre-wrap;padding:20px;}</style></head><body>' + text + '</body></html>');
+    printWindow.document.write('<html><head><title>Invoice</title><style>body{font-family:monospace;white-space:pre-wrap;padding:20px;}</style></head><body>' + text + '</body></html>');
     printWindow.document.close();
     printWindow.focus();
     printWindow.print();

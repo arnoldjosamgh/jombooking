@@ -451,7 +451,7 @@
     </div>
   </div>
 
-  <!-- ── Seller Receipt Modal ── -->
+  <!-- ── Seller Invoice Modal ── -->
   <div id="seller-receipt-modal" class="modal-overlay" style="display:none">
     <div class="modal-content" style="max-width:420px; padding:28px 24px;">
       <div id="seller-receipt-content"><!-- populated by JS --></div>
@@ -528,12 +528,12 @@
       <input type="hidden" id="complete-booking-id">
       <div class="flex justify-end gap-8">
         <button class="btn btn-outline" onclick="closeModal('complete-modal')">Cancel</button>
-        <button class="btn btn-primary" onclick="confirmCompleteBooking()">Complete & Receipt</button>
+        <button class="btn btn-primary" onclick="confirmCompleteBooking()">Complete & Invoice</button>
       </div>
     </div>
   </div>
 
-  <!-- ── Hidden Receipt Template (for PDF) ── -->
+  <!-- ── Hidden Invoice Template (for PDF) ── -->
   <div id="receipt-container" style="display:none;position:fixed;top:-9999px;left:-9999px;">
     <div id="receipt-content" style="width:80mm;background:#ffffff;font-family:'Outfit',Arial,sans-serif;font-size:11px;color:#1a1a2e;position:relative;overflow:hidden">
 
@@ -558,13 +558,13 @@
 
         <!-- RECEIPT badge -->
         <div style="text-align:center;margin-bottom:10px">
-          <span style="background:#1a2461;color:#f4a81d;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;text-transform:uppercase">OFFICIAL RECEIPT</span>
+          <span style="background:#1a2461;color:#f4a81d;font-size:9px;font-weight:800;letter-spacing:0.1em;padding:3px 10px;border-radius:20px;text-transform:uppercase">OFFICIAL INVOICE</span>
         </div>
 
         <!-- Order meta -->
         <div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:10px;font-size:10px">
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-            <span style="color:#64748b">Receipt No.</span>
+            <span style="color:#64748b">Invoice No.</span>
             <span style="font-weight:700" id="receipt-id"></span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:4px">

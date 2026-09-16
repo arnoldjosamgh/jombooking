@@ -9,17 +9,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --orange: #fca311;
-      --green:  #00d26a;
-      --blue:   #5b67f6;
-      --dark:   #0b0f1e;
-      --dark2:  #111827;
-      --card:   #161d30;
-      --border: rgba(255,255,255,0.07);
-      --text:   #f0f4ff;
-      --muted:  rgba(255,255,255,0.45);
+      --red:    #e01010;
+      --white:  #ffffff;
+      --dark:   #000000;
+      --card:   #000000;
+      --border: #333333;
+      --text:   #ffffff;
+      --muted:  #888888;
     }
 
     html, body {
@@ -49,14 +46,14 @@
     .tv-brand { display: flex; align-items: center; gap: 18px; }
 
     .tv-brand-icon {
-      width: 56px; height: 56px; border-radius: 16px;
-      background: linear-gradient(135deg, #1a2461, #0f1222);
+      width: 56px; height: 56px; border-radius: 8px;
+      background: var(--dark);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
-      box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 6px 20px rgba(0,0,0,0.5);
+      border: 1px solid var(--border);
       overflow: hidden;
     }
-    .tv-brand-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 16px; }
+    .tv-brand-icon img { width: 100%; height: 100%; object-fit: cover; }
 
     .tv-biz-name {
       font-size: 1.7rem; font-weight: 900; letter-spacing: -0.03em;
@@ -68,13 +65,8 @@
       text-transform: uppercase; font-weight: 600;
     }
     .live-dot {
-      width: 9px; height: 9px; border-radius: 50%;
-      background: var(--green);
-      display: inline-block;
-      animation: blink 1.8s ease-in-out infinite;
-      box-shadow: 0 0 8px var(--green);
+      display: none;
     }
-    @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
 
     .tv-header-right {
       display: flex; align-items: center; gap: 20px;
@@ -82,10 +74,9 @@
 
     .tv-clock {
       font-size: 2.8rem; font-weight: 900;
-      color: var(--orange);
+      color: var(--text);
       letter-spacing: 0.02em;
       font-variant-numeric: tabular-nums;
-      text-shadow: 0 0 24px rgba(252,163,17,0.4);
     }
 
     .tv-fullscreen-btn {
@@ -137,15 +128,13 @@
       overflow: hidden;
     }
 
-    /* Colored top accent */
     .tv-col::before {
       content: '';
       position: absolute; inset: 0 0 auto 0;
-      height: 5px;
-      border-radius: 24px 24px 0 0;
+      height: 4px;
     }
-    .col-preparing::before { background: linear-gradient(90deg, var(--orange), #f97316); }
-    .col-ready::before     { background: linear-gradient(90deg, var(--green), #10b981); }
+    .col-preparing::before { background: var(--border); }
+    .col-ready::before     { background: var(--red); }
 
     /* Column header */
     .tv-col-header {
@@ -156,28 +145,25 @@
     }
 
     .tv-col-icon {
-      width: 52px; height: 52px; border-radius: 14px;
-      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      display: none;
     }
-    .col-preparing .tv-col-icon { background: rgba(252,163,17,0.15); }
-    .col-ready     .tv-col-icon { background: rgba(0,210,106,0.15); }
 
     .tv-col-title {
       font-size: 1.25rem; font-weight: 900;
       text-transform: uppercase; letter-spacing: 0.1em;
       line-height: 1.15;
     }
-    .col-preparing .tv-col-title { color: var(--orange); text-shadow: 0 0 20px rgba(252,163,17,0.35); }
-    .col-ready     .tv-col-title { color: var(--green);  text-shadow: 0 0 20px rgba(0,210,106,0.35); }
+    .col-preparing .tv-col-title { color: var(--muted); }
+    .col-ready     .tv-col-title { color: var(--text); }
 
     .tv-col-count {
       margin-left: auto;
-      width: 40px; height: 40px; border-radius: 50%;
+      width: 40px; height: 40px; border-radius: 0;
       display: flex; align-items: center; justify-content: center;
       font-size: 1.1rem; font-weight: 900; color: #fff; flex-shrink: 0;
     }
-    .col-preparing .tv-col-count { background: var(--orange); box-shadow: 0 0 16px rgba(252,163,17,0.5); }
-    .col-ready     .tv-col-count { background: var(--green);  box-shadow: 0 0 16px rgba(0,210,106,0.5); }
+    .col-preparing .tv-col-count { background: var(--border); color: var(--text); }
+    .col-ready     .tv-col-count { background: var(--red); color: #fff; }
 
     /* Order list */
     .tv-order-list {
@@ -190,16 +176,16 @@
     /* Order card */
     .tv-order-item {
       padding: 20px 24px;
-      border-radius: 18px;
+      border-radius: 0;
       border: 1px solid var(--border);
-      background: rgba(255,255,255,0.04);
+      background: transparent;
       animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
       transition: background 0.2s;
     }
-    .tv-order-item:hover { background: rgba(255,255,255,0.07); }
+    .tv-order-item:hover { background: rgba(255,255,255,0.05); }
 
-    .col-preparing .tv-order-item { border-left: 4px solid var(--orange); }
-    .col-ready     .tv-order-item { border-left: 4px solid var(--green); }
+    .col-preparing .tv-order-item { border-left: 4px solid var(--border); }
+    .col-ready     .tv-order-item { border-left: 4px solid var(--red); }
 
     /* ── Large readable text ── */
     .order-num {
@@ -208,8 +194,8 @@
       letter-spacing: -0.02em;
       line-height: 1;
     }
-    .col-preparing .order-num { color: var(--orange); text-shadow: 0 0 20px rgba(252,163,17,0.35); }
-    .col-ready     .order-num { color: var(--green);  text-shadow: 0 0 20px rgba(0,210,106,0.35); }
+    .col-preparing .order-num { color: var(--muted); }
+    .col-ready     .order-num { color: var(--text); }
 
     .order-name {
       font-size: 1.35rem;
@@ -253,11 +239,10 @@
     .tv-slideshow {
       flex: 1;
       position: relative;
-      border-radius: 24px;
+      border-radius: 0;
       overflow: hidden;
-      background: #09101f;
+      background: var(--dark);
       border: 1px solid var(--border);
-      box-shadow: 0 8px 48px rgba(0,0,0,0.6);
     }
 
     /* Slide */
@@ -282,34 +267,31 @@
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 48px;
-      background: radial-gradient(ellipse at 30% 40%, #1a1060 0%, #0b0f1e 55%, #0f1e10 100%);
+      background: var(--dark);
       text-align: center;
       gap: 0;
     }
     .offer-label {
       font-size: 1rem; font-weight: 800;
       letter-spacing: 0.22em; text-transform: uppercase;
-      color: var(--orange);
+      color: var(--text);
       padding: 6px 24px;
-      border: 2px solid rgba(252,163,17,0.5);
-      border-radius: 32px;
+      border: 2px solid var(--border);
+      border-radius: 0;
       margin-bottom: 28px;
-      text-shadow: 0 0 16px rgba(252,163,17,0.5);
-      box-shadow: 0 0 20px rgba(252,163,17,0.15) inset;
     }
     .offer-body {
       font-size: clamp(2rem, 5.5vw, 4.5rem);
       font-weight: 900;
       color: #fff;
       line-height: 1.2;
-      text-shadow: 0 4px 32px rgba(0,0,0,0.6);
       white-space: pre-wrap;
       letter-spacing: -0.01em;
     }
     .offer-sub {
       margin-top: 28px;
       font-size: 1rem;
-      color: rgba(255,255,255,0.35);
+      color: var(--muted);
       font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -329,10 +311,9 @@
     /* Slide progress bar */
     .tv-progress-bar {
       position: absolute; top: 0; left: 0; height: 4px;
-      background: linear-gradient(90deg, var(--orange), var(--green));
+      background: var(--red);
       width: 0; z-index: 20;
       transition: width linear;
-      box-shadow: 0 0 8px rgba(252,163,17,0.5);
     }
 
     /* Dots */
@@ -341,13 +322,12 @@
       display: flex; justify-content: center; gap: 7px; z-index: 20;
     }
     .tv-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: rgba(255,255,255,0.25);
+      width: 7px; height: 7px; border-radius: 0;
+      background: var(--border);
       transition: all 0.35s;
     }
     .tv-dot.active {
-      background: #fff; width: 22px; border-radius: 4px;
-      box-shadow: 0 0 8px rgba(255,255,255,0.5);
+      background: var(--red); width: 22px;
     }
 
     /* Logo watermark */
@@ -366,15 +346,10 @@
   <div class="tv-header">
     <div class="tv-brand">
       <div class="tv-brand-icon" id="biz-icon">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f4a81d" stroke-width="2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-          <polyline points="9 22 9 12 15 12 15 22"/>
-        </svg>
       </div>
       <div>
         <div class="tv-biz-name" id="biz-title">Loading…</div>
         <div class="tv-biz-sub">
-          <span class="live-dot"></span>
           Order Status Board
         </div>
       </div>
@@ -398,11 +373,8 @@
       <div class="tv-col col-preparing">
         <div class="tv-col-header">
           <div class="tv-col-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fca311" stroke-width="2.5">
-              <path d="M5 22h14M5 2h14M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/>
-            </svg>
           </div>
-          <div class="tv-col-title">⏳ Preparing</div>
+          <div class="tv-col-title">Preparing</div>
           <div class="tv-col-count" id="preparing-count" style="display:none">0</div>
         </div>
         <div class="tv-order-list" id="preparing-list">
@@ -414,11 +386,8 @@
       <div class="tv-col col-ready">
         <div class="tv-col-header">
           <div class="tv-col-icon">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00d26a" stroke-width="2.5">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
           </div>
-          <div class="tv-col-title">✅ Ready — Collect Now</div>
+          <div class="tv-col-title">Ready — Collect Now</div>
           <div class="tv-col-count" id="ready-count" style="display:none">0</div>
         </div>
         <div class="tv-order-list" id="ready-list">
@@ -432,11 +401,6 @@
     <div class="tv-media-panel">
       <div class="tv-slideshow" id="tv-slideshow">
         <div class="tv-no-media" id="tv-no-media">
-          <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
-            <rect x="2" y="3" width="20" height="14" rx="2"/>
-            <line x1="8" y1="21" x2="16" y2="21"/>
-            <line x1="12" y1="17" x2="12" y2="21"/>
-          </svg>
           <div>Add photos, videos<br>or offer banners<br>from the seller dashboard</div>
         </div>
         <div class="tv-progress-bar" id="tv-progress-bar"></div>
@@ -480,12 +444,16 @@
       if (!document.fullscreenElement) btn.textContent = '⛶ Fullscreen';
     });
 
-    // Auto-enter fullscreen after 3 seconds (user can cancel with Esc)
-    setTimeout(() => {
+    // Auto-enter fullscreen repeatedly to ensure it stays fullscreen
+    function enforceFullscreen() {
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
-    }, 3000);
+    }
+    
+    setTimeout(enforceFullscreen, 3000);
+    // Add click listener to enter fullscreen immediately on any interaction
+    document.addEventListener('click', enforceFullscreen, { once: false });
 
     // ── State ───────────────────────────────────────────────
     let businessId   = null;
@@ -612,7 +580,7 @@
 
       const newHtml = orders.map(o => {
         const num = (o.receipt || '').replace(/^ORD-0+/, '#').replace(/^ORD-/, '#') || '#?';
-        const loc = o.loc ? `<div class="order-sub">📍 ${o.loc}</div>` : '';
+        const loc = o.loc ? `<div class="order-sub">${o.loc}</div>` : '';
         return `
           <div class="tv-order-item">
             <div class="order-num">${num}</div>

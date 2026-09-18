@@ -72,12 +72,20 @@ function refreshPayButton() {
   btn.textContent       = `📲 Pay via ${label}`;
 }
 
-function doMomoPay(orderGroupId, balance) {
+async function doMomoPay(orderGroupId, balance) {
   const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
   const ussdHref     = buildUssdHref(balance);
-  notifyClientPaying(orderGroupId, providerName);
-  // Open USSD dialer — try window.open first, then location.href as fallback
-  window.location.href = ussdHref;
+
+  // First notify the seller (await so the POST completes before we open the dialer)
+  await notifyClientPaying(orderGroupId, providerName);
+
+  // Open the USSD dialer via a hidden anchor click (doesn't navigate away from the page)
+  const a = document.createElement('a');
+  a.href = ussdHref;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => a.remove(), 500);
 }
 
 // ─── Init ──────────────────────────────────────────────────────

@@ -159,6 +159,7 @@ app.post('/api/notify/paying', async (req, res) => {
         summaryText = orderRes.rows.map(r => `${r.quantity}x ${r.title}`).join(', ');
       }
 
+      console.log(`[notify/paying] Emitting order:paying to seller-${channel}`, { orderGroupId, clientName, providerName, tableNumber, summaryText, balance });
       io.to(`seller-${channel}`).emit('order:paying', {
         orderGroupId, clientName, providerName,
         tableNumber, receiptNumber, balance, summaryText,

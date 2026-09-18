@@ -51,14 +51,33 @@ function setMomoProvider(val) {
       pillMtn.style.cssText    = 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
     }
   }
-  // Update pay button
+  refreshPayButton();
+}
+
+function refreshPayButton() {
   const btn = document.getElementById('momo-pay-btn');
-  if (btn) {
-    const bal = parseFloat(btn.dataset.balance || 0);
-    btn.href = buildUssdHref(bal);
-    const label = val === 'airtel' ? 'Pay with Airtel Money' : 'Pay with MTN MoMo';
-    btn.textContent = `📲 ${label}`;
-  }
+  if (!btn) return;
+  const isAirtel = selectedMomoProvider === 'airtel';
+  const label    = isAirtel ? 'Airtel Money' : 'MTN MoMo';
+  const bg       = isAirtel
+    ? 'linear-gradient(135deg,#ff0000,#cc0000)'
+    : 'linear-gradient(135deg,#ffcc00,#f59e0b)';
+  const textColor = isAirtel ? '#fff' : '#003876';
+  const shadow    = isAirtel
+    ? '0 4px 15px rgba(255,0,0,0.4)'
+    : '0 4px 15px rgba(255,204,0,0.4)';
+  btn.style.background  = bg;
+  btn.style.color       = textColor;
+  btn.style.boxShadow   = shadow;
+  btn.textContent       = `📲 Pay via ${label}`;
+}
+
+function doMomoPay(orderGroupId, balance) {
+  const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
+  const ussdHref     = buildUssdHref(balance);
+  notifyClientPaying(orderGroupId, providerName);
+  // Open USSD dialer — try window.open first, then location.href as fallback
+  window.location.href = ussdHref;
 }
 
 // ─── Init ──────────────────────────────────────────────────────
@@ -510,11 +529,9 @@ function initSocket() {
     if (titleEl) titleEl.textContent = 'Order Ready!';
     if (descEl) descEl.textContent = 'Your order is prepared. Please complete payment.';
 
-    // Show MoMo payment card whenever there is a balance due, regardless of how client arrived
+    // Show MoMo payment card whenever there is a balance due
     const isMomo = paymentMethod === 'momo' || balanceRemaining > 0;
     if (paymentArea && isMomo && balanceRemaining > 0) {
-      const ussdHref = buildUssdHref(balanceRemaining);
-      const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
       paymentArea.innerHTML = `
         <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
           <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:12px;">📲 MOBILE MONEY PAYMENT</p>
@@ -535,11 +552,11 @@ function initSocket() {
               </div>
             </label>
           </div>
-          <a id="momo-pay-btn" data-balance="${balanceRemaining}" href="${ussdHref}"
-            style="display:block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-size:0.95rem;box-shadow:0 4px 15px rgba(245,158,11,0.4);"
-            onclick="notifyClientPaying('${orderGroupId}', '${providerName}'); this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
-            📲 Pay ${formatCurrency(balanceRemaining, business.currency_symbol)} via ${providerName}
-          </a>
+          <button id="momo-pay-btn" data-balance="${balanceRemaining}"
+            style="display:block;width:100%;background:linear-gradient(135deg,#ffcc00,#f59e0b);color:#003876;font-weight:700;text-align:center;padding:14px;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;box-shadow:0 4px 15px rgba(255,204,0,0.4);transition:all 0.2s;"
+            onclick="doMomoPay('${orderGroupId}', ${balanceRemaining}); this.style.opacity='0.7'; setTimeout(()=>this.style.opacity='1',1200)">
+            📲 Pay via MTN MoMo
+          </button>
           <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
         </div>
       `;
@@ -551,8 +568,6 @@ function initSocket() {
   socket.on('order:payment_update', ({ orderGroupId, paymentStatus, amountPaid, balanceRemaining }) => {
     const paymentArea = document.getElementById('payment-status-area');
     if (paymentArea) {
-      const ussdHref = buildUssdHref(balanceRemaining);
-      const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
       paymentArea.innerHTML = `
         <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
           <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:10px;">📲 MOBILE MONEY PAYMENT</p>
@@ -580,11 +595,11 @@ function initSocket() {
               </div>
             </label>
           </div>
-          <a id="momo-pay-btn" data-balance="${balanceRemaining}" href="${ussdHref}"
-            style="display:block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-size:0.95rem;box-shadow:0 4px 15px rgba(245,158,11,0.4);"
-            onclick="notifyClientPaying('${orderGroupId}', '${providerName}'); this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
-            📲 Pay ${formatCurrency(balanceRemaining, business.currency_symbol)} via ${providerName}
-          </a>
+          <button id="momo-pay-btn" data-balance="${balanceRemaining}"
+            style="display:block;width:100%;background:linear-gradient(135deg,#ffcc00,#f59e0b);color:#003876;font-weight:700;text-align:center;padding:14px;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;box-shadow:0 4px 15px rgba(255,204,0,0.4);transition:all 0.2s;"
+            onclick="doMomoPay('${orderGroupId}', ${balanceRemaining}); this.style.opacity='0.7'; setTimeout(()=>this.style.opacity='1',1200)">
+            📲 Pay via MTN MoMo
+          </button>
           <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
         </div>
       `;

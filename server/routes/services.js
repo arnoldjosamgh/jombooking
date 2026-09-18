@@ -11,7 +11,7 @@ const { requireFields }  = require('../middleware/validate');
 // ─── GET /api/services/:business_slug — Public list for client booking ─────────
 router.get('/:business_slug', async (req, res) => {
   try {
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `SELECT s.id, s.name, s.price, s.duration_minutes
        FROM services s
        JOIN businesses b ON s.business_id = b.id
@@ -30,7 +30,7 @@ router.get('/:business_slug', async (req, res) => {
 router.post('/', authenticate, requireFields('business_id', 'name', 'price', 'duration_minutes'), async (req, res) => {
   try {
     const { business_id, name, price, duration_minutes } = req.body;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `INSERT INTO services (business_id, name, price, duration_minutes)
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [business_id, name, parseFloat(price), parseInt(duration_minutes)]
@@ -45,7 +45,7 @@ router.post('/', authenticate, requireFields('business_id', 'name', 'price', 'du
 // ─── DELETE /api/services/:id — Seller removes a service ──────────────────────
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    await db.query('UPDATE services SET is_deleted = true WHERE id = $1', [req.params.id]);
+    await req.tenantDb.query('UPDATE services SET is_deleted = true WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });
@@ -56,7 +56,7 @@ router.delete('/:id', authenticate, async (req, res) => {
 router.post('/block', authenticate, requireFields('business_id', 'service_id', 'slot_time'), async (req, res) => {
   try {
     const { business_id, service_id, slot_time } = req.body;
-    await db.query(
+    await req.tenantDb.query(
       `INSERT INTO blocked_slots (business_id, service_id, slot_time)
        VALUES ($1, $2, $3)
        ON CONFLICT DO NOTHING`,
@@ -80,7 +80,7 @@ router.post('/unblock', authenticate, async (req, res) => {
     // Cast slot_time consistently — stored as timestamptz, compare via UTC cast
     let result;
     if (service_id) {
-      result = await db.query(
+      result = await req.tenantDb.query(
         `DELETE FROM blocked_slots
          WHERE business_id = $1
            AND (service_id = $2 OR service_id IS NULL)
@@ -88,7 +88,7 @@ router.post('/unblock', authenticate, async (req, res) => {
         [business_id, service_id, slot_time]
       );
     } else {
-      result = await db.query(
+      result = await req.tenantDb.query(
         `DELETE FROM blocked_slots
          WHERE business_id = $1
            AND TO_CHAR(slot_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') = $2`,

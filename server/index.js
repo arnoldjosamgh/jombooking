@@ -9,6 +9,10 @@ const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const Pusher = require('pusher');
+const fs = require('fs');
+
+// Start archiver (schedules monthly run + exports runArchiver/ARCHIVES_DIR)
+const { runArchiver, ARCHIVES_DIR } = require('./archiver');
 
 const app = express();
 const server = http.createServer(app);
@@ -55,6 +59,10 @@ const { demoGuard } = require('./middleware/demo');
 // ─── Public Routes (no auth required) ──────────────────────────────
 // These must be registered BEFORE the auth middleware so
 // unauthenticated clients (QR scan, chat, booking, push) can access them
+
+const { attachTenantDb } = require('./middleware/tenant');
+app.use('/api', attachTenantDb);
+
 app.use('/api/auth',       require('./routes/auth').router);
 app.use('/api/businesses', require('./routes/businesses'));
 app.use('/api/clients',    require('./routes/clients'));
@@ -142,7 +150,7 @@ app.post('/api/notify/paying', async (req, res) => {
     if (bizRes.rows.length > 0) {
       const biz = bizRes.rows[0];
       const channel = biz.pusher_channel || `biz-${businessId}`;
-      const orderRes = await db.query(
+      const orderRes = await req.tenantDb.query(
         `SELECT o.table_number, o.receipt_number, o.quantity, p.title, p.price, o.balance_remaining
          FROM orders o JOIN products p ON o.product_id = p.id
          WHERE o.order_group_id = $1`,
@@ -232,6 +240,43 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`[Socket.io] Client disconnected: ${socket.id}`);
   });
+});
+
+// ─── Archives API ─────────────────────────────────────────────────────────────
+// GET /api/archives/:slug — list available archive files for a business
+app.get('/api/archives/:slug', authenticate, async (req, res) => {
+  const bizDir = path.join(ARCHIVES_DIR, req.params.slug);
+  if (!fs.existsSync(bizDir)) return res.json({ files: [] });
+  const files = fs.readdirSync(bizDir)
+    .filter(f => f.endsWith('.json'))
+    .map(f => ({
+      name: f,
+      size: fs.statSync(path.join(bizDir, f)).size,
+      created: fs.statSync(path.join(bizDir, f)).mtime,
+      url: `/api/archives/${req.params.slug}/${f}`
+    }))
+    .sort((a, b) => new Date(b.created) - new Date(a.created));
+  res.json({ files });
+});
+
+// GET /api/archives/:slug/:filename — download a specific archive file
+app.get('/api/archives/:slug/:filename', authenticate, (req, res) => {
+  const filePath = path.join(ARCHIVES_DIR, req.params.slug, req.params.filename);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Archive not found' });
+  res.setHeader('Content-Disposition', `attachment; filename="${req.params.filename}"`);
+  res.setHeader('Content-Type', 'application/json');
+  res.sendFile(filePath);
+});
+
+// POST /api/archives/run — manually trigger archiver (tech admin only)
+app.post('/api/archives/run', authenticate, async (req, res) => {
+  if (req.user.role !== 'tech') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const results = await runArchiver();
+    res.json({ ok: true, results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ─── SPA Fallback (serve index.html for all unmatched routes) ─────────────────

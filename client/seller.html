@@ -485,6 +485,22 @@
             </button>
           </div>
         </div>
+
+        <!-- Data Archives -->
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid #e2e8f0;">
+          <div style="font-size:0.8rem; color:#64748b; font-weight:600; margin-bottom:10px; text-transform:uppercase; letter-spacing:0.05em;">
+            📦 Data Archives
+          </div>
+          <p style="font-size:0.78rem; color:#94a3b8; margin-bottom:10px;">
+            Orders older than 3 months are automatically archived and cleared from your database every quarter. Download them below.
+          </p>
+          <div id="archives-list" style="min-height:40px;">
+            <span style="color:rgba(0,0,0,0.3);font-size:0.85rem;">Open settings to load archives.</span>
+          </div>
+          <button type="button" onclick="loadArchives()" class="btn btn-outline" style="margin-top:8px;font-size:0.83rem;gap:8px;">
+            🔄 Refresh Archives
+          </button>
+        </div>
       </form>
     </div>
   </div>

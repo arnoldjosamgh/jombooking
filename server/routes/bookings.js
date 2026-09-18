@@ -4,6 +4,7 @@
  * Also supports manually blocked slots.
  */
 const express = require('express');
+const db = require('../db');
 const router  = express.Router();
 const db      = require('../db');
 const { requireFields }  = require('../middleware/validate');
@@ -17,7 +18,7 @@ const { sendPushToSeller, sendPushToClient } = require('./push');
  */
 async function generateSlots(businessId, dateStr, serviceId) {
   // Get business hours
-  const bizResult = await db.query(
+  const bizResult = await req.tenantDb.query(
     `SELECT open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end, max_clients_per_slot
      FROM businesses WHERE id = $1`,
     [businessId]
@@ -34,7 +35,7 @@ async function generateSlots(businessId, dateStr, serviceId) {
   // Use the service's own duration if we have a service, else the business default
   let duration = session_duration_minutes;
   if (serviceId) {
-    const svcRes = await db.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
+    const svcRes = await req.tenantDb.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
     if (svcRes.rows.length > 0) duration = svcRes.rows[0].duration_minutes;
   }
 
@@ -69,7 +70,7 @@ async function generateSlots(businessId, dateStr, serviceId) {
   }
 
   // Count confirmed bookings for each slot
-  const bookedRes = await db.query(
+  const bookedRes = await req.tenantDb.query(
     `SELECT TO_CHAR(booking_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot, COUNT(*) as count
      FROM bookings
      WHERE business_id = $1
@@ -83,7 +84,7 @@ async function generateSlots(businessId, dateStr, serviceId) {
   bookedRes.rows.forEach(r => { bookedCounts[r.slot] = parseInt(r.count); });
 
   // Manually blocked slots for this service on this date
-  const blockedRes = await db.query(
+  const blockedRes = await req.tenantDb.query(
     `SELECT TO_CHAR(slot_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot
      FROM blocked_slots
      WHERE business_id = $1
@@ -139,7 +140,7 @@ router.post('/', requireFields('business_id', 'booking_time'), async (req, res) 
     let totalPrice = 0;
     let serviceNames = [];
     if (serviceIdsArray.length > 0) {
-      const svcRes = await db.query(
+      const svcRes = await req.tenantDb.query(
         `SELECT id, name, duration_minutes, price FROM services WHERE id = ANY($1::int[])`,
         [serviceIdsArray]
       );
@@ -150,19 +151,19 @@ router.post('/', requireFields('business_id', 'booking_time'), async (req, res) 
       });
     }
 
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `INSERT INTO bookings (business_id, client_id, booking_time, service_id, service_ids, total_duration, total_price, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed') RETURNING *`,
       [business_id, client_id, booking_time, primaryServiceId, JSON.stringify(serviceIdsArray), totalDuration, totalPrice]
     );
 
     // Auto-generate receipt number
-    await db.query(
+    await req.tenantDb.query(
       `UPDATE bookings SET receipt_number = 'ORD-' || LPAD(id::text, 5, '0') WHERE id = $1`,
       [result.rows[0].id]
     );
 
-    const full = await db.query(
+    const full = await req.tenantDb.query(
       `SELECT b.id, b.booking_time, b.status, b.created_at, b.service_ids, b.total_duration, b.total_price,
               c.name AS client_name, c.location AS client_location,
               biz.owner_id, biz.name AS business_name,
@@ -234,7 +235,7 @@ router.get('/list/:business_id', async (req, res) => {
       query += ' ORDER BY b.booking_time ASC LIMIT 300';
     }
 
-    const result = await db.query(query, params);
+    const result = await req.tenantDb.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('[bookings] GET /list error:', err.message);
@@ -249,7 +250,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     if (!['confirmed', 'ready', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `UPDATE bookings SET status = $1, seller_id = $2, price = COALESCE($3, price), updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING id, status, price, business_id, client_id`,
       [status, req.user.id, final_price !== undefined ? final_price : null, req.params.id]
     );
@@ -259,7 +260,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     // Push notification to client on ready or completed
     if ((status === 'ready' || status === 'completed') && booking.client_id) {
       try {
-        const infoRes = await db.query(
+        const infoRes = await req.tenantDb.query(
           `SELECT b.slug, b.name AS biz_name, b.logo_url, s.name AS svc_name
            FROM bookings bk
            JOIN businesses b ON bk.business_id = b.id
@@ -321,7 +322,7 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     const bookingId = req.params.id;
 
     // Get booking info for messaging
-    const bookingRes = await db.query(
+    const bookingRes = await req.tenantDb.query(
       `SELECT b.id, b.business_id, b.client_id, b.booking_time, b.service_id,
               c.name AS client_name, s.name AS service_name
        FROM bookings b
@@ -334,7 +335,7 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
     const bk = bookingRes.rows[0];
 
     // Update status
-    await db.query(
+    await req.tenantDb.query(
       `UPDATE bookings SET status = 'cancelled', seller_id = $1 WHERE id = $2`,
       [req.user.id, bookingId]
     );
@@ -346,7 +347,7 @@ router.patch('/:id/cancel', authenticate, async (req, res) => {
       ? `Your booking for ${svcLabel} on ${timeLabel} has been cancelled.\n\nReason: ${reason}`
       : `Your booking for ${svcLabel} on ${timeLabel} has been cancelled by the seller.`;
 
-    const msgResult = await db.query(
+    const msgResult = await req.tenantDb.query(
       `INSERT INTO messages (business_id, client_id, sender, content)
        VALUES ($1, $2, 'seller', $3) RETURNING id, sender, content, created_at`,
       [bk.business_id, bk.client_id, msgContent]
@@ -396,7 +397,7 @@ module.exports = router;
 module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBookings(io) {
   try {
     // Find all confirmed bookings where the time is in the past
-    const expired = await db.query(
+    const expired = await req.tenantDb.query(
       `SELECT b.id, b.business_id, b.client_id, b.service_id, b.booking_time,
               c.name AS client_name,
               s.name AS service_name
@@ -438,7 +439,7 @@ module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBooki
       }
 
       // Move the booking to the new slot
-      await db.query(
+      await req.tenantDb.query(
         `UPDATE bookings SET booking_time = $1 WHERE id = $2`,
         [newSlot, bk.id]
       );
@@ -449,7 +450,7 @@ module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBooki
       const newTime   = new Date(newSlot + 'Z').toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
       const msgContent = `📅 Your booking for ${svcLabel} on ${oldTime} was missed and has been automatically rescheduled to ${newTime}.\n\nIf this doesn't work for you, please contact us to adjust.`;
 
-      const msgResult = await db.query(
+      const msgResult = await req.tenantDb.query(
         `INSERT INTO messages (business_id, client_id, content, sender)
          VALUES ($1, $2, $3, 'seller') RETURNING *`,
         [bk.business_id, bk.client_id, msgContent]

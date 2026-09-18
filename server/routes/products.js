@@ -40,7 +40,7 @@ router.get('/list/:business_id', async (req, res) => {
     const params = [bizParam];
     if (status) { query += ` AND o.status = $2`; params.push(status); }
     query += ' ORDER BY COALESCE(o.updated_at, o.created_at) DESC LIMIT 100';
-    const result = await db.query(query, params);
+    const result = await req.tenantDb.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('[orders] GET /list/:id error:', err.message);
@@ -51,7 +51,7 @@ router.get('/list/:business_id', async (req, res) => {
 // ─── GET /api/products/:business_slug ─────────────────────────────────────────
 router.get('/:business_slug', async (req, res) => {
   try {
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `SELECT p.id, p.title, p.description, p.price, p.image_url, p.stock_quantity, p.barcode
        FROM products p
        JOIN businesses b ON p.business_id = b.id
@@ -69,7 +69,7 @@ router.get('/:business_slug', async (req, res) => {
 // ─── GET /api/products/barcode/:code ──────────────────────────────────────────
 router.get('/barcode/:code', async (req, res) => {
   try {
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `SELECT p.id, p.title, p.price, p.stock_quantity, p.image_url, p.barcode
        FROM products p WHERE p.barcode = $1 LIMIT 1`,
       [req.params.code]
@@ -86,7 +86,7 @@ router.get('/barcode/:code', async (req, res) => {
 router.post('/manage', authenticate, requireFields('business_id', 'title', 'price'), async (req, res) => {
   try {
     const { business_id, title, description, price, barcode, stock_quantity, image_url } = req.body;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `INSERT INTO products (business_id, title, description, price, barcode, stock_quantity, image_url)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [business_id, title, description || '', parseFloat(price), barcode || null, parseInt(stock_quantity || 0), image_url || null]
@@ -102,7 +102,7 @@ router.post('/manage', authenticate, requireFields('business_id', 'title', 'pric
 router.patch('/manage/:id/stock', authenticate, async (req, res) => {
   try {
     const { stock_quantity } = req.body;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `UPDATE products SET stock_quantity = $1 WHERE id = $2 RETURNING *`,
       [parseInt(stock_quantity), req.params.id]
     );
@@ -116,7 +116,7 @@ router.patch('/manage/:id/stock', authenticate, async (req, res) => {
 // Soft-delete: product hidden from POS but orders referencing it remain intact
 router.delete('/manage/:id', authenticate, async (req, res) => {
   try {
-    await db.query('UPDATE products SET is_deleted = true WHERE id = $1', [req.params.id]);
+    await req.tenantDb.query('UPDATE products SET is_deleted = true WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     console.error('[products] DELETE /manage/:id error:', err.message);
@@ -182,7 +182,7 @@ router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quanti
       });
     }
 
-    const fullOrder = await db.query(
+    const fullOrder = await req.tenantDb.query(
       `SELECT o.id, o.quantity, o.status, o.created_at,
               p.title AS product_title, p.price,
               c.name AS client_name, c.location AS client_location
@@ -386,7 +386,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     if (!['pending', 'ready', 'completed', 'cancelled'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status value' });
     }
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `UPDATE orders SET status = $1, seller_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id, status, client_id, business_id, receipt_number, quantity`,
       [status, req.user.id, req.params.id]
     );
@@ -397,7 +397,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     // Auto-send receipt in messages if ready or completed
     if ((status === 'ready' || status === 'completed') && order.client_id) {
       try {
-        const prodRes = await db.query(
+        const prodRes = await req.tenantDb.query(
           `SELECT p.title, p.price, b.slug, b.logo_url FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id WHERE o.id = $1`,
           [order.id]
         );
@@ -405,7 +405,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
           const p = prodRes.rows[0];
           const total = (parseFloat(p.price) * order.quantity).toFixed(2);
           const receiptContent = `[RECEIPT] Order ${order.receipt_number || '#' + order.id}\n${p.title} x${order.quantity}\nTotal: $${total}`;
-          await db.query(
+          await req.tenantDb.query(
             `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`,
             [order.business_id, order.client_id, receiptContent]
           );
@@ -428,7 +428,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
             });
             
             // Insert Thank You message and emit to chat
-            const msgResult = await db.query(
+            const msgResult = await req.tenantDb.query(
               `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
               [order.business_id, order.client_id, 'Thank you for your payment! Enjoy your order.']
             );

@@ -11,7 +11,7 @@ const { requireFields } = require('../middleware/validate');
 router.get('/threads/:business_id', async (req, res) => {
   try {
     const { business_id } = req.params;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `SELECT DISTINCT ON (m.client_id)
          m.client_id, c.name AS client_name,
          m.content AS last_message, m.sender AS last_sender, m.created_at AS last_at,
@@ -36,7 +36,7 @@ router.get('/threads/:business_id', async (req, res) => {
 router.get('/:business_id/:client_id', async (req, res) => {
   try {
     const { business_id, client_id } = req.params;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `SELECT id, sender, content, created_at
        FROM messages
        WHERE business_id = $1 AND client_id = $2
@@ -59,7 +59,7 @@ router.post('/', requireFields('business_id', 'client_id', 'sender', 'content'),
       return res.status(400).json({ error: 'sender must be "client" or "seller"' });
     }
 
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `INSERT INTO messages (business_id, client_id, sender, content)
        VALUES ($1, $2, $3, $4)
        RETURNING id, sender, content, created_at`,
@@ -91,7 +91,7 @@ router.post('/', requireFields('business_id', 'client_id', 'sender', 'content'),
 router.post('/read', async (req, res) => {
   try {
     const { business_id, client_id } = req.body;
-    await db.query(
+    await req.tenantDb.query(
       `UPDATE messages SET read_at = NOW()
        WHERE business_id = $1 AND client_id = $2 AND sender = 'client' AND read_at IS NULL`,
       [business_id, client_id]

@@ -2135,6 +2135,37 @@ async function saveSettings(e) {
 }
 
 
+// ─── DATA ARCHIVES ─────────────────────────────────────────────────────────────
+async function loadArchives() {
+  const container = document.getElementById('archives-list');
+  if (!container || !selectedBiz) return;
+  container.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-size:0.85rem;">Loading...</span>';
+  try {
+    const data = await apiFetch(`/api/archives/${selectedBiz.slug}`);
+    if (!data.files || data.files.length === 0) {
+      container.innerHTML = '<span style="color:rgba(255,255,255,0.4);font-size:0.85rem;">No archived files yet. Archives are created automatically every 3 months.</span>';
+      return;
+    }
+    container.innerHTML = data.files.map(f => {
+      const sizekb = Math.round(f.size / 1024);
+      const date = new Date(f.created).toLocaleDateString();
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:rgba(255,255,255,0.06);border-radius:10px;margin-bottom:8px;">
+          <div>
+            <div style="font-weight:600;color:#fff;font-size:0.88rem;">📦 ${f.name}</div>
+            <div style="color:rgba(255,255,255,0.4);font-size:0.75rem;">${date} · ${sizekb} KB</div>
+          </div>
+          <a href="${f.url}" target="_blank" download="${f.name}"
+             style="padding:6px 14px;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border-radius:8px;text-decoration:none;font-size:0.82rem;font-weight:700;">
+            ⬇ Download
+          </a>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    container.innerHTML = `<span style="color:#ef4444;font-size:0.85rem;">Could not load archives: ${err.message}</span>`;
+  }
+}
+
 // ─── PUSH NOTIFICATIONS ───────────────────────────────────────────────────────
 async function enablePushNotifications(silent = false) {
   const btn = document.getElementById('push-enable-btn');

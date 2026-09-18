@@ -10,7 +10,7 @@ const { requireFields } = require('../middleware/validate');
 router.post('/', requireFields('name', 'location'), async (req, res) => {
   try {
     const { name, location, photo_url } = req.body;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `INSERT INTO clients (name, location, photo_url)
        VALUES ($1, $2, $3)
        RETURNING id, name, location, photo_url, seller_note, created_at`,
@@ -26,7 +26,7 @@ router.post('/', requireFields('name', 'location'), async (req, res) => {
 // GET /api/clients/:id — Get client profile
 router.get('/:id', async (req, res) => {
   try {
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       'SELECT id, name, location, photo_url, seller_note, created_at FROM clients WHERE id = $1',
       [req.params.id]
     );
@@ -44,7 +44,7 @@ router.get('/:id', async (req, res) => {
 router.patch('/:id/note', async (req, res) => {
   try {
     const { note } = req.body;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `UPDATE clients SET seller_note = $1 WHERE id = $2
        RETURNING id, seller_note`,
       [note || '', req.params.id]
@@ -75,7 +75,7 @@ router.get('/', async (req, res) => {
       params.push(business_id);
     }
     query += ' ORDER BY c.created_at DESC';
-    const result = await db.query(query, params);
+    const result = await req.tenantDb.query(query, params);
     res.json(result.rows);
   } catch (err) {
     console.error('[clients] GET / error:', err.message);

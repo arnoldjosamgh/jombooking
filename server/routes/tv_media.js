@@ -10,7 +10,7 @@ const { authenticate } = require('./auth');
 // ─── GET /api/tv-media/:slug — Public: get all media for a business ─────────
 router.get('/:slug', async (req, res) => {
   try {
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `SELECT m.id, m.type, m.content, m.title, m.duration, m.sort_order
        FROM tv_media m
        JOIN businesses b ON m.business_id = b.id
@@ -39,13 +39,13 @@ router.post('/:slug', authenticate, async (req, res) => {
     const businessId = bizRes.rows[0].id;
 
     // Get current max sort_order
-    const maxRes = await db.query(
+    const maxRes = await req.tenantDb.query(
       'SELECT COALESCE(MAX(sort_order), -1) AS max_order FROM tv_media WHERE business_id = $1',
       [businessId]
     );
     const nextOrder = maxRes.rows[0].max_order + 1;
 
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `INSERT INTO tv_media (business_id, type, content, title, duration, sort_order)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [businessId, type, content, title || null, duration || 6, nextOrder]
@@ -61,7 +61,7 @@ router.post('/:slug', authenticate, async (req, res) => {
 router.patch('/:id', authenticate, async (req, res) => {
   try {
     const { title, duration, content } = req.body;
-    const result = await db.query(
+    const result = await req.tenantDb.query(
       `UPDATE tv_media
        SET title    = COALESCE($1, title),
            duration = COALESCE($2, duration),
@@ -80,7 +80,7 @@ router.patch('/:id', authenticate, async (req, res) => {
 // ─── DELETE /api/tv-media/:id — Auth: remove a media item ───────────────────
 router.delete('/:id', authenticate, async (req, res) => {
   try {
-    await db.query('DELETE FROM tv_media WHERE id = $1', [req.params.id]);
+    await req.tenantDb.query('DELETE FROM tv_media WHERE id = $1', [req.params.id]);
     res.json({ ok: true });
   } catch (err) {
     console.error('[tv-media] DELETE /:id error:', err.message);
@@ -94,7 +94,7 @@ router.post('/:slug/reorder', authenticate, async (req, res) => {
     const { order } = req.body; // array of ids in desired order
     if (!Array.isArray(order)) return res.status(400).json({ error: 'order must be an array of ids' });
     for (let i = 0; i < order.length; i++) {
-      await db.query('UPDATE tv_media SET sort_order = $1 WHERE id = $2', [i, order[i]]);
+      await req.tenantDb.query('UPDATE tv_media SET sort_order = $1 WHERE id = $2', [i, order[i]]);
     }
     res.json({ ok: true });
   } catch (err) {

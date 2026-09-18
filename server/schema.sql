@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS businesses (
   session_duration_minutes INT DEFAULT 30,
   currency_symbol          VARCHAR(5) DEFAULT '$',
   pusher_channel           VARCHAR(100),
+  status                   VARCHAR(20) DEFAULT 'active',
+  tenant_db_url            TEXT,
   created_at               TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

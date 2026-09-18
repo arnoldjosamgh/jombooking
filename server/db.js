@@ -4,7 +4,7 @@ const { Pool } = require('pg');
 // Main Control Plane Pool (for sellers, businesses, etc.)
 const mainPool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes('neon.tech')
+  ssl: process.env.DATABASE_URL && (process.env.DATABASE_URL.includes('neon.tech') || process.env.DATABASE_URL.includes('aivencloud'))
     ? { rejectUnauthorized: false }
     : false,
   max: 10,
@@ -33,7 +33,7 @@ function getTenantDb(dbUrl) {
 
   const tenantPool = new Pool({
     connectionString: dbUrl,
-    ssl: dbUrl.includes('neon.tech') || dbUrl.includes('amazonaws.com')
+    ssl: dbUrl.includes('neon.tech') || dbUrl.includes('amazonaws.com') || dbUrl.includes('aivencloud')
       ? { rejectUnauthorized: false }
       : false,
     max: 5, // Lower max connections per tenant to avoid exhausting limits

@@ -134,6 +134,35 @@ app.post('/api/notify/waiting', async (req, res) => {
   }
 });
 
+app.post('/api/notify/paying', async (req, res) => {
+  try {
+    const { businessId, orderGroupId, clientName, providerName } = req.body;
+    const db = require('./db');
+    const bizRes = await db.query('SELECT owner_id, pusher_channel FROM businesses WHERE id = $1', [businessId]);
+    if (bizRes.rows.length > 0) {
+      const biz = bizRes.rows[0];
+      const channel = biz.pusher_channel || `biz-${businessId}`;
+      
+      io.to(`seller-${channel}`).emit('order:paying', {
+        orderGroupId, clientName, providerName,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Send push notification to seller
+      const { sendPushToSeller } = require('./push');
+      sendPushToSeller(biz.owner_id, {
+        title: 'Payment Incoming',
+        body: `${clientName} is paying via ${providerName}. Please wait for the confirmation message.`,
+        url: '/seller'
+      });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[notify] paying error:', err.message);
+    res.status(500).json({ error: 'Notification failed' });
+  }
+});
+
 // ─── Pusher: Notify Seller on Booking ────────────────────────────────────────
 app.post('/api/notify/booking', async (req, res) => {
   try {

@@ -1139,6 +1139,15 @@ function initSocket(biz) {
     if (selectedBiz?.type === 'service') loadWeek();
   });
 
+  socket.on('order:paying', (data) => {
+    toast(
+      `<i data-lucide="smartphone" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Payment Incoming`,
+      `${data.clientName} is currently paying via ${data.providerName}. Please check your phone.`,
+      'info',
+      8000
+    );
+  });
+
   // Also listen for incoming client chat messages
   socket.on('chat:message', async (msg) => {
     // Dispatch a DOM event so the chat modal can react without duplicate socket bindings
@@ -1966,6 +1975,8 @@ function openSettings() {
   document.getElementById('s-currency').value = selectedBiz.currency_symbol || 'UGX';
   document.getElementById('s-phone').value = selectedBiz.phone_number || '';
   document.getElementById('s-location').value = selectedBiz.location || '';
+  document.getElementById('s-mtn-momo').value = selectedBiz.mtn_momo_number || '';
+  document.getElementById('s-airtel-momo').value = selectedBiz.airtel_momo_number || '';
   
   // open_days can be an array of ints or strings — normalize
   const days = (selectedBiz.open_days || []).map(d => parseInt(d));
@@ -2002,6 +2013,8 @@ async function saveSettings(e) {
       currency_symbol: document.getElementById('s-currency').value,
       phone_number: document.getElementById('s-phone').value,
       location: document.getElementById('s-location').value,
+      mtn_momo_number: document.getElementById('s-mtn-momo').value.replace(/\s+/g, '') || null,
+      airtel_momo_number: document.getElementById('s-airtel-momo').value.replace(/\s+/g, '') || null,
       open_days: days
     };
 

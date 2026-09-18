@@ -13,19 +13,28 @@ let selectedMomoProvider = 'mtn'; // 'mtn' or 'airtel'
 const sentMsgIds = new Set(); // deduplicate socket echo
 
 // USSD codes per provider (Uganda)
+// If a merchant code is provided (momo_code), uses merchant pay.
+// If a direct phone number is provided, uses send money.
 const USSD_CODES = {
-  mtn:    (merchant, amount) => `*165*3*${merchant}*${Math.round(amount)}#`,
-  airtel: (merchant, amount) => `*185*9*${merchant}*${Math.round(amount)}#`
+  mtn: (amount) => {
+    if (business && business.mtn_momo_number) {
+      return `*165*1*1*${business.mtn_momo_number}*${Math.round(amount)}#`;
+    }
+    const merchant = (business && business.momo_code) || 'JOMISH';
+    return `*165*3*${merchant}*${Math.round(amount)}#`;
+  },
+  airtel: (amount) => {
+    if (business && business.airtel_momo_number) {
+      return `*185*1*${business.airtel_momo_number}*${Math.round(amount)}#`;
+    }
+    const merchant = (business && business.momo_code) || 'JOMISH';
+    return `*185*9*2*${merchant}*${Math.round(amount)}#`;
+  }
 };
-
-function getMomoMerchant() {
-  // Fall back to a placeholder if business doesn't have a momo_code
-  return (business && business.momo_code) || 'JOMISH';
-}
 
 function buildUssdHref(amount) {
   const fn = USSD_CODES[selectedMomoProvider] || USSD_CODES.mtn;
-  return `tel:${fn(getMomoMerchant(), amount)}`;
+  return `tel:${fn(amount).replace(/#/g, '%23')}`;
 }
 
 function setMomoProvider(val) {
@@ -416,6 +425,24 @@ async function iAmWaiting() {
 }
 
 
+// ─── "I'm Paying" Button ──────────────────────────────────────────
+async function notifyClientPaying(orderGroupId, providerName) {
+  toast('Processing', 'Opening your dialer to complete payment...', 'info');
+  try {
+    await apiFetch('/api/notify/paying', {
+      method: 'POST',
+      body: {
+        businessId: business.id,
+        orderGroupId: orderGroupId,
+        clientName: client.name,
+        providerName: providerName
+      }
+    });
+  } catch (err) {
+    console.error('Error notifying seller of payment:', err);
+  }
+}
+
 // ─── Socket.io ─────────────────────────────────────────────────
 function initSocket() {
   if (typeof io === 'undefined') return;
@@ -508,7 +535,7 @@ function initSocket() {
           </div>
           <a id="momo-pay-btn" data-balance="${balanceRemaining}" href="${ussdHref}"
             style="display:block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-size:0.95rem;box-shadow:0 4px 15px rgba(245,158,11,0.4);"
-            onclick="this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
+            onclick="notifyClientPaying('${orderGroupId}', '${providerName}'); this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
             📲 Pay ${formatCurrency(balanceRemaining, business.currency_symbol)} via ${providerName}
           </a>
           <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
@@ -551,7 +578,7 @@ function initSocket() {
           </div>
           <a id="momo-pay-btn" data-balance="${balanceRemaining}" href="${ussdHref}"
             style="display:block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-size:0.95rem;box-shadow:0 4px 15px rgba(245,158,11,0.4);"
-            onclick="this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
+            onclick="notifyClientPaying('${orderGroupId}', '${providerName}'); this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
             📲 Pay ${formatCurrency(balanceRemaining, business.currency_symbol)} via ${providerName}
           </a>
           <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>

@@ -94,7 +94,7 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
     const {
       open_time,
       close_time,
-      open_days,       // array of ints e.g. [1,2,3,4,5]
+      open_days,
       session_duration_minutes,
       max_clients_per_slot,
       lunch_start,
@@ -102,7 +102,10 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
       currency_symbol,
       phone_number,
       location,
-      low_stock_threshold
+      low_stock_threshold,
+      mtn_momo_number,
+      airtel_momo_number,
+      momo_code
     } = req.body;
 
     // Parse duration — empty string or 0 should keep existing
@@ -121,7 +124,10 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
          currency_symbol = COALESCE($8, currency_symbol),
          phone_number = $10,
          location = $11,
-         low_stock_threshold = COALESCE($12, low_stock_threshold)
+         low_stock_threshold = COALESCE($12, low_stock_threshold),
+         mtn_momo_number = COALESCE($13, mtn_momo_number),
+         airtel_momo_number = COALESCE($14, airtel_momo_number),
+         momo_code = COALESCE($15, momo_code)
        WHERE slug = $9 RETURNING id, slug`,
       [
         open_time || null,
@@ -135,7 +141,10 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
         slug,
         phone_number || null,
         location || null,
-        low_stock_threshold ? parseInt(low_stock_threshold) : 10
+        low_stock_threshold ? parseInt(low_stock_threshold) : 10,
+        mtn_momo_number || null,
+        airtel_momo_number || null,
+        momo_code || null
       ]
     );
     if (result.rows.length === 0) {

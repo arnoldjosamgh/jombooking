@@ -388,6 +388,18 @@
           <label>Phone Number <span class="text-dim text-xs">(clients can tap to call)</span></label>
           <input type="tel" id="s-phone" class="login-input" placeholder="e.g. +256 700 123456" style="background:#f8fafc;color:#1a2461;border:1px solid #e2e8f0;">
         </div>
+        <div style="margin-top:4px;padding:14px;background:linear-gradient(135deg,#fef3c7,#fffbeb);border-radius:10px;border:1px solid #f59e0b30;">
+          <div style="font-size:0.78rem;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:10px;">📲 Mobile Money Payment Numbers</div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label style="font-size:0.82rem;color:#92400e;">MTN MoMo Number <span style="font-weight:400;color:#b45309;">(digits only, e.g. 0771234567)</span></label>
+            <input type="tel" id="s-mtn-momo" class="login-input" placeholder="e.g. 0771234567" maxlength="15" style="background:#fff;color:#1a2461;border:1px solid #f59e0b;">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label style="font-size:0.82rem;color:#92400e;">Airtel Money Number <span style="font-weight:400;color:#b45309;">(digits only, e.g. 0751234567)</span></label>
+            <input type="tel" id="s-airtel-momo" class="login-input" placeholder="e.g. 0751234567" maxlength="15" style="background:#fff;color:#1a2461;border:1px solid #ef4444;">
+          </div>
+          <p style="font-size:0.72rem;color:#92400e;margin-top:8px;">These numbers are used to auto-generate the USSD payment code for clients. Leave blank to use generic codes.</p>
+        </div>
         <div class="form-group">
           <label>Business Location / Address <span class="text-dim text-xs">(shown on receipts)</span></label>
           <input type="text" id="s-location" class="login-input" placeholder="e.g. Kampala Road, Plot 12, Kampala" style="background:#f8fafc;color:#1a2461;border:1px solid #e2e8f0;">

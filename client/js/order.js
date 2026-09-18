@@ -476,14 +476,16 @@ function initSocket() {
   });
 
   // Listen for order:ready — food is ready, ask for MoMo payment
-  socket.on('order:ready', ({ orderGroupId, balanceRemaining }) => {
+  socket.on('order:ready', ({ orderGroupId, balanceRemaining, totalAmount, paymentMethod }) => {
     const paymentArea = document.getElementById('payment-status-area');
     const titleEl = document.getElementById('pending-status-title');
     const descEl = document.getElementById('pending-status-desc');
     if (titleEl) titleEl.textContent = 'Order Ready!';
     if (descEl) descEl.textContent = 'Your order is prepared. Please complete payment.';
 
-    if (paymentArea && balanceRemaining > 0 && (getParam('loc') || getParam('table'))) {
+    // Show MoMo payment card whenever there is a balance due, regardless of how client arrived
+    const isMomo = paymentMethod === 'momo' || balanceRemaining > 0;
+    if (paymentArea && isMomo && balanceRemaining > 0) {
       const ussdHref = buildUssdHref(balanceRemaining);
       const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
       paymentArea.innerHTML = `

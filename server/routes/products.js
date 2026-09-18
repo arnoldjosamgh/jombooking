@@ -505,7 +505,12 @@ router.patch('/group/:orderGroupId/status', authenticate, async (req, res) => {
            sendPushToClient(firstOrder.client_id, {
              type: 'order-ready', title: 'Order Ready', body: `Your order is ready. Balance: $${totalBalance.toFixed(2)}. Tap to pay.`, url: `/c/${slug}`, icon: logo
            });
-           if (io2) io2.to(`chat-${firstOrder.business_id}-${firstOrder.client_id}`).emit('order:ready', { orderGroupId, balanceRemaining: totalBalance });
+           if (io2) io2.to(`chat-${firstOrder.business_id}-${firstOrder.client_id}`).emit('order:ready', {
+             orderGroupId,
+             balanceRemaining: totalBalance,
+             totalAmount: total,
+             paymentMethod: firstOrder.payment_method
+           });
          } else if (status === 'completed') {
            sendPushToClient(firstOrder.client_id, {
              type: 'download-receipt', title: 'Receipt Ready', body: `Your receipt is ready. Tap to download.`, url: `/c/${slug}?action=download-receipt&order_id=${orderGroupId}`, icon: logo

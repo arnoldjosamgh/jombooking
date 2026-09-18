@@ -1140,12 +1140,47 @@ function initSocket(biz) {
   });
 
   socket.on('order:paying', (data) => {
+    // Show toast as a fallback/history
     toast(
       `<i data-lucide="smartphone" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Payment Incoming`,
-      `${data.clientName} is currently paying via ${data.providerName}. Please check your phone.`,
+      `${data.clientName} is currently paying via ${data.providerName}.`,
       'info',
       8000
     );
+
+    // Populate the Incoming Payment Modal
+    const header = document.getElementById('ipm-header');
+    if (header) {
+      header.textContent = `${data.tableNumber ? 'TABLE ' + data.tableNumber : 'ORDER'} - #${data.receiptNumber}`;
+    }
+
+    const badge = document.getElementById('ipm-provider-badge');
+    if (badge) {
+      badge.textContent = `[PENDING ${data.providerName.toUpperCase()}]`;
+    }
+
+    const summary = document.getElementById('ipm-summary');
+    if (summary) {
+      summary.textContent = `${data.summaryText} (${formatCurrency(data.balance, selectedBiz?.currency_symbol || '')})`;
+    }
+
+    const recvBtn = document.getElementById('ipm-received-btn');
+    if (recvBtn) {
+      recvBtn.onclick = () => {
+        closeModal('incoming-payment-modal');
+        handleMomoAction(data.orderGroupId, 'RECEIVED');
+      };
+    }
+
+    const partialBtn = document.getElementById('ipm-partial-btn');
+    if (partialBtn) {
+      partialBtn.onclick = () => {
+        closeModal('incoming-payment-modal');
+        handleMomoNotExact(data.orderGroupId, data.balance);
+      };
+    }
+
+    openModal('incoming-payment-modal');
   });
 
   // Also listen for incoming client chat messages
@@ -1977,6 +2012,7 @@ function openSettings() {
   document.getElementById('s-location').value = selectedBiz.location || '';
   document.getElementById('s-mtn-momo').value = selectedBiz.mtn_momo_number || '';
   document.getElementById('s-airtel-momo').value = selectedBiz.airtel_momo_number || '';
+  document.getElementById('s-momo-code').value = selectedBiz.momo_code || '';
   
   // open_days can be an array of ints or strings — normalize
   const days = (selectedBiz.open_days || []).map(d => parseInt(d));
@@ -2015,6 +2051,7 @@ async function saveSettings(e) {
       location: document.getElementById('s-location').value,
       mtn_momo_number: document.getElementById('s-mtn-momo').value.replace(/\s+/g, '') || null,
       airtel_momo_number: document.getElementById('s-airtel-momo').value.replace(/\s+/g, '') || null,
+      momo_code: document.getElementById('s-momo-code').value.trim() || null,
       open_days: days
     };
 

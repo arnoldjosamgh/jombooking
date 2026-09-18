@@ -142,9 +142,26 @@ app.post('/api/notify/paying', async (req, res) => {
     if (bizRes.rows.length > 0) {
       const biz = bizRes.rows[0];
       const channel = biz.pusher_channel || `biz-${businessId}`;
-      
+      const orderRes = await db.query(
+        `SELECT o.table_number, o.receipt_number, o.quantity, p.title, p.price, o.balance_remaining
+         FROM orders o JOIN products p ON o.product_id = p.id
+         WHERE o.order_group_id = $1`,
+        [orderGroupId]
+      );
+      let summaryText = '';
+      let tableNumber = '';
+      let receiptNumber = '';
+      let balance = 0;
+      if (orderRes.rows.length > 0) {
+        tableNumber = orderRes.rows[0].table_number || '';
+        receiptNumber = orderRes.rows[0].receipt_number || orderGroupId;
+        balance = orderRes.rows.reduce((sum, r) => sum + parseFloat(r.balance_remaining || 0), 0);
+        summaryText = orderRes.rows.map(r => `${r.quantity}x ${r.title}`).join(', ');
+      }
+
       io.to(`seller-${channel}`).emit('order:paying', {
         orderGroupId, clientName, providerName,
+        tableNumber, receiptNumber, balance, summaryText,
         timestamp: new Date().toISOString(),
       });
       

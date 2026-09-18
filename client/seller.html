@@ -398,6 +398,10 @@
             <label style="font-size:0.82rem;color:#92400e;">Airtel Money Number <span style="font-weight:400;color:#b45309;">(digits only, e.g. 0751234567)</span></label>
             <input type="tel" id="s-airtel-momo" class="login-input" placeholder="e.g. 0751234567" maxlength="15" style="background:#fff;color:#1a2461;border:1px solid #ef4444;">
           </div>
+          <div class="form-group" style="margin-top:10px;margin-bottom:0;">
+            <label style="font-size:0.82rem;color:#92400e;">Merchant Code <span style="font-weight:400;color:#b45309;">(e.g. 123456)</span></label>
+            <input type="text" id="s-momo-code" class="login-input" placeholder="Used if MoMo numbers are blank" maxlength="20" style="background:#fff;color:#1a2461;border:1px solid #f59e0b;">
+          </div>
           <p style="font-size:0.72rem;color:#92400e;margin-top:8px;">These numbers are used to auto-generate the USSD payment code for clients. Leave blank to use generic codes.</p>
         </div>
         <div class="form-group">
@@ -708,6 +712,26 @@
           <button type="submit" class="btn btn-primary">Update Stock</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ── Incoming Payment Modal ── -->
+  <div id="incoming-payment-modal" class="modal-overlay" style="display:none; z-index:9999;">
+    <div class="modal-content" style="max-width:600px; padding:0; background:transparent; box-shadow:none;">
+      <div style="background:#0f172a; color:#f8fafc; padding:20px; border-radius:12px; font-family:monospace; border:2px solid #f59e0b; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+        <div style="display:flex;justify-content:space-between;border-bottom:1px dashed #475569;padding-bottom:10px;margin-bottom:10px;">
+          <span id="ipm-header" style="font-weight:bold;color:#f59e0b;">TABLE -- ORDER #--</span>
+          <span id="ipm-provider-badge" style="color:#ef4444;font-weight:bold;">[PENDING MOMO]</span>
+        </div>
+        <div id="ipm-summary" style="margin-bottom:12px; line-height:1.5; font-size:1.1rem;">
+          ...
+        </div>
+        <div style="display:flex;gap:10px;justify-content:space-between;border-top:1px dashed #475569;padding-top:16px;">
+          <button id="ipm-received-btn" class="btn" style="flex:1;background:#22c55e;color:#fff;border:none;font-family:monospace;font-weight:bold;">[ RECEIVED ]</button>
+          <button class="btn btn-outline" style="flex:1;color:#94a3b8;border-color:#475569;font-family:monospace;" onclick="closeModal('incoming-payment-modal')">[ NOT YET (Minimize) ]</button>
+          <button id="ipm-partial-btn" class="btn btn-outline" style="flex:1;color:#f59e0b;border-color:#f59e0b;font-family:monospace;">[ NOT EXACT AMOUNT ]</button>
+        </div>
+      </div>
     </div>
   </div>
 

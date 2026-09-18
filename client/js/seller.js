@@ -1180,8 +1180,62 @@ function initSocket(biz) {
       };
     }
 
+    const minimizeBtn = document.getElementById('ipm-minimize-btn');
+    if (minimizeBtn) {
+      minimizeBtn.onclick = () => {
+        closeModal('incoming-payment-modal');
+        createPaymentBubble(data);
+      };
+    }
+
     openModal('incoming-payment-modal');
   });
+
+  function createPaymentBubble(data) {
+    const container = document.getElementById('payment-bubble-container');
+    if (!container) return;
+
+    // Don't duplicate for same order
+    if (document.getElementById(`bubble-${data.orderGroupId}`)) return;
+
+    const bubble = document.createElement('div');
+    bubble.id = `bubble-${data.orderGroupId}`;
+    bubble.className = 'payment-bubble';
+
+    const label = data.tableNumber
+      ? `Table ${data.tableNumber} — ${data.providerName}`
+      : `${data.clientName} — ${data.providerName}`;
+
+    bubble.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>
+      </svg>
+      <span style="flex:1">💳 Pending: ${label}</span>
+      <span class="bubble-dismiss" title="Dismiss" onclick="event.stopPropagation(); this.closest('.payment-bubble').remove();">×</span>
+    `;
+
+    // Clicking the bubble body (not dismiss) reopens the modal
+    bubble.addEventListener('click', (e) => {
+      if (e.target.classList.contains('bubble-dismiss')) return;
+      bubble.remove();
+      // Re-populate and open modal with saved data
+      const header = document.getElementById('ipm-header');
+      if (header) header.textContent = `${data.tableNumber ? 'TABLE ' + data.tableNumber : 'ORDER'} - #${data.receiptNumber}`;
+      const badge = document.getElementById('ipm-provider-badge');
+      if (badge) badge.textContent = `[PENDING ${data.providerName.toUpperCase()}]`;
+      const summary = document.getElementById('ipm-summary');
+      if (summary) summary.textContent = `${data.summaryText} (${formatCurrency(data.balance, selectedBiz?.currency_symbol || '')})`;
+      const recvBtn = document.getElementById('ipm-received-btn');
+      if (recvBtn) recvBtn.onclick = () => { closeModal('incoming-payment-modal'); handleMomoAction(data.orderGroupId, 'RECEIVED'); };
+      const partialBtn = document.getElementById('ipm-partial-btn');
+      if (partialBtn) partialBtn.onclick = () => { closeModal('incoming-payment-modal'); handleMomoNotExact(data.orderGroupId, data.balance); };
+      const minimizeBtn = document.getElementById('ipm-minimize-btn');
+      if (minimizeBtn) minimizeBtn.onclick = () => { closeModal('incoming-payment-modal'); createPaymentBubble(data); };
+      openModal('incoming-payment-modal');
+    });
+
+    container.appendChild(bubble);
+  }
 
   // Also listen for incoming client chat messages
   socket.on('chat:message', async (msg) => {

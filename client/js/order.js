@@ -1025,8 +1025,8 @@ function generatePdfDoc(title, items, status) {
           <span style="color:#1a2461">${dateStr}</span>
         </div>
         <div style="display:flex;justify-content:space-between">
-          <span style="color:#64748b">Client</span>
-          <span style="font-weight:600;color:#1a2461">${localStorage.getItem('clientName') || 'Guest'}</span>
+          <span style="color:#64748b">Billed To</span>
+          <span style="font-weight:600;color:#1a2461">${client?.name || (()=>{ try { return JSON.parse(localStorage.getItem('jomish_client'))?.name; } catch(e){} return 'Guest'; })()}</span>
         </div>
       </div>
 

@@ -618,19 +618,27 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
     const io = req.app.get('io');
     if (io && firstOrder.client_id) {
       const room = `chat-${firstOrder.business_id}-${firstOrder.client_id}`;
+      // Find business slug for links/events if needed
+      const bizRes = await client.query('SELECT slug FROM businesses WHERE id = $1', [firstOrder.business_id]);
+      const slug = bizRes.rows[0]?.slug;
+
       if (newStatus === 'completed') {
-        // Find business slug
-        const bizRes = await client.query('SELECT slug FROM businesses WHERE id = $1', [firstOrder.business_id]);
-        const slug = bizRes.rows[0]?.slug;
-        
         const msgResult = await client.query(
           `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
           [firstOrder.business_id, firstOrder.client_id, 'Thank you for your payment! Enjoy your order.']
         );
-        
         io.to(room).emit('chat:message', msgResult.rows[0]);
         io.to(room).emit('order:completed', { orderGroupId, bizSlug: slug });
       } else {
+        // Send a partial payment message
+        if (action === 'NOT_EXACT_AMOUNT') {
+           const msgResult = await client.query(
+             `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
+             [firstOrder.business_id, firstOrder.client_id, `Partial payment received. Paid so far: ${newAmountPaid}. Pending balance: ${newBalanceRemaining}.`]
+           );
+           io.to(room).emit('chat:message', msgResult.rows[0]);
+        }
+
         io.to(room).emit('order:payment_update', {
           orderGroupId,
           paymentStatus: newPaymentStatus,

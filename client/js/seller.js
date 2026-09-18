@@ -1191,6 +1191,12 @@ function initSocket(biz) {
     openModal('incoming-payment-modal');
   });
 
+  socket.on('order:status', (data) => {
+    // Automatically re-fetch orders when an order status is updated globally
+    renderPending();
+    pollPending();
+  });
+
   function createPaymentBubble(data) {
     const container = document.getElementById('payment-bubble-container');
     if (!container) return;

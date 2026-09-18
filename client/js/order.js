@@ -44,11 +44,11 @@ function setMomoProvider(val) {
   const pillAirtel = document.getElementById('pill-airtel');
   if (pillMtn && pillAirtel) {
     if (val === 'mtn') {
-      pillMtn.style.cssText    = 'padding:10px 8px;border-radius:10px;border:2px solid #f59e0b;background:rgba(245,158,11,0.15);text-align:center;font-size:0.8rem;font-weight:700;color:#f59e0b;transition:all 0.2s;';
-      pillAirtel.style.cssText = 'padding:10px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.5);transition:all 0.2s;';
+      pillMtn.style.cssText    = 'padding:8px;border-radius:10px;border:2px solid #ffcc00;background:#ffcc00;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);';
+      pillAirtel.style.cssText = 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
     } else {
-      pillAirtel.style.cssText = 'padding:10px 8px;border-radius:10px;border:2px solid #ef4444;background:rgba(239,68,68,0.15);text-align:center;font-size:0.8rem;font-weight:700;color:#ef4444;transition:all 0.2s;';
-      pillMtn.style.cssText    = 'padding:10px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.5);transition:all 0.2s;';
+      pillAirtel.style.cssText = 'padding:8px;border-radius:10px;border:2px solid #ff0000;background:#ff0000;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,0,0,0.5);transform:scale(1.05);';
+      pillMtn.style.cssText    = 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
     }
   }
   // Update pay button
@@ -519,17 +519,19 @@ function initSocket() {
         <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
           <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:12px;">📲 MOBILE MONEY PAYMENT</p>
           <p style="color:rgba(255,255,255,0.7);font-size:0.82rem;margin-bottom:14px;">Pay <strong style="color:#fff;">${formatCurrency(balanceRemaining, business.currency_symbol)}</strong> to complete your order.</p>
-          <div style="display:flex;gap:10px;margin-bottom:16px;">
+          <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
             <label style="flex:1;cursor:pointer;">
               <input type="radio" name="momo-provider" value="mtn" ${selectedMomoProvider === 'mtn' ? 'checked' : ''} onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
-              <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:10px 8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.8rem;font-weight:700;color:${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.5)'};transition:all 0.2s;">
-                📲 MTN MoMo
+              <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'mtn' ? 'box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
+                <div style="font-family:Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-0.5px;color:#003876;line-height:1;">MTN</div>
+                <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#003876;line-height:1;margin-top:2px;">MoMo</div>
               </div>
             </label>
             <label style="flex:1;cursor:pointer;">
               <input type="radio" name="momo-provider" value="airtel" ${selectedMomoProvider === 'airtel' ? 'checked' : ''} onchange="setMomoProvider('airtel')" style="display:none;" id="radio-airtel">
-              <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:10px 8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'airtel' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.8rem;font-weight:700;color:${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.5)'};transition:all 0.2s;">
-                📲 Airtel Money
+              <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'airtel' ? '#ff0000' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'airtel' ? '#ff0000' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'airtel' ? 'box-shadow:0 0 10px rgba(255,0,0,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
+                <div style="font-family:'Ubuntu',sans-serif;font-weight:700;font-style:italic;font-size:1.1rem;letter-spacing:-0.5px;color:#ffffff;line-height:1;">airtel</div>
+                <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">money</div>
               </div>
             </label>
           </div>
@@ -562,17 +564,19 @@ function initSocket() {
             <span style="color:rgba(255,255,255,0.6);font-size:0.82rem;">Balance remaining</span>
             <span style="color:#ef4444;font-weight:700;">${formatCurrency(balanceRemaining, business.currency_symbol)}</span>
           </div>
-          <div style="display:flex;gap:10px;margin-bottom:14px;">
+          <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
             <label style="flex:1;cursor:pointer;">
               <input type="radio" name="momo-provider" value="mtn" ${selectedMomoProvider === 'mtn' ? 'checked' : ''} onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
-              <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px 6px;border-radius:8px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.78rem;font-weight:700;color:${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.5)'};">
-                MTN MoMo
+              <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'mtn' ? 'box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
+                <div style="font-family:Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-0.5px;color:#003876;line-height:1;">MTN</div>
+                <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#003876;line-height:1;margin-top:2px;">MoMo</div>
               </div>
             </label>
             <label style="flex:1;cursor:pointer;">
               <input type="radio" name="momo-provider" value="airtel" ${selectedMomoProvider === 'airtel' ? 'checked' : ''} onchange="setMomoProvider('airtel')" style="display:none;" id="radio-airtel">
-              <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:8px 6px;border-radius:8px;border:2px solid ${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'airtel' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.78rem;font-weight:700;color:${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.5)'};">
-                Airtel Money
+              <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'airtel' ? '#ff0000' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'airtel' ? '#ff0000' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'airtel' ? 'box-shadow:0 0 10px rgba(255,0,0,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
+                <div style="font-family:'Ubuntu',sans-serif;font-weight:700;font-style:italic;font-size:1.1rem;letter-spacing:-0.5px;color:#ffffff;line-height:1;">airtel</div>
+                <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">money</div>
               </div>
             </label>
           </div>

@@ -4,7 +4,6 @@
  * Also supports manually blocked slots.
  */
 const express = require('express');
-const db = require('../db');
 const router  = express.Router();
 const db      = require('../db');
 const { requireFields }  = require('../middleware/validate');

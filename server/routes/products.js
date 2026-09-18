@@ -419,10 +419,18 @@ router.patch('/:id/status', authenticate, async (req, res) => {
               url: `/c/${p.slug}?action=download-receipt&order_id=${order.id}`,
               icon: p.logo_url
             });
-            // Emit socket event to client room for instant download
+            
+            // Insert Thank You message and emit to chat
+            const msgResult = await db.query(
+              `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
+              [order.business_id, order.client_id, 'Thank you for your payment! Enjoy your order.']
+            );
+            
+            // Emit socket event to client room for instant download and chat
             const io2 = req.app.get('io');
             if (io2) {
               const room = `chat-${order.business_id}-${order.client_id}`;
+              io2.to(room).emit('chat:message', msgResult.rows[0]);
               io2.to(room).emit('order:completed', { orderId: order.id, bizSlug: p.slug });
             }
           }
@@ -447,6 +455,89 @@ router.patch('/:id/status', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+// ─── PATCH /api/orders/group/:orderGroupId/status ────────────────────────────
+router.patch('/group/:orderGroupId/status', authenticate, async (req, res) => {
+  const client = await db.connect();
+  try {
+    const { status } = req.body;
+    const { orderGroupId } = req.params;
+    if (!['pending', 'ready', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+    
+    await client.query('BEGIN');
+    const groupRes = await client.query('SELECT * FROM orders WHERE order_group_id = $1', [orderGroupId]);
+    if (groupRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order group not found' });
+    }
+    
+    await client.query('UPDATE orders SET status = $1, seller_id = $2, updated_at = CURRENT_TIMESTAMP WHERE order_group_id = $3', [status, req.user.id, orderGroupId]);
+    
+    const firstOrder = groupRes.rows[0];
+    
+    if ((status === 'ready' || status === 'completed') && firstOrder.client_id) {
+       const prodRes = await client.query(
+         `SELECT p.title, p.price, o.quantity, b.slug, b.logo_url 
+          FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id 
+          WHERE o.order_group_id = $1`, [orderGroupId]
+       );
+       const items = prodRes.rows;
+       if (items.length > 0) {
+         const slug = items[0].slug;
+         const logo = items[0].logo_url;
+         const total = items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
+         const totalBalance = groupRes.rows.reduce((sum, item) => sum + parseFloat(item.balance_remaining || 0), 0);
+         const itemsText = items.map(i => `${i.title} x${i.quantity}`).join(', ');
+         const receiptContent = `[RECEIPT] Order #${firstOrder.receipt_number || firstOrder.id}\nItems: ${itemsText}\nTotal: $${total.toFixed(2)}`;
+         
+         await client.query(`INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`, [firstOrder.business_id, firstOrder.client_id, receiptContent]);
+         
+         const io2 = req.app.get('io');
+         if (status === 'ready') {
+           sendPushToClient(firstOrder.client_id, {
+             type: 'order-ready', title: 'Order Ready', body: `Your order is ready. Balance: $${totalBalance.toFixed(2)}. Tap to pay.`, url: `/c/${slug}`, icon: logo
+           });
+           if (io2) io2.to(`chat-${firstOrder.business_id}-${firstOrder.client_id}`).emit('order:ready', { orderGroupId, balanceRemaining: totalBalance });
+         } else if (status === 'completed') {
+           sendPushToClient(firstOrder.client_id, {
+             type: 'download-receipt', title: 'Receipt Ready', body: `Your receipt is ready. Tap to download.`, url: `/c/${slug}?action=download-receipt&order_id=${orderGroupId}`, icon: logo
+           });
+           
+           const msgResult = await client.query(
+             `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
+             [firstOrder.business_id, firstOrder.client_id, 'Thank you for your payment! Enjoy your order.']
+           );
+           
+           if (io2) {
+             const room = `chat-${firstOrder.business_id}-${firstOrder.client_id}`;
+             io2.to(room).emit('chat:message', msgResult.rows[0]);
+             io2.to(room).emit('order:completed', { orderGroupId, bizSlug: slug });
+           }
+         }
+       }
+    }
+    
+    await client.query('COMMIT');
+    
+    const io = req.app.get('io');
+    if (io) {
+      const bizRes = await client.query('SELECT pusher_channel FROM businesses WHERE id = $1', [firstOrder.business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${firstOrder.business_id}`;
+        io.to(`seller-${channel}`).emit('order:status', { orderId: orderGroupId, status });
+      }
+    }
+    res.json({ success: true, orderGroupId, status });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[orders] PATCH group status error:', err);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
+  }
+});
+
 // ─── PATCH /api/orders/group/:orderGroupId/payment ────────────────────────────
 router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
   const client = await db.connect();
@@ -519,6 +610,13 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
         // Find business slug
         const bizRes = await client.query('SELECT slug FROM businesses WHERE id = $1', [firstOrder.business_id]);
         const slug = bizRes.rows[0]?.slug;
+        
+        const msgResult = await client.query(
+          `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
+          [firstOrder.business_id, firstOrder.client_id, 'Thank you for your payment! Enjoy your order.']
+        );
+        
+        io.to(room).emit('chat:message', msgResult.rows[0]);
         io.to(room).emit('order:completed', { orderGroupId, bizSlug: slug });
       } else {
         io.to(room).emit('order:payment_update', {

@@ -1431,18 +1431,18 @@ async function renderPending() {
             : '';
           const totalFmt = g.total_price > 0 ? `<span class="text-dim text-sm">Total: <strong>${formatCurrency(g.total_price, selectedBiz.currency_symbol)}</strong>${g.balance_remaining > 0 ? ` · Balance: <strong style="color:#ef4444;">${formatCurrency(g.balance_remaining, selectedBiz.currency_symbol)}</strong>` : ''}</span>` : '';
 
-          const actionButtons = isMomo
+          const actionButtons = g.status === 'pending'
+            ? `
+              <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${g.client_id}', '${g.client_name}', 'Your order')" title="Send Order Ready message"><i data-lucide="bell" class="icon" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"></i> Msg</button>
+              <button class="btn btn-primary btn-sm" onclick="markOrderGroupReady('${g.order_group_id}')">Mark Ready</button>
+            `
+            : isMomo
             ? `
               <button class="btn btn-sm" onclick="handleMomoAction('${g.order_group_id}','RECEIVED')" style="background:var(--green);color:#fff;border:none;font-weight:700;">✓ RECEIVED</button>
               <button class="btn btn-outline btn-sm" onclick="handleMomoAction('${g.order_group_id}','NOT_YET')" title="Minimize order">NOT YET</button>
               <button class="btn btn-outline btn-sm" onclick="handleMomoNotExact('${g.order_group_id}', ${g.balance_remaining || g.total_price})" title="Enter partial amount" style="color:#f59e0b;border-color:#f59e0b;">≠ AMOUNT</button>
             `
-            : g.status === 'pending'
-            ? `
-              <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${g.client_id}', '${g.client_name}', 'Your order')" title="Send Order Ready message"><i data-lucide="bell" class="icon" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"></i> Msg</button>
-              <button class="btn btn-primary btn-sm" onclick="markOrderGroupReady('${g.ids.join(',')}')">Mark Ready</button>
-            `
-            : `<button class="btn btn-success btn-sm" onclick="completeOrderGroup('${g.ids.join(',')}')" style="background:var(--green);border:none;">Complete / Paid</button>`;
+            : `<button class="btn btn-success btn-sm" onclick="completeOrderGroup('${g.order_group_id}')" style="background:var(--green);border:none;">Complete / Paid</button>`;
 
           return `
           <div class="list-item" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
@@ -1679,10 +1679,15 @@ async function markOrderReady(orderId) {
   }
 }
 
-async function markOrderGroupReady(idsStr) {
+async function markOrderGroupReady(orderGroupId) {
   try {
-    const ids = idsStr.split(',');
-    await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'ready' }})));
+    if (orderGroupId.includes(',')) {
+      // Legacy fallback
+      const ids = orderGroupId.split(',');
+      await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'ready' }})));
+    } else {
+      await apiFetch(`/api/orders/group/${orderGroupId}/status`, { method: 'PATCH', body: { status: 'ready' }});
+    }
     toast('Success', 'Order marked as Ready for collection.', 'success');
     renderPending();
     pollPending();
@@ -1714,10 +1719,15 @@ async function completeOrder(orderId) {
   }
 }
 
-async function completeOrderGroup(idsStr) {
+async function completeOrderGroup(orderGroupId) {
   try {
-    const ids = idsStr.split(',');
-    await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'completed' }})));
+    if (orderGroupId.includes(',')) {
+      // Legacy fallback
+      const ids = orderGroupId.split(',');
+      await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'completed' }})));
+    } else {
+      await apiFetch(`/api/orders/group/${orderGroupId}/status`, { method: 'PATCH', body: { status: 'completed' }});
+    }
     toast('Success', 'Order marked as delivered/completed.', 'success');
     renderPending();
     pollPending(); // update badge

@@ -475,6 +475,47 @@ function initSocket() {
     setTimeout(() => triggerClientReceiptDownload(idToUse, bizSlug || (business && business.slug)), 800);
   });
 
+  // Listen for order:ready — food is ready, ask for MoMo payment
+  socket.on('order:ready', ({ orderGroupId, balanceRemaining }) => {
+    const paymentArea = document.getElementById('payment-status-area');
+    const titleEl = document.getElementById('pending-status-title');
+    const descEl = document.getElementById('pending-status-desc');
+    if (titleEl) titleEl.textContent = 'Order Ready!';
+    if (descEl) descEl.textContent = 'Your order is prepared. Please complete payment.';
+
+    if (paymentArea && balanceRemaining > 0 && (getParam('loc') || getParam('table'))) {
+      const ussdHref = buildUssdHref(balanceRemaining);
+      const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
+      paymentArea.innerHTML = `
+        <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
+          <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:12px;">📲 MOBILE MONEY PAYMENT</p>
+          <p style="color:rgba(255,255,255,0.7);font-size:0.82rem;margin-bottom:14px;">Pay <strong style="color:#fff;">${formatCurrency(balanceRemaining, business.currency_symbol)}</strong> to complete your order.</p>
+          <div style="display:flex;gap:10px;margin-bottom:16px;">
+            <label style="flex:1;cursor:pointer;">
+              <input type="radio" name="momo-provider" value="mtn" ${selectedMomoProvider === 'mtn' ? 'checked' : ''} onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
+              <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:10px 8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.8rem;font-weight:700;color:${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.5)'};transition:all 0.2s;">
+                📲 MTN MoMo
+              </div>
+            </label>
+            <label style="flex:1;cursor:pointer;">
+              <input type="radio" name="momo-provider" value="airtel" ${selectedMomoProvider === 'airtel' ? 'checked' : ''} onchange="setMomoProvider('airtel')" style="display:none;" id="radio-airtel">
+              <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:10px 8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'airtel' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.8rem;font-weight:700;color:${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.5)'};transition:all 0.2s;">
+                📲 Airtel Money
+              </div>
+            </label>
+          </div>
+          <a id="momo-pay-btn" data-balance="${balanceRemaining}" href="${ussdHref}"
+            style="display:block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-size:0.95rem;box-shadow:0 4px 15px rgba(245,158,11,0.4);"
+            onclick="this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
+            📲 Pay ${formatCurrency(balanceRemaining, business.currency_symbol)} via ${providerName}
+          </a>
+          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
+        </div>
+      `;
+    }
+    toast('Order Ready', 'Your order is ready. Please complete payment.', 'success');
+  });
+
   // Listen for order:payment_update — partial MoMo payments
   socket.on('order:payment_update', ({ orderGroupId, paymentStatus, amountPaid, balanceRemaining }) => {
     const paymentArea = document.getElementById('payment-status-area');
@@ -576,13 +617,13 @@ async function triggerClientReceiptDownload(oId, bizSlug) {
     const slug = bizSlug || (business && business.slug);
     if (!slug) return;
     const res = await apiFetch(`/api/orders/list/${slug}`);
-    const myOrders = res.filter(o => String(o.id) === String(oId));
+    const myOrders = res.filter(o => String(o.id) === String(oId) || String(o.order_group_id) === String(oId));
     if (!myOrders.length) { toast('Invoice', 'Order details not found.', 'error'); return; }
     const items = myOrders.map(o => ({
       name: o.product_title, price: parseFloat(o.price || 0),
       qty: o.quantity || 1, total: parseFloat(o.price || 0) * (o.quantity || 1)
     }));
-    generatePdfDoc('Invoice', items, 'Paid & Completed');
+    generatePdfDoc(`Order-${myOrders[0].receipt_number || myOrders[0].id}`, items, 'Paid & Completed');
   } catch (err) {
     toast('Error', 'Could not download invoice.', 'error');
   }

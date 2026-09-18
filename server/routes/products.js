@@ -267,9 +267,16 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
       const io = req.app.get('io');
       if (io) {
         const channel = biz.pusher_channel || `biz-${business_id}`;
+        // Build a summary string: "Fries x2, Club Soda x1"
+        const summary = createdOrders.map(o => `${o.product_title} ×${o.quantity}`).join(', ');
         io.to(`seller-${channel}`).emit('order:waiting', {
           orderId: createdOrders[0].id,
+          orderGroupId: createdOrders[0].order_group_id,
           clientName: createdOrders[0].client_name,
+          productTitle: createdOrders.length === 1 ? createdOrders[0].product_title : `${createdOrders.length} items`,
+          quantity: createdOrders.length === 1 ? createdOrders[0].quantity : null,
+          summary,
+          tableNumber: createdOrders[0].table_number,
           timestamp: new Date().toISOString()
         });
       }

@@ -1127,8 +1127,11 @@ function initSocket(biz) {
   socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
 
   socket.on('order:waiting', (data) => {
-    toast(`<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> New Order — ${data.clientName}`, `${data.productTitle} ×${data.quantity}`, 'info', 8000);
-    if (selectedBiz?.type === 'product') loadProducts();
+    const orderDesc = data.summary || (data.productTitle && data.quantity != null ? `${data.productTitle} ×${data.quantity}` : data.productTitle || 'New order received');
+    const tableTag = data.tableNumber ? ` · Table ${data.tableNumber}` : '';
+    toast(`<i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> New Order — ${data.clientName}${tableTag}`, orderDesc, 'info', 8000);
+    renderPending();
+    pollPending();
   });
 
   socket.on('booking:new', (data) => {

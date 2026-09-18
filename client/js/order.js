@@ -39,53 +39,70 @@ function buildUssdHref(amount) {
 
 function setMomoProvider(val) {
   selectedMomoProvider = val;
-  // Update pill highlight
   const pillMtn    = document.getElementById('pill-mtn');
   const pillAirtel = document.getElementById('pill-airtel');
-  if (pillMtn && pillAirtel) {
-    if (val === 'mtn') {
-      pillMtn.style.cssText    = 'padding:8px;border-radius:10px;border:2px solid #ffcc00;background:#ffcc00;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);';
-      pillAirtel.style.cssText = 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
-    } else {
-      pillAirtel.style.cssText = 'padding:8px;border-radius:10px;border:2px solid #ff0000;background:#ff0000;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,0,0,0.5);transform:scale(1.05);';
-      pillMtn.style.cssText    = 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
-    }
+  const pillCash   = document.getElementById('pill-cash');
+  if (pillMtn && pillAirtel && pillCash) {
+    pillMtn.style.cssText    = val === 'mtn' ? 'padding:8px;border-radius:10px;border:2px solid #ffcc00;background:#ffcc00;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);' : 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
+    pillAirtel.style.cssText = val === 'airtel' ? 'padding:8px;border-radius:10px;border:2px solid #ff0000;background:#ff0000;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,0,0,0.5);transform:scale(1.05);' : 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
+    pillCash.style.cssText   = val === 'cash' ? 'padding:8px;border-radius:10px;border:2px solid #10b981;background:#10b981;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(16,185,129,0.5);transform:scale(1.05);' : 'padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;';
   }
   refreshPayButton();
 }
 
 function refreshPayButton() {
   const btn = document.getElementById('momo-pay-btn');
+  const helper = document.getElementById('pay-helper-text');
   if (!btn) return;
   const isAirtel = selectedMomoProvider === 'airtel';
-  const label    = isAirtel ? 'Airtel Money' : 'MTN MoMo';
-  const bg       = isAirtel
-    ? 'linear-gradient(135deg,#ff0000,#cc0000)'
-    : 'linear-gradient(135deg,#ffcc00,#f59e0b)';
-  const textColor = isAirtel ? '#fff' : '#003876';
-  const shadow    = isAirtel
-    ? '0 4px 15px rgba(255,0,0,0.4)'
-    : '0 4px 15px rgba(255,204,0,0.4)';
+  const isCash   = selectedMomoProvider === 'cash';
+  
+  let label, bg, textColor, shadow;
+  if (isCash) {
+    label = 'Call Seller for Cash';
+    bg = 'linear-gradient(135deg,#10b981,#059669)';
+    textColor = '#fff';
+    shadow = '0 4px 15px rgba(16,185,129,0.4)';
+    if (helper) helper.textContent = 'Seller will come to collect cash';
+  } else if (isAirtel) {
+    label = 'Pay via Airtel Money';
+    bg = 'linear-gradient(135deg,#ff0000,#cc0000)';
+    textColor = '#fff';
+    shadow = '0 4px 15px rgba(255,0,0,0.4)';
+    if (helper) helper.textContent = 'Your phone will open the payment dialer';
+  } else {
+    label = 'Pay via MTN MoMo';
+    bg = 'linear-gradient(135deg,#ffcc00,#f59e0b)';
+    textColor = '#003876';
+    shadow = '0 4px 15px rgba(255,204,0,0.4)';
+    if (helper) helper.textContent = 'Your phone will open the payment dialer';
+  }
+
   btn.style.background  = bg;
   btn.style.color       = textColor;
   btn.style.boxShadow   = shadow;
-  btn.textContent       = `📲 Pay via ${label}`;
+  btn.textContent       = `📲 ${label}`;
 }
 
 async function doMomoPay(orderGroupId, balance) {
-  const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
-  const ussdHref     = buildUssdHref(balance);
+  const isCash = selectedMomoProvider === 'cash';
+  const providerName = isCash ? 'Cash' : (selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo');
 
   // First notify the seller (await so the POST completes before we open the dialer)
   await notifyClientPaying(orderGroupId, providerName);
 
-  // Open the USSD dialer via a hidden anchor click (doesn't navigate away from the page)
-  const a = document.createElement('a');
-  a.href = ussdHref;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(() => a.remove(), 500);
+  if (!isCash) {
+    const ussdHref = buildUssdHref(balance);
+    // Open the USSD dialer via a hidden anchor click (doesn't navigate away from the page)
+    const a = document.createElement('a');
+    a.href = ussdHref;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => a.remove(), 500);
+  } else {
+    toast('Seller Notified', 'The seller is coming to collect cash.', 'success');
+  }
 }
 
 // ─── Init ──────────────────────────────────────────────────────
@@ -541,10 +558,9 @@ function initSocket() {
     const isMomo = paymentMethod === 'momo' || balanceRemaining > 0;
     if (paymentArea && isMomo && balanceRemaining > 0) {
       paymentArea.innerHTML = `
-        <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
-          <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:12px;">📲 MOBILE MONEY PAYMENT</p>
+          <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:12px;">💳 CHOOSE PAYMENT METHOD</p>
           <p style="color:rgba(255,255,255,0.7);font-size:0.82rem;margin-bottom:14px;">Pay <strong style="color:#fff;">${formatCurrency(balanceRemaining, business.currency_symbol)}</strong> to complete your order.</p>
-          <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
+          <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
             <label style="flex:1;cursor:pointer;">
               <input type="radio" name="momo-provider" value="mtn" ${selectedMomoProvider === 'mtn' ? 'checked' : ''} onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
               <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'mtn' ? 'box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
@@ -559,13 +575,20 @@ function initSocket() {
                 <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">money</div>
               </div>
             </label>
+            <label style="flex:1;cursor:pointer;">
+              <input type="radio" name="momo-provider" value="cash" ${selectedMomoProvider === 'cash' ? 'checked' : ''} onchange="setMomoProvider('cash')" style="display:none;" id="radio-cash">
+              <div id="pill-cash" onclick="document.getElementById('radio-cash').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'cash' ? '#10b981' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'cash' ? '#10b981' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'cash' ? 'box-shadow:0 0 10px rgba(16,185,129,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
+                <div style="font-family:Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-0.5px;color:#ffffff;line-height:1;">💵</div>
+                <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">CASH</div>
+              </div>
+            </label>
           </div>
           <button id="momo-pay-btn" data-balance="${balanceRemaining}"
             style="display:block;width:100%;background:linear-gradient(135deg,#ffcc00,#f59e0b);color:#003876;font-weight:700;text-align:center;padding:14px;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;box-shadow:0 4px 15px rgba(255,204,0,0.4);transition:all 0.2s;"
             onclick="doMomoPay('${orderGroupId}', ${balanceRemaining}); this.style.opacity='0.7'; setTimeout(()=>this.style.opacity='1',1200)">
             📲 Pay via MTN MoMo
           </button>
-          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
+          <p id="pay-helper-text" style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
         </div>
       `;
     }
@@ -577,8 +600,7 @@ function initSocket() {
     const paymentArea = document.getElementById('payment-status-area');
     if (paymentArea) {
       paymentArea.innerHTML = `
-        <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
-          <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:10px;">📲 MOBILE MONEY PAYMENT</p>
+          <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:10px;">💳 CHOOSE PAYMENT METHOD</p>
           <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
             <span style="color:rgba(255,255,255,0.6);font-size:0.82rem;">Amount received</span>
             <span style="color:#4ade80;font-weight:700;">${formatCurrency(amountPaid, business.currency_symbol)}</span>
@@ -587,7 +609,7 @@ function initSocket() {
             <span style="color:rgba(255,255,255,0.6);font-size:0.82rem;">Balance remaining</span>
             <span style="color:#ef4444;font-weight:700;">${formatCurrency(balanceRemaining, business.currency_symbol)}</span>
           </div>
-          <div style="display:flex;gap:12px;margin-bottom:20px;align-items:center;">
+          <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
             <label style="flex:1;cursor:pointer;">
               <input type="radio" name="momo-provider" value="mtn" ${selectedMomoProvider === 'mtn' ? 'checked' : ''} onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
               <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? '#ffcc00' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'mtn' ? 'box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
@@ -602,13 +624,20 @@ function initSocket() {
                 <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">money</div>
               </div>
             </label>
+            <label style="flex:1;cursor:pointer;">
+              <input type="radio" name="momo-provider" value="cash" ${selectedMomoProvider === 'cash' ? 'checked' : ''} onchange="setMomoProvider('cash')" style="display:none;" id="radio-cash">
+              <div id="pill-cash" onclick="document.getElementById('radio-cash').click()" style="padding:8px;border-radius:10px;border:2px solid ${selectedMomoProvider === 'cash' ? '#10b981' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'cash' ? '#10b981' : 'rgba(255,255,255,0.05)'};text-align:center;transition:all 0.2s;${selectedMomoProvider === 'cash' ? 'box-shadow:0 0 10px rgba(16,185,129,0.5);transform:scale(1.05);' : 'opacity:0.5;'}">
+                <div style="font-family:Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-0.5px;color:#ffffff;line-height:1;">💵</div>
+                <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">CASH</div>
+              </div>
+            </label>
           </div>
           <button id="momo-pay-btn" data-balance="${balanceRemaining}"
             style="display:block;width:100%;background:linear-gradient(135deg,#ffcc00,#f59e0b);color:#003876;font-weight:700;text-align:center;padding:14px;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;box-shadow:0 4px 15px rgba(255,204,0,0.4);transition:all 0.2s;"
             onclick="doMomoPay('${orderGroupId}', ${balanceRemaining}); this.style.opacity='0.7'; setTimeout(()=>this.style.opacity='1',1200)">
             📲 Pay via MTN MoMo
           </button>
-          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
+          <p id="pay-helper-text" style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
         </div>
       `;
     }

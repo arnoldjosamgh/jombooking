@@ -1400,41 +1400,73 @@ async function renderPending() {
           if (!groupedMap.has(key)) {
             groupedMap.set(key, {
               ids: [],
+              order_group_id: o.order_group_id,
               client_id: o.client_id,
               client_name: o.client_name,
               client_location: o.client_location,
+              table_number: o.table_number,
+              payment_method: o.payment_method,
+              payment_status: o.payment_status,
+              balance_remaining: o.balance_remaining,
               status: o.status,
               created_at: o.created_at,
-              items: []
+              items: [],
+              total_price: 0
             });
           }
           const group = groupedMap.get(key);
           group.ids.push(o.id);
           group.items.push(`${o.product_title} (x${o.quantity})`);
+          group.total_price += parseFloat(o.price || 0) * parseInt(o.quantity || 1);
         });
 
-        html += Array.from(groupedMap.values()).map(g => `
-          <div class="list-item" style="display:flex; justify-content:space-between; align-items:center;">
-            <div>
-              <strong>${g.client_name}</strong>
-              ${g.status === 'ready' ? '<span class="badge badge-success ml-4" style="background:var(--green);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">READY</span>' : ''}
-              <br>
-              <span class="text-dim text-sm">${g.client_location ? `Table/Loc: ${g.client_location}` : ''} • ${new Date(g.created_at).toLocaleString()}</span>
-              <ul style="margin: 8px 0 0 16px; font-size: 0.9rem;">
+        html += Array.from(groupedMap.values()).map(g => {
+          const isMomo = g.payment_method === 'momo' || g.table_number;
+          const tableLabel = g.table_number ? `<span style="background:var(--accent-blue,#3b82f6);color:#fff;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;letter-spacing:1px;margin-left:6px;">TABLE ${g.table_number}</span>` : '';
+          const momoLabel = isMomo ? `<span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;margin-left:6px;">MOMO</span>` : '';
+          const payBadge = g.payment_status === 'completed'
+            ? `<span style="background:var(--green);color:#fff;padding:2px 8px;border-radius:12px;font-size:0.72rem;margin-left:6px;">PAID ✓</span>`
+            : g.payment_status === 'partial'
+            ? `<span style="background:#f97316;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.72rem;margin-left:6px;">PARTIAL</span>`
+            : '';
+          const totalFmt = g.total_price > 0 ? `<span class="text-dim text-sm">Total: <strong>${formatCurrency(g.total_price, selectedBiz.currency_symbol)}</strong>${g.balance_remaining > 0 ? ` · Balance: <strong style="color:#ef4444;">${formatCurrency(g.balance_remaining, selectedBiz.currency_symbol)}</strong>` : ''}</span>` : '';
+
+          const actionButtons = isMomo
+            ? `
+              <button class="btn btn-sm" onclick="handleMomoAction('${g.order_group_id}','RECEIVED')" style="background:var(--green);color:#fff;border:none;font-weight:700;">✓ RECEIVED</button>
+              <button class="btn btn-outline btn-sm" onclick="handleMomoAction('${g.order_group_id}','NOT_YET')" title="Minimize order">NOT YET</button>
+              <button class="btn btn-outline btn-sm" onclick="handleMomoNotExact('${g.order_group_id}', ${g.balance_remaining || g.total_price})" title="Enter partial amount" style="color:#f59e0b;border-color:#f59e0b;">≠ AMOUNT</button>
+            `
+            : g.status === 'pending'
+            ? `
+              <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${g.client_id}', '${g.client_name}', 'Your order')" title="Send Order Ready message"><i data-lucide="bell" class="icon" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"></i> Msg</button>
+              <button class="btn btn-primary btn-sm" onclick="markOrderGroupReady('${g.ids.join(',')}')">Mark Ready</button>
+            `
+            : `<button class="btn btn-success btn-sm" onclick="completeOrderGroup('${g.ids.join(',')}')" style="background:var(--green);border:none;">Complete / Paid</button>`;
+
+          return `
+          <div class="list-item" style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+                <strong>${g.client_name}</strong>
+                ${tableLabel}${momoLabel}${payBadge}
+                ${g.status === 'ready' ? '<span class="badge badge-success ml-4" style="background:var(--green);color:white;padding:2px 6px;border-radius:4px;font-size:0.7rem;">READY</span>' : ''}
+              </div>
+              <div style="margin-top:4px;">
+                <span class="text-dim text-sm">${new Date(g.created_at).toLocaleString()}</span>
+              </div>
+              <ul style="margin:8px 0 4px 16px; font-size:0.9rem;">
                 ${g.items.map(item => `<li>${item}</li>`).join('')}
               </ul>
+              ${totalFmt}
             </div>
-            <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-              ${g.status === 'pending' ? `
-                <button class="btn btn-outline btn-sm" onclick="notifyOrderReady('${g.client_id}', '${g.client_name}', 'Your order')" title="Send 'Order Ready' message"><i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Msg</button>
-                <button class="btn btn-primary btn-sm" onclick="markOrderGroupReady('${g.ids.join(',')}')">Mark Ready</button>
-              ` : `
-                <button class="btn btn-success btn-sm" onclick="completeOrderGroup('${g.ids.join(',')}')" style="background:var(--green);border:none;">Complete / Paid</button>
-              `}
-              <button class="btn btn-outline btn-sm" onclick="openChat('${g.client_id}', '${g.client_name}')"><i data-lucide="mail" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> Chat</button>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; align-items:center; flex-shrink:0;">
+              ${actionButtons}
+              <button class="btn btn-outline btn-sm" onclick="openChat('${g.client_id}', '${g.client_name}')"><i data-lucide="mail" class="icon" style="width:1em;height:1em;display:inline-block;vertical-align:middle;"></i> Chat</button>
             </div>
           </div>
-        `).join('');
+          `;
+        }).join('');
         html += '</div>';
       }
     }
@@ -1690,6 +1722,53 @@ async function completeOrderGroup(idsStr) {
     renderPending();
     pollPending(); // update badge
     renderPOS(); // Take user to POS
+  } catch(e) {
+    toast('Error', e.message, 'error');
+  }
+}
+
+// ─── MoMo / Table Order Action Handlers ───────────────────────────────────────
+async function handleMomoAction(orderGroupId, action) {
+  try {
+    await apiFetch(`/api/orders/group/${orderGroupId}/payment`, {
+      method: 'PATCH',
+      body: { action }
+    });
+    if (action === 'RECEIVED') {
+      toast('Payment Received', 'Order marked as fully paid and completed.', 'success');
+      renderPending();
+      pollPending();
+    } else if (action === 'NOT_YET') {
+      // Just collapse/minimize — re-render pending which will show it as minimized (no special UI needed, just re-render)
+      toast('Noted', 'Order is still pending payment.', 'info');
+      renderPending();
+    }
+  } catch(e) {
+    toast('Error', e.message, 'error');
+  }
+}
+
+async function handleMomoNotExact(orderGroupId, currentBalance) {
+  const amountStr = window.prompt(`Customer paid partial amount.\nRemaining balance: ${formatCurrency(currentBalance, selectedBiz?.currency_symbol || '')}\n\nEnter amount received:`);
+  if (!amountStr) return;
+  const amount = parseFloat(amountStr.replace(/[^0-9.]/g, ''));
+  if (isNaN(amount) || amount <= 0) {
+    toast('Invalid', 'Please enter a valid amount.', 'error');
+    return;
+  }
+  try {
+    const res = await apiFetch(`/api/orders/group/${orderGroupId}/payment`, {
+      method: 'PATCH',
+      body: { action: 'NOT_EXACT_AMOUNT', amountPaid: amount }
+    });
+    const newBalance = res.balanceRemaining || 0;
+    if (newBalance <= 0) {
+      toast('Fully Paid', 'Order is now fully paid.', 'success');
+    } else {
+      toast('Partial Payment', `Balance remaining: ${formatCurrency(newBalance, selectedBiz?.currency_symbol || '')}`, 'info');
+    }
+    renderPending();
+    pollPending();
   } catch(e) {
     toast('Error', e.message, 'error');
   }

@@ -9,7 +9,48 @@ let products = [];
 let cart     = {}; // { productId: quantity }
 let socket   = null;
 let orderId  = null;
+let selectedMomoProvider = 'mtn'; // 'mtn' or 'airtel'
 const sentMsgIds = new Set(); // deduplicate socket echo
+
+// USSD codes per provider (Uganda)
+const USSD_CODES = {
+  mtn:    (merchant, amount) => `*165*3*${merchant}*${Math.round(amount)}#`,
+  airtel: (merchant, amount) => `*185*9*${merchant}*${Math.round(amount)}#`
+};
+
+function getMomoMerchant() {
+  // Fall back to a placeholder if business doesn't have a momo_code
+  return (business && business.momo_code) || 'JOMISH';
+}
+
+function buildUssdHref(amount) {
+  const fn = USSD_CODES[selectedMomoProvider] || USSD_CODES.mtn;
+  return `tel:${fn(getMomoMerchant(), amount)}`;
+}
+
+function setMomoProvider(val) {
+  selectedMomoProvider = val;
+  // Update pill highlight
+  const pillMtn    = document.getElementById('pill-mtn');
+  const pillAirtel = document.getElementById('pill-airtel');
+  if (pillMtn && pillAirtel) {
+    if (val === 'mtn') {
+      pillMtn.style.cssText    = 'padding:10px 8px;border-radius:10px;border:2px solid #f59e0b;background:rgba(245,158,11,0.15);text-align:center;font-size:0.8rem;font-weight:700;color:#f59e0b;transition:all 0.2s;';
+      pillAirtel.style.cssText = 'padding:10px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.5);transition:all 0.2s;';
+    } else {
+      pillAirtel.style.cssText = 'padding:10px 8px;border-radius:10px;border:2px solid #ef4444;background:rgba(239,68,68,0.15);text-align:center;font-size:0.8rem;font-weight:700;color:#ef4444;transition:all 0.2s;';
+      pillMtn.style.cssText    = 'padding:10px 8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;font-size:0.8rem;font-weight:700;color:rgba(255,255,255,0.5);transition:all 0.2s;';
+    }
+  }
+  // Update pay button
+  const btn = document.getElementById('momo-pay-btn');
+  if (btn) {
+    const bal = parseFloat(btn.dataset.balance || 0);
+    btn.href = buildUssdHref(bal);
+    const label = val === 'airtel' ? 'Pay with Airtel Money' : 'Pay with MTN MoMo';
+    btn.textContent = `📲 ${label}`;
+  }
+}
 
 // ─── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
@@ -210,12 +251,14 @@ async function placeOrder() {
       quantity
     }));
 
+    const tableNum = getParam('loc') || getParam('table');
     const orders = await apiFetch('/api/orders/bulk', {
       method: 'POST',
       body: {
         business_id: business.id,
         client_id: client.id,
-        items
+        items,
+        table_number: tableNum
       }
     });
     
@@ -317,8 +360,8 @@ function showOrderSuccess(orders) {
     <div class="container-sm" style="padding-top:32px">
       <div class="success-screen" style="text-align:center;">
         <div class="success-icon">✓</div>
-        <h2>Order Placed!</h2>
-        <p class="mt-8">Your order has been sent to ${business.name}.</p>
+        <h2 id="pending-status-title">Order Placed!</h2>
+        <p class="mt-8" id="pending-status-desc">Your order has been sent to ${business.name}.</p>
         <div class="card mt-20" style="text-align:left;padding:20px;border:1px solid #e2e8f0;box-shadow:none;">
           <div class="flex justify-between mb-8 text-sm">
             <span class="text-dim">Order ID</span>
@@ -327,6 +370,7 @@ function showOrderSuccess(orders) {
           <hr style="border:none;border-top:1px dashed #e2e8f0;margin:12px 0;">
           ${summary}
         </div>
+        <div id="payment-status-area" style="margin-top:20px;"></div>
         <div style="display:flex;flex-direction:column;gap:12px;margin-top:24px;align-items:center;">
           <button class="btn btn-primary btn-full pulse" id="waiting-btn" onclick="iAmWaiting()">
             <i data-lucide="bell" class="icon" style="width: 1em; height: 1em; display: inline-block; vertical-align: middle;"></i> I'm Waiting — Notify Seller
@@ -353,6 +397,21 @@ async function iAmWaiting() {
       orderId,
     });
   }
+
+  // Call API to send push notification reminder
+  try {
+    await apiFetch('/api/notify/waiting', {
+      method: 'POST',
+      body: {
+        businessId: business.id,
+        clientName: client.name,
+        orderId: orderId
+      }
+    });
+  } catch (err) {
+    console.error('Error notifying seller:', err);
+  }
+
   toast('Seller Notified', 'Your seller has been alerted you\'re waiting.', 'success');
 }
 
@@ -398,9 +457,65 @@ function initSocket() {
   });
 
   // Listen for order:completed — auto-download invoice on client side
-  socket.on('order:completed', ({ orderId: completedId, bizSlug }) => {
+  socket.on('order:completed', ({ orderId: completedId, orderGroupId, bizSlug }) => {
+    const idToUse = completedId || orderId || orderGroupId; 
+    
+    // Update pending UI if active
+    const titleEl = document.getElementById('pending-status-title');
+    const descEl = document.getElementById('pending-status-desc');
+    if (titleEl) titleEl.textContent = 'Delivered!';
+    if (descEl) descEl.textContent = 'Your order is complete and fully paid.';
+    
+    const paymentArea = document.getElementById('payment-status-area');
+    if (paymentArea) {
+      paymentArea.innerHTML = `<span class="badge badge-green">Fully Paid ✓</span>`;
+    }
+
     toast('Order Complete', 'Your invoice is ready. Downloading now...', 'success');
-    setTimeout(() => triggerClientReceiptDownload(completedId, bizSlug || (business && business.slug)), 800);
+    setTimeout(() => triggerClientReceiptDownload(idToUse, bizSlug || (business && business.slug)), 800);
+  });
+
+  // Listen for order:payment_update — partial MoMo payments
+  socket.on('order:payment_update', ({ orderGroupId, paymentStatus, amountPaid, balanceRemaining }) => {
+    const paymentArea = document.getElementById('payment-status-area');
+    if (paymentArea) {
+      const ussdHref = buildUssdHref(balanceRemaining);
+      const providerName = selectedMomoProvider === 'airtel' ? 'Airtel Money' : 'MTN MoMo';
+      paymentArea.innerHTML = `
+        <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:left;border:1px solid rgba(245,158,11,0.3);">
+          <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:10px;">📲 MOBILE MONEY PAYMENT</p>
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <span style="color:rgba(255,255,255,0.6);font-size:0.82rem;">Amount received</span>
+            <span style="color:#4ade80;font-weight:700;">${formatCurrency(amountPaid, business.currency_symbol)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:16px;">
+            <span style="color:rgba(255,255,255,0.6);font-size:0.82rem;">Balance remaining</span>
+            <span style="color:#ef4444;font-weight:700;">${formatCurrency(balanceRemaining, business.currency_symbol)}</span>
+          </div>
+          <div style="display:flex;gap:10px;margin-bottom:14px;">
+            <label style="flex:1;cursor:pointer;">
+              <input type="radio" name="momo-provider" value="mtn" ${selectedMomoProvider === 'mtn' ? 'checked' : ''} onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
+              <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px 6px;border-radius:8px;border:2px solid ${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'mtn' ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.78rem;font-weight:700;color:${selectedMomoProvider === 'mtn' ? '#f59e0b' : 'rgba(255,255,255,0.5)'};">
+                MTN MoMo
+              </div>
+            </label>
+            <label style="flex:1;cursor:pointer;">
+              <input type="radio" name="momo-provider" value="airtel" ${selectedMomoProvider === 'airtel' ? 'checked' : ''} onchange="setMomoProvider('airtel')" style="display:none;" id="radio-airtel">
+              <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:8px 6px;border-radius:8px;border:2px solid ${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.2)'};background:${selectedMomoProvider === 'airtel' ? 'rgba(239,68,68,0.15)' : 'rgba(255,255,255,0.05)'};text-align:center;font-size:0.78rem;font-weight:700;color:${selectedMomoProvider === 'airtel' ? '#ef4444' : 'rgba(255,255,255,0.5)'};">
+                Airtel Money
+              </div>
+            </label>
+          </div>
+          <a id="momo-pay-btn" data-balance="${balanceRemaining}" href="${ussdHref}"
+            style="display:block;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;font-weight:700;text-align:center;padding:14px;border-radius:10px;text-decoration:none;font-size:0.95rem;box-shadow:0 4px 15px rgba(245,158,11,0.4);"
+            onclick="this.style.opacity='0.7';setTimeout(()=>this.style.opacity='1',1000)">
+            📲 Pay ${formatCurrency(balanceRemaining, business.currency_symbol)} via ${providerName}
+          </a>
+          <p style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
+        </div>
+      `;
+    }
+    toast('Payment Updated', `Balance is now ${formatCurrency(balanceRemaining, business.currency_symbol)}`, 'info');
   });
 
   // Listen for booking:cancelled — show reason toast

@@ -208,7 +208,7 @@ router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quanti
 router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (req, res) => {
   const client = await db.connect();
   try {
-    const { business_id, client_id, items } = req.body;
+    const { business_id, client_id, items, table_number } = req.body;
     if (!items || !items.length) return res.status(400).json({ error: 'No items in order' });
 
     await client.query('BEGIN');
@@ -220,7 +220,7 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
       const stockResult = await client.query(
         `UPDATE products SET stock_quantity = stock_quantity - $1
          WHERE id = $2 AND stock_quantity >= $1
-         RETURNING id, stock_quantity`,
+         RETURNING id, stock_quantity, price`,
         [qty, item.product_id]
       );
 
@@ -228,11 +228,15 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
         await client.query('ROLLBACK');
         return res.status(409).json({ error: `Out of stock for product #${item.product_id}` });
       }
+      
+      const itemPrice = parseFloat(stockResult.rows[0].price);
+      const balanceRemaining = qty * itemPrice;
+      const paymentMethod = table_number ? 'momo' : 'cash';
 
       const orderResult = await client.query(
-        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, order_group_id)
-         VALUES ($1, $2, $3, $4, 'pending', $5) RETURNING *`,
-        [business_id, client_id, item.product_id, qty, orderGroupId]
+        `INSERT INTO orders (business_id, client_id, product_id, quantity, status, order_group_id, table_number, payment_method, payment_status, balance_remaining)
+         VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7, 'pending', $8) RETURNING *`,
+        [business_id, client_id, item.product_id, qty, orderGroupId, table_number || null, paymentMethod, balanceRemaining]
       );
       
       const orderId = orderResult.rows[0].id;
@@ -242,7 +246,7 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
       );
 
       const fullOrder = await client.query(
-        `SELECT o.id, o.quantity, o.status, o.created_at, o.order_group_id,
+        `SELECT o.id, o.quantity, o.status, o.created_at, o.order_group_id, o.table_number, o.payment_method, o.payment_status, o.amount_paid, o.balance_remaining,
                 p.title AS product_title, p.price,
                 c.name AS client_name, c.location AS client_location
          FROM orders o
@@ -441,6 +445,107 @@ router.patch('/:id/status', authenticate, async (req, res) => {
   } catch (err) {
     console.error('[orders] PATCH /status error:', err.message);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+// ─── PATCH /api/orders/group/:orderGroupId/payment ────────────────────────────
+router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
+  const client = await db.connect();
+  try {
+    const { action, amountPaid } = req.body;
+    const { orderGroupId } = req.params;
+    
+    await client.query('BEGIN');
+    
+    // Get all orders in group
+    const groupRes = await client.query('SELECT * FROM orders WHERE order_group_id = $1', [orderGroupId]);
+    if (groupRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Order group not found' });
+    }
+    
+    const firstOrder = groupRes.rows[0];
+    const totalBalance = groupRes.rows.reduce((sum, order) => sum + parseFloat(order.balance_remaining), 0);
+    const totalAmountPaid = groupRes.rows.reduce((sum, order) => sum + parseFloat(order.amount_paid), 0);
+    
+    let newStatus = firstOrder.status;
+    let newPaymentStatus = firstOrder.payment_status;
+    let newAmountPaid = totalAmountPaid;
+    let newBalanceRemaining = totalBalance;
+
+    if (action === 'RECEIVED') {
+      newStatus = 'completed';
+      newPaymentStatus = 'completed';
+      newAmountPaid = totalAmountPaid + totalBalance;
+      newBalanceRemaining = 0;
+    } else if (action === 'NOT_EXACT_AMOUNT') {
+      const received = parseFloat(amountPaid) || 0;
+      newAmountPaid += received;
+      newBalanceRemaining = Math.max(0, totalBalance - received);
+      newPaymentStatus = newBalanceRemaining <= 0 ? 'completed' : 'partial';
+      if (newBalanceRemaining <= 0) newStatus = 'completed';
+    } else if (action === 'NOT_YET') {
+      newPaymentStatus = 'pending';
+    } else {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    // Since it's a group, we can just distribute the payment to the first order to make it simple,
+    // or set all to the new status and put the balance on the first one. 
+    // To keep it simple, we update all items to the same status, but we'll set amount/balance correctly.
+    
+    // For simplicity, we just divide or assign to the first. Let's just update the first one with the balance 
+    // and others to 0 balance, OR just set everything proportionally. Let's do it evenly for simplicity or just assign to order[0]
+    for (let i = 0; i < groupRes.rows.length; i++) {
+      const order = groupRes.rows[i];
+      let bal = 0;
+      let amt = 0;
+      if (i === 0) {
+        bal = newBalanceRemaining;
+        amt = newAmountPaid;
+      }
+      await client.query(
+        `UPDATE orders SET status = $1, payment_status = $2, amount_paid = $3, balance_remaining = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5`,
+        [newStatus, newPaymentStatus, amt, bal, order.id]
+      );
+    }
+    
+    await client.query('COMMIT');
+
+    const io = req.app.get('io');
+    if (io && firstOrder.client_id) {
+      const room = `chat-${firstOrder.business_id}-${firstOrder.client_id}`;
+      if (newStatus === 'completed') {
+        // Find business slug
+        const bizRes = await client.query('SELECT slug FROM businesses WHERE id = $1', [firstOrder.business_id]);
+        const slug = bizRes.rows[0]?.slug;
+        io.to(room).emit('order:completed', { orderGroupId, bizSlug: slug });
+      } else {
+        io.to(room).emit('order:payment_update', {
+          orderGroupId,
+          paymentStatus: newPaymentStatus,
+          amountPaid: newAmountPaid,
+          balanceRemaining: newBalanceRemaining
+        });
+      }
+    }
+    
+    // notify seller dashboard
+    if (io) {
+      const bizRes = await client.query('SELECT pusher_channel FROM businesses WHERE id = $1', [firstOrder.business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${firstOrder.business_id}`;
+        io.to(`seller-${channel}`).emit('order:status', { orderGroupId, status: newStatus, paymentStatus: newPaymentStatus });
+      }
+    }
+
+    res.json({ success: true, paymentStatus: newPaymentStatus, balanceRemaining: newBalanceRemaining });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('[orders] PATCH /group/payment error:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 });
 

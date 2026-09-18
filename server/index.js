@@ -73,6 +73,8 @@ app.use('/api', (req, res, next) => {
 });
 app.use('/api/tech',       require('./routes/tech'));
 
+const { sendPushToSeller } = require('./routes/push');
+
 // ─── Pusher: Notify Seller on Order (I'm Waiting button) ─────────────────────
 app.post('/api/notify/order', async (req, res) => {
   try {
@@ -91,6 +93,43 @@ app.post('/api/notify/order', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     console.error('[notify] order error:', err.message);
+    res.status(500).json({ error: 'Notification failed' });
+  }
+});
+
+// ─── Notify Seller (Reminder via "I'm Waiting" button) ──────────────────────
+app.post('/api/notify/waiting', async (req, res) => {
+  try {
+    const { businessId, clientName, orderId } = req.body;
+    const db = require('./db');
+    const bizRes = await db.query('SELECT owner_id, pusher_channel FROM businesses WHERE id = $1', [businessId]);
+    if (bizRes.rows.length > 0) {
+      const biz = bizRes.rows[0];
+      const channel = biz.pusher_channel || `biz-${businessId}`;
+      
+      if (pusher) {
+        await pusher.trigger(channel, 'order:waiting', {
+          orderId, clientName,
+          isReminder: true,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      io.to(`seller-${channel}`).emit('order:waiting', {
+        orderId, clientName,
+        isReminder: true,
+        timestamp: new Date().toISOString(),
+      });
+      
+      // Send push notification to seller
+      sendPushToSeller(biz.owner_id, {
+        title: 'Client is Waiting!',
+        body: `${clientName} is still waiting for their order.`,
+        url: '/seller'
+      });
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[notify] waiting error:', err.message);
     res.status(500).json({ error: 'Notification failed' });
   }
 });

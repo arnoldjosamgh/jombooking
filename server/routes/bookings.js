@@ -15,9 +15,9 @@ const { sendPushToSeller, sendPushToClient } = require('./push');
  * Uses the service's duration_minutes if provided, else falls back to business default.
  * Filters out already-booked AND manually-blocked slots.
  */
-async function generateSlots(businessId, dateStr, serviceId) {
+async function generateSlots(tenantDb, businessId, dateStr, serviceId) {
   // Get business hours
-  const bizResult = await req.tenantDb.query(
+  const bizResult = await tenantDb.query(
     `SELECT open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end, max_clients_per_slot
      FROM businesses WHERE id = $1`,
     [businessId]
@@ -34,7 +34,7 @@ async function generateSlots(businessId, dateStr, serviceId) {
   // Use the service's own duration if we have a service, else the business default
   let duration = session_duration_minutes;
   if (serviceId) {
-    const svcRes = await req.tenantDb.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
+    const svcRes = await tenantDb.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
     if (svcRes.rows.length > 0) duration = svcRes.rows[0].duration_minutes;
   }
 
@@ -69,7 +69,7 @@ async function generateSlots(businessId, dateStr, serviceId) {
   }
 
   // Count confirmed bookings for each slot
-  const bookedRes = await req.tenantDb.query(
+  const bookedRes = await tenantDb.query(
     `SELECT TO_CHAR(booking_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot, COUNT(*) as count
      FROM bookings
      WHERE business_id = $1
@@ -83,7 +83,7 @@ async function generateSlots(businessId, dateStr, serviceId) {
   bookedRes.rows.forEach(r => { bookedCounts[r.slot] = parseInt(r.count); });
 
   // Manually blocked slots for this service on this date
-  const blockedRes = await req.tenantDb.query(
+  const blockedRes = await tenantDb.query(
     `SELECT TO_CHAR(slot_time AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS') AS slot
      FROM blocked_slots
      WHERE business_id = $1
@@ -115,7 +115,7 @@ router.get('/:business_slug', async (req, res) => {
     const bizResult = await db.query('SELECT id FROM businesses WHERE slug = $1', [req.params.business_slug]);
     if (bizResult.rows.length === 0) return res.status(404).json({ error: 'Business not found' });
 
-    const slots = await generateSlots(bizResult.rows[0].id, date, service_id || null);
+    const slots = await generateSlots(req.tenantDb, bizResult.rows[0].id, date, service_id || null);
     res.json({ date, slots });
   } catch (err) {
     console.error('[slots] GET error:', err.message);
@@ -396,7 +396,7 @@ module.exports = router;
 module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBookings(io) {
   try {
     // Find all confirmed bookings where the time is in the past
-    const expired = await req.tenantDb.query(
+    const expired = await db.query(
       `SELECT b.id, b.business_id, b.client_id, b.service_id, b.booking_time,
               c.name AS client_name,
               s.name AS service_name
@@ -423,7 +423,7 @@ module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBooki
         candidate.setDate(candidate.getDate() + daysAhead);
         const dateStr = candidate.toISOString().split('T')[0];
 
-        const slots = await generateSlots(bk.business_id, dateStr, bk.service_id);
+        const slots = await generateSlots(db, bk.business_id, dateStr, bk.service_id);
         const free  = slots.find(s => s.available);
         if (free) {
           newSlot = free.time;
@@ -438,7 +438,7 @@ module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBooki
       }
 
       // Move the booking to the new slot
-      await req.tenantDb.query(
+      await db.query(
         `UPDATE bookings SET booking_time = $1 WHERE id = $2`,
         [newSlot, bk.id]
       );
@@ -449,7 +449,7 @@ module.exports.rescheduleExpiredBookings = async function rescheduleExpiredBooki
       const newTime   = new Date(newSlot + 'Z').toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
       const msgContent = `📅 Your booking for ${svcLabel} on ${oldTime} was missed and has been automatically rescheduled to ${newTime}.\n\nIf this doesn't work for you, please contact us to adjust.`;
 
-      const msgResult = await req.tenantDb.query(
+      const msgResult = await db.query(
         `INSERT INTO messages (business_id, client_id, content, sender)
          VALUES ($1, $2, $3, 'seller') RETURNING *`,
         [bk.business_id, bk.client_id, msgContent]

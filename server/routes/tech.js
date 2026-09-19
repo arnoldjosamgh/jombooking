@@ -15,7 +15,7 @@ const requireTech = (req, res, next) => {
 // "number" = how many seller accounts to create for this company (1 business, N sellers)
 router.post('/business', authenticate, requireTech,
   requireFields('prefix', 'count', 'type'), async (req, res) => {
-  const client = await db.connect();
+  const client = await db.mainPool.connect();
   try {
     const { prefix, count, type, biz_name, logo_url } = req.body;
 
@@ -141,7 +141,7 @@ router.put('/business/:id/toggle-pause', authenticate, requireTech, async (req, 
 
 // ─── Delete Company (cascade wipes everything) ────────────────────────────────
 router.delete('/business/:id', authenticate, requireTech, async (req, res) => {
-  const client = await db.connect();
+  const client = await db.mainPool.connect();
   try {
     const { id } = req.params;
     await client.query('BEGIN');

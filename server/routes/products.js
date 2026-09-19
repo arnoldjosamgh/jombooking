@@ -127,7 +127,7 @@ router.delete('/manage/:id', authenticate, async (req, res) => {
 // ─── POST /api/orders ─────────────────────────────────────────────────────────
 // Single item order (client-facing)
 router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quantity'), async (req, res) => {
-  const client = await db.connect();
+  const client = await req.tenantDb.connect();
   try {
     const { business_id, client_id, product_id, quantity } = req.body;
     const qty = parseInt(quantity, 10);
@@ -206,7 +206,7 @@ router.post('/', requireFields('business_id', 'client_id', 'product_id', 'quanti
 // ─── POST /api/orders/bulk ────────────────────────────────────────────────────
 // Multi-item order (client-facing)
 router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (req, res) => {
-  const client = await db.connect();
+  const client = await req.tenantDb.connect();
   try {
     const { business_id, client_id, items, table_number } = req.body;
     if (!items || !items.length) return res.status(400).json({ error: 'No items in order' });
@@ -301,7 +301,7 @@ router.post('/bulk', requireFields('business_id', 'client_id', 'items'), async (
 // ─── POST /api/orders/pos-checkout ────────────────────────────────────────────
 // POS: multi-item checkout from seller dashboard. Items = [{product_id, qty}]
 router.post('/pos-checkout', authenticate, async (req, res) => {
-  const client = await db.connect();
+  const client = await req.tenantDb.connect();
   try {
     const { business_id, items, customer_name, notes } = req.body;
     if (!items || !items.length) return res.status(400).json({ error: 'No items in order' });
@@ -464,7 +464,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
 });
 // ─── PATCH /api/orders/group/:orderGroupId/status ────────────────────────────
 router.patch('/group/:orderGroupId/status', authenticate, async (req, res) => {
-  const client = await db.connect();
+  const client = await req.tenantDb.connect();
   try {
     const { status } = req.body;
     const { orderGroupId } = req.params;
@@ -552,7 +552,7 @@ router.patch('/group/:orderGroupId/status', authenticate, async (req, res) => {
 
 // ─── PATCH /api/orders/group/:orderGroupId/payment ────────────────────────────
 router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
-  const client = await db.connect();
+  const client = await req.tenantDb.connect();
   try {
     const { action, amountPaid } = req.body;
     const { orderGroupId } = req.params;

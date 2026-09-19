@@ -106,8 +106,10 @@ async function run() {
         created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE (business_id, service_id, slot_time)
       )`,
-      // service_id on bookings (needed by slot engine)
+      // service_id, seller_id, updated_at on bookings (needed by slot engine and seller dashboard)
       `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_id INT REFERENCES services(id) ON DELETE SET NULL`,
+      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS seller_id INT REFERENCES sellers(id) ON DELETE SET NULL`,
+      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
       // indexes
       `CREATE INDEX IF NOT EXISTS idx_tv_media_business ON tv_media(business_id)`,
       `CREATE INDEX IF NOT EXISTS idx_orders_group ON orders(order_group_id)`,

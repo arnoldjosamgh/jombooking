@@ -97,9 +97,21 @@ async function run() {
       `ALTER TABLE services ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT false`,
       // tenant db url (multi-tenant arch)
       `ALTER TABLE businesses ADD COLUMN IF NOT EXISTS tenant_db_url TEXT`,
+      // blocked_slots table (needed by slot engine)
+      `CREATE TABLE IF NOT EXISTS blocked_slots (
+        id           SERIAL PRIMARY KEY,
+        business_id  INT REFERENCES businesses(id) ON DELETE CASCADE,
+        service_id   INT REFERENCES services(id) ON DELETE CASCADE,
+        slot_time    TIMESTAMP NOT NULL,
+        created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE (business_id, service_id, slot_time)
+      )`,
+      // service_id on bookings (needed by slot engine)
+      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_id INT REFERENCES services(id) ON DELETE SET NULL`,
       // indexes
       `CREATE INDEX IF NOT EXISTS idx_tv_media_business ON tv_media(business_id)`,
       `CREATE INDEX IF NOT EXISTS idx_orders_group ON orders(order_group_id)`,
+      `CREATE INDEX IF NOT EXISTS idx_bookings_service ON bookings(service_id)`,
     ];
 
     let ok = 0, fail = 0;

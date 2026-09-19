@@ -186,6 +186,30 @@ async function apiFetch(path, options = {}) {
   }
 }
 
+// ─── File Upload Helper ───────────────────────────────────────────────────────
+async function uploadFile(file) {
+  const token = localStorage.getItem('auth_token');
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch(`${API}/api/upload`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+    return data.url;
+  } catch (err) {
+    console.error('[Upload Error]', err.message);
+    throw new Error('Failed to upload file. Please try again.');
+  }
+}
+
 // ─── Toast Notifications ───────────────────────────────────────
 function toast(title, body = '', type = 'info', duration = 4000) {
   let container = document.getElementById('toast-container');

@@ -2,7 +2,7 @@ services:
   - type: web
     name: jomish-booking
     env: node
-    buildCommand: npm install && node server/setup-aiven.js
+    buildCommand: npm install && node server/setup-db.js
     startCommand: npm start
     envVars:
       - key: DATABASE_URL

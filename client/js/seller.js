@@ -283,12 +283,7 @@ async function uploadSellerLogo() {
   
   try {
     const file = fileInput.files[0];
-    const logo_url = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = e => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
+    const logo_url = await uploadFile(file);
 
     await apiFetch(`/api/businesses/${selectedBiz.slug}/logo`, {
       method: 'PUT',
@@ -724,12 +719,7 @@ async function addProduct(e) {
     const fileInput = document.getElementById('ap-image');
     if (fileInput && fileInput.files.length > 0) {
       const file = fileInput.files[0];
-      image_url = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      image_url = await uploadFile(file);
     }
 
     const product = await apiFetch('/api/products/manage', {
@@ -2545,12 +2535,7 @@ async function tvMediaHandleFile(event, type) {
     const file = files[i];
     if (progress) progress.textContent = `Uploading ${i + 1}/${files.length}: ${file.name}…`;
     try {
-      const content = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = e => resolve(e.target.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      const content = await uploadFile(file);
       await apiFetch(`/api/tv-media/${selectedBiz.slug}`, {
         method: 'POST',
         body: { type, content, title: file.name.split('.')[0], duration: type === 'image' ? 6 : 30 }

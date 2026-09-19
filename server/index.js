@@ -52,6 +52,9 @@ app.use(express.urlencoded({ extended: true }));
 // Serve PWA static frontend
 app.use(express.static(path.join(__dirname, '..', 'client')));
 
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // ─── API Routes ─────────────────────────────────────────────────────
 const { authenticate } = require('./routes/auth');
 const { demoGuard } = require('./middleware/demo');
@@ -74,6 +77,7 @@ app.use('/api/tv-media',   require('./routes/tv_media'));   // TV display media 
 app.use('/api/push',       require('./routes/push').router); // push VAPID key is public
 app.use('/api/products',   require('./routes/products'));
 app.use('/api/orders',     require('./routes/products'));
+app.use('/api/upload',     require('./routes/upload'));
 
 // ─── Auth Middleware for protected routes ────────────────────────────
 app.use('/api', (req, res, next) => {

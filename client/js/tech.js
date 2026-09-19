@@ -60,12 +60,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
       let logo_url = null;
       if (logoFile) {
-        logo_url = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = e => resolve(e.target.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(logoFile);
-        });
+        logo_url = await uploadFile(logoFile);
       }
 
       const data = await apiFetch('/api/tech/business', {

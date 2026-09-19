@@ -218,26 +218,37 @@ function showOnboarding(biz) {
   const qrEl = document.getElementById('ob-qrcode');
   qrEl.innerHTML = '';
   
-  const qrCode = new QRCodeStyling({
-    width: 150,
-    height: 150,
-    data: clientLink,
-    image: biz.logo_url || "",
-    dotsOptions: { color: "#1a2461", type: "dots" },
-    cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
-    cornersDotOptions: { type: "dot", color: "#1a2461" },
-    backgroundOptions: { color: "#ffffff" },
-    imageOptions: { crossOrigin: "anonymous", margin: 6 }
-  });
-  qrCode.append(qrEl);
-
-  // Update TV link
   const tvLink = document.getElementById('tv-display-link');
   if (tvLink) tvLink.href = `/tv.html?slug=${biz.slug}`;
 
   const modal = document.getElementById('onboarding-modal');
   modal.style.display = 'flex';
   setTimeout(() => modal.classList.add('active'), 10);
+
+  const drawQR = (logoStr) => {
+    const qrCode = new QRCodeStyling({
+      width: 150,
+      height: 150,
+      data: clientLink,
+      image: logoStr,
+      dotsOptions: { color: "#1a2461", type: "dots" },
+      cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
+      cornersDotOptions: { type: "dot", color: "#1a2461" },
+      backgroundOptions: { color: "#ffffff" },
+      imageOptions: { crossOrigin: "anonymous", margin: 6 }
+    });
+    qrCode.append(qrEl);
+  };
+
+  if (biz.logo_url) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => drawQR(biz.logo_url);
+    img.onerror = () => drawQR(""); // Fallback if logo was wiped
+    img.src = biz.logo_url;
+  } else {
+    drawQR("");
+  }
 }
 
 function generateTableQR() {
@@ -249,18 +260,30 @@ function generateTableQR() {
   qrEl.style.display = 'inline-block';
   qrEl.innerHTML = '';
   
-  const qrCode = new QRCodeStyling({
-    width: 130,
-    height: 130,
-    data: clientLink,
-    image: selectedBiz.logo_url || "",
-    dotsOptions: { color: "#1a2461", type: "dots" },
-    cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
-    cornersDotOptions: { type: "dot", color: "#1a2461" },
-    backgroundOptions: { color: "#ffffff" },
-    imageOptions: { crossOrigin: "anonymous", margin: 5 }
-  });
-  qrCode.append(qrEl);
+  const drawTableQR = (logoStr) => {
+    const qrCode = new QRCodeStyling({
+      width: 130,
+      height: 130,
+      data: clientLink,
+      image: logoStr,
+      dotsOptions: { color: "#1a2461", type: "dots" },
+      cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
+      cornersDotOptions: { type: "dot", color: "#1a2461" },
+      backgroundOptions: { color: "#ffffff" },
+      imageOptions: { crossOrigin: "anonymous", margin: 5 }
+    });
+    qrCode.append(qrEl);
+  };
+
+  if (selectedBiz.logo_url) {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => drawTableQR(selectedBiz.logo_url);
+    img.onerror = () => drawTableQR(""); // Fallback
+    img.src = selectedBiz.logo_url;
+  } else {
+    drawTableQR("");
+  }
 }
 
 function closeOnboarding() {

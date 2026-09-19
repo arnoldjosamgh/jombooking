@@ -378,90 +378,8 @@ router.post('/pos-checkout', authenticate, async (req, res) => {
 });
 
 // (GET /api/orders/list/:business_id is now defined at the top of this file, before the wildcard route)
+// NOTE: /group/:id routes must be defined BEFORE the /:id wildcard below to avoid Express shadowing them.
 
-// ─── PATCH /api/orders/:id/status ─────────────────────────────────────────────
-router.patch('/:id/status', authenticate, async (req, res) => {
-  try {
-    const { status } = req.body;
-    if (!['pending', 'ready', 'completed', 'cancelled'].includes(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
-    }
-    const result = await req.tenantDb.query(
-      `UPDATE orders SET status = $1, seller_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id, status, client_id, business_id, receipt_number, quantity`,
-      [status, req.user.id, req.params.id]
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
-    
-    const order = result.rows[0];
-    
-    // Auto-send receipt in messages if ready or completed
-    if ((status === 'ready' || status === 'completed') && order.client_id) {
-      try {
-        const prodRes = await req.tenantDb.query(
-          `SELECT p.title, p.price, b.slug, b.logo_url FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id WHERE o.id = $1`,
-          [order.id]
-        );
-        if (prodRes.rows.length > 0) {
-          const p = prodRes.rows[0];
-          const total = (parseFloat(p.price) * order.quantity).toFixed(2);
-          const receiptContent = `[RECEIPT] Order ${order.receipt_number || '#' + order.id}\n${p.title} x${order.quantity}\nTotal: $${total}`;
-          await req.tenantDb.query(
-            `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`,
-            [order.business_id, order.client_id, receiptContent]
-          );
-
-          if (status === 'ready') {
-            sendPushToClient(order.client_id, {
-              type: 'order-ready',
-              title: 'Order Ready — Collect Now',
-              body: `Your order for ${p.title} is ready. Click to view/download receipt.`,
-              url: `/c/${p.slug}?action=download-receipt`,
-              icon: p.logo_url
-            });
-          } else if (status === 'completed') {
-            sendPushToClient(order.client_id, {
-              type: 'download-receipt',
-              title: 'Receipt Ready — Download Now',
-              body: `Your receipt for ${p.title} is ready. Tap to download.`,
-              url: `/c/${p.slug}?action=download-receipt&order_id=${order.id}`,
-              icon: p.logo_url
-            });
-            
-            // Insert Thank You message and emit to chat
-            const msgResult = await req.tenantDb.query(
-              `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
-              [order.business_id, order.client_id, 'Thank you for your payment! Enjoy your order.']
-            );
-            
-            // Emit socket event to client room for instant download and chat
-            const io2 = req.app.get('io');
-            if (io2) {
-              const room = `chat-${order.business_id}-${order.client_id}`;
-              io2.to(room).emit('chat:message', msgResult.rows[0]);
-              io2.to(room).emit('order:completed', { orderId: order.id, bizSlug: p.slug });
-            }
-          }
-        }
-      } catch (err) {
-        console.error('[orders] Failed to send receipt message or push:', err.message);
-      }
-    }
-
-    const io = req.app.get('io');
-    if (io) {
-      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [order.business_id]);
-      if (bizRes.rows.length > 0) {
-        const channel = bizRes.rows[0].pusher_channel || `biz-${order.business_id}`;
-        io.to(`seller-${channel}`).emit('order:status', { orderId: order.id, status });
-      }
-    }
-
-    res.json(result.rows[0]);
-  } catch (err) {
-    console.error('[orders] PATCH /status error:', err.message);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 // ─── PATCH /api/orders/group/:orderGroupId/status ────────────────────────────
 router.patch('/group/:orderGroupId/status', authenticate, async (req, res) => {
   const client = await req.tenantDb.connect();
@@ -593,12 +511,6 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
-    // Since it's a group, we can just distribute the payment to the first order to make it simple,
-    // or set all to the new status and put the balance on the first one. 
-    // To keep it simple, we update all items to the same status, but we'll set amount/balance correctly.
-    
-    // For simplicity, we just divide or assign to the first. Let's just update the first one with the balance 
-    // and others to 0 balance, OR just set everything proportionally. Let's do it evenly for simplicity or just assign to order[0]
     for (let i = 0; i < groupRes.rows.length; i++) {
       const order = groupRes.rows[i];
       let bal = 0;
@@ -618,7 +530,6 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
     const io = req.app.get('io');
     if (io && firstOrder.client_id) {
       const room = `chat-${firstOrder.business_id}-${firstOrder.client_id}`;
-      // Find business slug for links/events if needed
       const bizRes = await client.query('SELECT slug FROM businesses WHERE id = $1', [firstOrder.business_id]);
       const slug = bizRes.rows[0]?.slug;
 
@@ -630,7 +541,6 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
         io.to(room).emit('chat:message', msgResult.rows[0]);
         io.to(room).emit('order:completed', { orderGroupId, bizSlug: slug });
       } else {
-        // Send a partial payment message
         if (action === 'NOT_EXACT_AMOUNT') {
            const msgResult = await client.query(
              `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
@@ -638,7 +548,6 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
            );
            io.to(room).emit('chat:message', msgResult.rows[0]);
         }
-
         io.to(room).emit('order:payment_update', {
           orderGroupId,
           paymentStatus: newPaymentStatus,
@@ -648,7 +557,6 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
       }
     }
     
-    // notify seller dashboard
     if (io) {
       const bizRes = await client.query('SELECT pusher_channel FROM businesses WHERE id = $1', [firstOrder.business_id]);
       if (bizRes.rows.length > 0) {
@@ -664,6 +572,90 @@ router.patch('/group/:orderGroupId/payment', authenticate, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   } finally {
     client.release();
+  }
+});
+
+// ─── PATCH /api/orders/:id/status ─────────────────────────────────────────────
+router.patch('/:id/status', authenticate, async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['pending', 'ready', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+    const result = await req.tenantDb.query(
+      `UPDATE orders SET status = $1, seller_id = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING id, status, client_id, business_id, receipt_number, quantity`,
+      [status, req.user.id, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Order not found' });
+    
+    const order = result.rows[0];
+    
+    // Auto-send receipt in messages if ready or completed
+    if ((status === 'ready' || status === 'completed') && order.client_id) {
+      try {
+        const prodRes = await req.tenantDb.query(
+          `SELECT p.title, p.price, b.slug, b.logo_url FROM products p JOIN orders o ON o.product_id = p.id JOIN businesses b ON o.business_id = b.id WHERE o.id = $1`,
+          [order.id]
+        );
+        if (prodRes.rows.length > 0) {
+          const p = prodRes.rows[0];
+          const total = (parseFloat(p.price) * order.quantity).toFixed(2);
+          const receiptContent = `[RECEIPT] Order ${order.receipt_number || '#' + order.id}\n${p.title} x${order.quantity}\nTotal: $${total}`;
+          await req.tenantDb.query(
+            `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`,
+            [order.business_id, order.client_id, receiptContent]
+          );
+
+          if (status === 'ready') {
+            sendPushToClient(order.client_id, {
+              type: 'order-ready',
+              title: 'Order Ready — Collect Now',
+              body: `Your order for ${p.title} is ready. Click to view/download receipt.`,
+              url: `/c/${p.slug}?action=download-receipt`,
+              icon: p.logo_url
+            });
+          } else if (status === 'completed') {
+            sendPushToClient(order.client_id, {
+              type: 'download-receipt',
+              title: 'Receipt Ready — Download Now',
+              body: `Your receipt for ${p.title} is ready. Tap to download.`,
+              url: `/c/${p.slug}?action=download-receipt&order_id=${order.id}`,
+              icon: p.logo_url
+            });
+            
+            // Insert Thank You message and emit to chat
+            const msgResult = await req.tenantDb.query(
+              `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3) RETURNING *`,
+              [order.business_id, order.client_id, 'Thank you for your payment! Enjoy your order.']
+            );
+            
+            // Emit socket event to client room for instant download and chat
+            const io2 = req.app.get('io');
+            if (io2) {
+              const room = `chat-${order.business_id}-${order.client_id}`;
+              io2.to(room).emit('chat:message', msgResult.rows[0]);
+              io2.to(room).emit('order:completed', { orderId: order.id, bizSlug: p.slug });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[orders] Failed to send receipt message or push:', err.message);
+      }
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [order.business_id]);
+      if (bizRes.rows.length > 0) {
+        const channel = bizRes.rows[0].pusher_channel || `biz-${order.business_id}`;
+        io.to(`seller-${channel}`).emit('order:status', { orderId: order.id, status });
+      }
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[orders] PATCH /status error:', err.message);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

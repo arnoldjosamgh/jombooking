@@ -115,6 +115,11 @@ async function run() {
       `CREATE INDEX IF NOT EXISTS idx_tv_media_business ON tv_media(business_id)`,
       `CREATE INDEX IF NOT EXISTS idx_orders_group ON orders(order_group_id)`,
       `CREATE INDEX IF NOT EXISTS idx_bookings_service ON bookings(service_id)`,
+      // fix status CHECK constraints to include 'ready'
+      `ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check`,
+      `ALTER TABLE orders ADD CONSTRAINT orders_status_check CHECK (status IN ('pending','ready','completed','cancelled'))`,
+      `ALTER TABLE bookings DROP CONSTRAINT IF EXISTS bookings_status_check`,
+      `ALTER TABLE bookings ADD CONSTRAINT bookings_status_check CHECK (status IN ('confirmed','ready','completed','cancelled'))`,
     ];
 
     let ok = 0, fail = 0;

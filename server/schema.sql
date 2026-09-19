@@ -84,7 +84,7 @@ CREATE TABLE IF NOT EXISTS orders (
   order_group_id    VARCHAR(50),
   table_number      VARCHAR(20),
   quantity          INT NOT NULL DEFAULT 1,
-  status            VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','completed','cancelled')),
+  status            VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','ready','completed','cancelled')),
   payment_method    VARCHAR(20) DEFAULT 'cash',
   payment_status    VARCHAR(20) DEFAULT 'pending',
   amount_paid       NUMERIC(10,2) DEFAULT 0,
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   business_id  INT REFERENCES businesses(id) ON DELETE CASCADE,
   client_id    INT REFERENCES clients(id) ON DELETE SET NULL,
   booking_time TIMESTAMP NOT NULL,
-  status       VARCHAR(20) DEFAULT 'confirmed' CHECK (status IN ('confirmed','completed','cancelled')),
+  status       VARCHAR(20) DEFAULT 'confirmed' CHECK (status IN ('confirmed','ready','completed','cancelled')),
   created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT unique_slot UNIQUE (business_id, booking_time)
 );

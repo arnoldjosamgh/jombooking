@@ -54,9 +54,10 @@ async function run() {
       `CREATE TABLE IF NOT EXISTS tv_media (
         id          SERIAL PRIMARY KEY,
         business_id INT REFERENCES businesses(id) ON DELETE CASCADE,
-        type        VARCHAR(10) NOT NULL CHECK (type IN ('image','video')),
-        url         TEXT NOT NULL,
-        label       TEXT,
+        type        VARCHAR(10) NOT NULL CHECK (type IN ('image', 'video', 'text')),
+        content     TEXT NOT NULL,
+        title       TEXT,
+        duration    INT DEFAULT 6,
         sort_order  INT DEFAULT 0,
         created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`,

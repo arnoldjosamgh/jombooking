@@ -111,6 +111,7 @@ async function run() {
       `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_id INT REFERENCES services(id) ON DELETE SET NULL`,
       `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS seller_id INT REFERENCES sellers(id) ON DELETE SET NULL`,
       `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+      `ALTER TABLE bookings ADD COLUMN IF NOT EXISTS price DECIMAL(10,2)`,
       // indexes
       `CREATE INDEX IF NOT EXISTS idx_tv_media_business ON tv_media(business_id)`,
       `CREATE INDEX IF NOT EXISTS idx_orders_group ON orders(order_group_id)`,

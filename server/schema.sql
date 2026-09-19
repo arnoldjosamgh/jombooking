@@ -99,6 +99,7 @@ CREATE TABLE IF NOT EXISTS bookings (
   business_id  INT REFERENCES businesses(id) ON DELETE CASCADE,
   client_id    INT REFERENCES clients(id) ON DELETE SET NULL,
   booking_time TIMESTAMP NOT NULL,
+  price        DECIMAL(10,2),
   status       VARCHAR(20) DEFAULT 'confirmed' CHECK (status IN ('confirmed','ready','completed','cancelled')),
   created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT unique_slot UNIQUE (business_id, booking_time)

@@ -312,7 +312,18 @@ async function showRegistrationModal(onSuccess) {
     client = null;
   }
 
-  if (client) { onSuccess(client); return; }
+  if (client) {
+    // Verify the client still exists in the DB (guards against stale sessions after DB migration)
+    try {
+      await apiFetch(`/api/clients/${client.id}`);
+      onSuccess(client);
+      return;
+    } catch (err) {
+      // Client not found in DB — clear stale session and re-register
+      Session.clear();
+      client = null;
+    }
+  }
 
   openModal('reg-modal');
 

@@ -95,11 +95,8 @@ function setupBiz(biz) {
 
   renderTabs(type);
 
-  if (type === 'product' || type === 'both') {
-    renderPOS();
-  } else {
-    renderCalendar();
-  }
+  // Default to Pending view so orders are immediately visible on load
+  renderPending();
 
   // Wire up settings form
   const sf = document.getElementById('settings-form');

@@ -366,6 +366,8 @@ function showOrderSuccess(orders) {
       const res = await apiFetch(`/api/orders/list/${business.id}`);
       const myOrders = res.filter(o => orderIds.includes(o.id));
       const allCompleted = myOrders.length > 0 && myOrders.every(o => o.status === 'completed');
+      const anyReady = myOrders.length > 0 && myOrders.some(o => o.status === 'ready');
+
       if (allCompleted) {
         clearInterval(checkStatus);
         
@@ -408,9 +410,59 @@ function showOrderSuccess(orders) {
           </div>
         `;
         showPwaPromptIfAvailable();
+      } else if (anyReady) {
+        // Order is ready — show payment tab if not already showing
+        const paymentArea = document.getElementById('payment-status-area');
+        if (paymentArea && !paymentArea.innerHTML.trim()) {
+          const readyOrder = myOrders.find(o => o.status === 'ready');
+          const balanceRemaining = parseFloat(readyOrder?.balance_remaining || readyOrder?.price || 0);
+          const orderGroupId = readyOrder?.order_group_id || readyOrder?.id;
+          const titleEl = document.getElementById('pending-status-title');
+          const descEl = document.getElementById('pending-status-desc');
+          if (titleEl) titleEl.textContent = 'Order Ready!';
+          if (descEl) descEl.textContent = 'Your order is prepared. Please complete payment.';
+          if (balanceRemaining > 0) {
+            paymentArea.innerHTML = `
+              <p style="color:#f59e0b;font-weight:700;font-size:0.85rem;letter-spacing:1px;margin-bottom:12px;">💳 CHOOSE PAYMENT METHOD</p>
+              <p style="color:rgba(255,255,255,0.7);font-size:0.82rem;margin-bottom:14px;">Pay <strong style="color:#fff;">${formatCurrency(balanceRemaining, business.currency_symbol)}</strong> to complete your order.</p>
+              <div style="display:flex;gap:8px;margin-bottom:20px;align-items:center;">
+                <label style="flex:1;cursor:pointer;">
+                  <input type="radio" name="momo-provider" value="mtn" checked onchange="setMomoProvider('mtn')" style="display:none;" id="radio-mtn">
+                  <div id="pill-mtn" onclick="document.getElementById('radio-mtn').click()" style="padding:8px;border-radius:10px;border:2px solid #ffcc00;background:#ffcc00;text-align:center;transition:all 0.2s;box-shadow:0 0 10px rgba(255,204,0,0.5);transform:scale(1.05);">
+                    <div style="font-family:Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-0.5px;color:#003876;line-height:1;">MTN</div>
+                    <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#003876;line-height:1;margin-top:2px;">MoMo</div>
+                  </div>
+                </label>
+                <label style="flex:1;cursor:pointer;">
+                  <input type="radio" name="momo-provider" value="airtel" onchange="setMomoProvider('airtel')" style="display:none;" id="radio-airtel">
+                  <div id="pill-airtel" onclick="document.getElementById('radio-airtel').click()" style="padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;">
+                    <div style="font-family:'Ubuntu',sans-serif;font-weight:700;font-style:italic;font-size:1.1rem;letter-spacing:-0.5px;color:#ffffff;line-height:1;">airtel</div>
+                    <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">money</div>
+                  </div>
+                </label>
+                <label style="flex:1;cursor:pointer;">
+                  <input type="radio" name="momo-provider" value="cash" onchange="setMomoProvider('cash')" style="display:none;" id="radio-cash">
+                  <div id="pill-cash" onclick="document.getElementById('radio-cash').click()" style="padding:8px;border-radius:10px;border:2px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.05);text-align:center;transition:all 0.2s;opacity:0.5;">
+                    <div style="font-family:Arial,sans-serif;font-weight:900;font-size:1.1rem;letter-spacing:-0.5px;color:#ffffff;line-height:1;">💵</div>
+                    <div style="font-family:Arial,sans-serif;font-weight:700;font-size:0.75rem;color:#ffffff;line-height:1;margin-top:2px;">CASH</div>
+                  </div>
+                </label>
+              </div>
+              <button id="momo-pay-btn" data-balance="${balanceRemaining}"
+                style="display:block;width:100%;background:linear-gradient(135deg,#ffcc00,#f59e0b);color:#003876;font-weight:700;text-align:center;padding:14px;border-radius:10px;border:none;cursor:pointer;font-size:0.95rem;box-shadow:0 4px 15px rgba(255,204,0,0.4);transition:all 0.2s;"
+                onclick="doMomoPay('${orderGroupId}', ${balanceRemaining}); this.style.opacity='0.7'; setTimeout(()=>this.style.opacity='1',1200)">
+                📲 Pay via MTN MoMo
+              </button>
+              <p id="pay-helper-text" style="color:rgba(255,255,255,0.4);font-size:0.72rem;text-align:center;margin-top:10px;">Your phone will open the payment dialer</p>
+            `;
+            refreshPayButton();
+            toast('Order Ready!', 'Your order is ready — please complete payment.', 'success');
+          }
+        }
       }
     } catch (e) {}
   }, 5000);
+
 
   const summary = orders.map(o =>
     `<div class="flex justify-between text-sm" style="padding:6px 0;border-bottom:1px solid var(--glass-border)">

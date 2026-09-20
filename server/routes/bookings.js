@@ -93,17 +93,20 @@ async function generateSlots(tenantDb, businessId, dateStr, serviceId, overrideD
   );
   const blockedSet = new Set(blockedRes.rows.map(r => r.slot));
 
-  return allSlots.map(slot => {
-    const isLunch = lunchSlots.has(slot);
-    const booked = bookedCounts[slot] || 0;
-    return {
-      time: slot,
-      available: !isLunch && (booked < maxClients) && !blockedSet.has(slot),
-      blocked_by_seller: blockedSet.has(slot),
-      is_lunch_break: isLunch
-    };
-  });
+  // Filter out lunch break slots entirely — don't send them to the client at all
+  return allSlots
+    .filter(slot => !lunchSlots.has(slot))
+    .map(slot => {
+      const booked = bookedCounts[slot] || 0;
+      return {
+        time: slot,
+        available: (booked < maxClients) && !blockedSet.has(slot),
+        blocked_by_seller: blockedSet.has(slot),
+        is_lunch_break: false
+      };
+    });
 }
+
 
 // ─── GET /api/slots/:business_slug?date=&service_id= ─────────────────────────
 router.get('/:business_slug', async (req, res) => {

@@ -1,6 +1,6 @@
 // Jomish Service Worker
 
-const CACHE_NAME = 'jomish-cache-v19';
+const CACHE_NAME = 'jomish-cache-v20';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/js/app.js',
@@ -66,7 +66,7 @@ self.addEventListener('push', (event) => {
   const type = data.type || 'default';
 
   // Style per notification type
-  let badge  = '/icons/icon-192.png';
+  let badge  = '/img/logo.png';
   let vibrate = [100, 50, 100];
   let actions = [];
   let tag = 'jomish-default';
@@ -85,7 +85,7 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body:    data.body || 'You have a new update.',
-    icon:    data.icon || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="%23f4a81d"/><text x="50%" y="65%" font-size="60" text-anchor="middle" fill="%23050c1a" font-family="sans-serif">J</text></svg>',
+    icon:    data.icon || '/img/logo.png',
     badge,
     vibrate,
     tag,

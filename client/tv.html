@@ -530,8 +530,16 @@
         try {
           const socket = io();
           socket.emit('join:seller', { channel: biz.pusher_channel || `biz-${biz.id}` });
+          // Join dedicated TV room for media updates
+          socket.emit('join:tv', { channel: biz.pusher_channel || `biz-${biz.id}` });
           socket.on('order:waiting', loadOrders);
           socket.on('order:status',  loadOrders);
+          socket.on('booking:new',   loadOrders);
+          // Immediately reload media when seller adds/removes TV content
+          socket.on('tv:media-updated', () => {
+            mediaItems = []; // clear so loadMedia always rebuilds
+            loadMedia();
+          });
         } catch(_) {}
 
       } catch(e) {

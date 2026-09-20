@@ -298,7 +298,7 @@ async function onDaySelect(dateString) {
 
     const available = (data.slots || []).filter(s => {
       if (!s.available) return false;
-      const slotTime = new Date(s.time + 'Z');
+      const slotTime = new Date(s.time);
       if (dateString === dateStr(now) && slotTime <= new Date(now.getTime() + 5 * 60000)) return false;
       return true;
     });
@@ -460,14 +460,14 @@ function downloadBookingReceipt() {
           <tr style="border-bottom:1px solid #ccc">
             <td style="padding:8px 0">${sv.name}</td>
             <td style="text-align:center;padding:8px 0">${sv.duration_minutes} min</td>
-            <td style="text-align:right;padding:8px 0">${sym}${parseFloat(sv.price).toFixed(2)}</td>
+            <td style="text-align:right;padding:8px 0">${formatCurrency2(sv.price)}</td>
           </tr>
         `).join('')}
       </tbody>
       <tfoot>
         <tr>
           <td colspan="2" style="text-align:right;font-weight:bold;padding:12px 0">Total (${totalDuration} min):</td>
-          <td style="text-align:right;font-weight:bold;padding:12px 0;font-size:18px">${sym}${totalPrice.toFixed(2)}</td>
+          <td style="text-align:right;font-weight:bold;padding:12px 0;font-size:18px">${formatCurrency2(totalPrice)}</td>
         </tr>
       </tfoot>
     </table>
@@ -494,10 +494,10 @@ function downloadBookingReceipt() {
       `Client: ${client.name}`,
       `Appointment: ${formatDateTime(booking.booking_time)}`,
       '---',
-      ...Object.values(serviceCart).map(sv => `${sv.name} — ${sv.duration_minutes}min — ${sym}${parseFloat(sv.price).toFixed(2)}`),
+      ...Object.values(serviceCart).map(sv => `${sv.name} — ${sv.duration_minutes}min — ${formatCurrency2(sv.price)}`),
       '---',
       `Total Duration: ${totalDuration} min`,
-      `Total Price: ${sym}${totalPrice.toFixed(2)}`,
+      `Total Price: ${formatCurrency2(totalPrice)}`,
     ].join('\n');
     const blob = new Blob([lines], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
@@ -630,7 +630,7 @@ function buildReceiptElement(svcNames, total, bookingId) {
     <hr style="margin:16px 0">
     <p style="font-size:14px;margin:8px 0">${svcNames}</p>
     <hr style="margin:16px 0">
-    <p style="font-size:18px;font-weight:bold">Total: ${sym}${parseFloat(total).toFixed(2)}</p>
+    <p style="font-size:18px;font-weight:bold">Total: ${formatCurrency2(total)}</p>
     <p style="font-size:12px;color:#777;margin-top:30px;text-align:center">Thank you for choosing ${bizName}. Powered by Jomish.</p>
   `;
   return el;

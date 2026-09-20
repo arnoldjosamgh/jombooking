@@ -414,14 +414,14 @@ router.patch('/group/:orderGroupId/status', authenticate, async (req, res) => {
          const total = items.reduce((sum, item) => sum + (parseFloat(item.price) * item.quantity), 0);
          const totalBalance = groupRes.rows.reduce((sum, item) => sum + parseFloat(item.balance_remaining || 0), 0);
          const itemsText = items.map(i => `${i.title} x${i.quantity}`).join(', ');
-         const receiptContent = `[RECEIPT] Order #${firstOrder.receipt_number || firstOrder.id}\nItems: ${itemsText}\nTotal: $${total.toFixed(2)}`;
+         const receiptContent = `[RECEIPT] Order #${firstOrder.receipt_number || firstOrder.id}\nItems: ${itemsText}\nTotal: $${total}`;
          
          await client.query(`INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`, [firstOrder.business_id, firstOrder.client_id, receiptContent]);
          
          const io2 = req.app.get('io');
          if (status === 'ready') {
            sendPushToClient(firstOrder.client_id, {
-             type: 'order-ready', title: 'Order Ready', body: `Your order is ready. Balance: $${totalBalance.toFixed(2)}. Tap to pay.`, url: `/c/${slug}`, icon: logo
+             type: 'order-ready', title: 'Order Ready', body: `Your order is ready. Balance: $${totalBalance}. Tap to pay.`, url: `/c/${slug}`, icon: logo
            });
            if (io2) io2.to(`chat-${firstOrder.business_id}-${firstOrder.client_id}`).emit('order:ready', {
              orderGroupId,
@@ -599,7 +599,7 @@ router.patch('/:id/status', authenticate, async (req, res) => {
         );
         if (prodRes.rows.length > 0) {
           const p = prodRes.rows[0];
-          const total = (parseFloat(p.price) * order.quantity).toFixed(2);
+          const total = Math.round(parseFloat(p.price) * order.quantity);
           const receiptContent = `[RECEIPT] Order ${order.receipt_number || '#' + order.id}\n${p.title} x${order.quantity}\nTotal: $${total}`;
           await req.tenantDb.query(
             `INSERT INTO messages (business_id, client_id, sender, content) VALUES ($1, $2, 'seller', $3)`,

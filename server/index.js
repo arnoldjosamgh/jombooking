@@ -214,6 +214,24 @@ app.post('/api/notify/booking', async (req, res) => {
   }
 });
 
+// ─── Notify TV Display: media list updated ────────────────────────────────────
+app.post('/api/notify/tv-media', async (req, res) => {
+  try {
+    const { businessSlug } = req.body;
+    if (!businessSlug) return res.status(400).json({ error: 'Missing businessSlug' });
+    const db = require('./db');
+    const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE slug = $1', [businessSlug]);
+    if (bizRes.rows.length > 0) {
+      const channel = bizRes.rows[0].pusher_channel || `biz-${businessSlug}`;
+      io.to(`tv-${channel}`).emit('tv:media-updated');
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[notify] tv-media error:', err.message);
+    res.status(500).json({ error: 'Notification failed' });
+  }
+});
+
 // ─── Socket.io Connection Handlers ────────────────────────────────────────────
 io.on('connection', (socket) => {
   console.log(`[Socket.io] Client connected: ${socket.id}`);
@@ -229,6 +247,12 @@ io.on('connection', (socket) => {
   socket.on('join:seller', ({ channel }) => {
     socket.join(`seller-${channel}`);
     console.log(`[Socket.io] Seller joined: seller-${channel}`);
+  });
+
+  // TV display joins its own room (receives media-updated events)
+  socket.on('join:tv', ({ channel }) => {
+    socket.join(`tv-${channel}`);
+    console.log(`[Socket.io] TV joined: tv-${channel}`);
   });
 
   // Slot availability refresh — broadcast to all clients viewing same business/date

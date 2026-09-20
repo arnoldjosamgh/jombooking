@@ -1007,7 +1007,7 @@ async function loadWeek() {
         return;
       } else {
         dayData.slots.forEach(slot => {
-          const time    = new Date(slot.time + 'Z');
+          const time    = new Date(slot.time);
           const timeStr = time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
           const el      = document.createElement('div');
 
@@ -2011,8 +2011,8 @@ function generateInvoicePDF(bk, finalPrice) {
 
   // Line item
   document.getElementById('receipt-service').textContent = bk.service_name || 'Service';
-  document.getElementById('receipt-price').textContent = symbol + parseFloat(finalPrice).toFixed(2);
-  document.getElementById('receipt-total').textContent = symbol + parseFloat(finalPrice).toFixed(2);
+  document.getElementById('receipt-price').textContent = formatCurrency(finalPrice);
+  document.getElementById('receipt-total').textContent = formatCurrency(finalPrice);
 
   const element = document.getElementById('receipt-content');
   // Temporarily reveal for html2pdf capture
@@ -2317,44 +2317,7 @@ async function resetBiometrics() {
   }
 }
 
-function showInvoice(transactionId, type) {
-  const t = window._historyData.find(x => x.id === transactionId && x._type === type);
-  if (!t) return;
-  
-  const symbol = selectedBiz?.currency_symbol || '$';
-  const logoUrl = selectedBiz?.logo_url || '';
-  
-  const price = type === 'order' ? t.price * t.quantity : t.service_price || 0;
-  const title = type === 'order' ? `${t.product_title} ×${t.quantity}` : `${t.service_name || 'Booking'}`;
-  
-  // Populate the modern PDF template
-  document.getElementById('receipt-biz-name').textContent = selectedBiz.name;
-  document.getElementById('receipt-biz-location').textContent = selectedBiz.location || '';
-  const phoneEl = document.getElementById('receipt-biz-phone');
-  if (phoneEl) phoneEl.textContent = selectedBiz.phone_number || '';
-  
-  const logoEl = document.getElementById('receipt-logo');
-  if (logoEl) { logoEl.src = logoUrl; logoEl.style.display = logoUrl ? 'block' : 'none'; }
-  const wmEl = document.getElementById('receipt-watermark');
-  if (wmEl) { wmEl.src = logoUrl; wmEl.style.display = logoUrl ? 'block' : 'none'; }
-  
-  document.getElementById('receipt-id').textContent = t.invoice_number || t.id;
-  document.getElementById('receipt-date').textContent = new Date(t.created_at).toLocaleString();
-  document.getElementById('receipt-client').textContent = t.client_name || 'Guest';
-  
-  document.getElementById('receipt-service').textContent = title;
-  document.getElementById('receipt-price').textContent = symbol + parseFloat(price).toFixed(2);
-  document.getElementById('receipt-total').textContent = symbol + parseFloat(price).toFixed(2);
-  
-  // Copy to modal
-  const contentHtml = document.getElementById('receipt-content').innerHTML;
-  document.getElementById('seller-receipt-content').innerHTML = `
-    <div style="font-family:'Outfit',Arial,sans-serif;font-size:12px;color:#1a1a2e;position:relative;overflow:hidden;background:#fff;">
-      ${contentHtml}
-    </div>
-  `;
-  document.getElementById('seller-receipt-modal').style.display = 'flex';
-}
+// showInvoice is defined earlier (line ~1734) — this duplicate has been removed to avoid override
 
 // ─── CHAT ──────────────────────────────────────────────────────────────────────
 let activeChatClient = null;
@@ -2508,6 +2471,16 @@ if (chatForm) {
   });
 
 // ─── TV DISPLAY MEDIA MANAGER ──────────────────────────────────────────────────
+// Notify TV displays in real time that the media list has changed
+function notifyTvMediaUpdated() {
+  if (!selectedBiz) return;
+  fetch('/api/notify/tv-media', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ businessSlug: selectedBiz.slug })
+  }).catch(() => {}); // fire-and-forget
+}
+
 async function openTvMediaManager() {
   if (!selectedBiz) { toast('Error', 'No business selected', 'error'); return; }
   openModal('tv-media-modal');
@@ -2582,6 +2555,7 @@ async function tvMediaHandleFile(event, type) {
   if (progress) progress.style.display = 'none';
   event.target.value = '';
   toast('Uploaded!', `${files.length} ${type}(s) added to TV display`, 'success');
+  notifyTvMediaUpdated(); // Ping TV displays to reload immediately
   await loadTvMediaList();
 }
 
@@ -2599,6 +2573,7 @@ async function tvMediaSaveText() {
     document.getElementById('tv-text-title').value = '';
     document.getElementById('tv-text-form').style.display = 'none';
     toast('Added!', 'Text banner added to TV display', 'success');
+    notifyTvMediaUpdated(); // Ping TV displays to reload immediately
     await loadTvMediaList();
   } catch (err) {
     toast('Error', err.message, 'error');
@@ -2610,6 +2585,7 @@ async function deleteTvMedia(id) {
   try {
     await apiFetch(`/api/tv-media/${id}`, { method: 'DELETE' });
     toast('Removed', 'Media item deleted', 'success');
+    notifyTvMediaUpdated(); // Ping TV displays to reload immediately
     await loadTvMediaList();
   } catch (err) {
     toast('Error', err.message, 'error');

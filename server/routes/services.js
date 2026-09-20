@@ -40,6 +40,9 @@ router.post('/', authenticate, requireFields('business_id', 'name', 'price', 'du
        VALUES ($1, $2, $3, $4) RETURNING *`,
       [business_id, name, parseFloat(price), parseInt(duration_minutes)]
     );
+    // Invalidate services cache for this business so refreshes see the new service
+    const bizRes = await req.tenantDb.query('SELECT slug FROM businesses WHERE id = $1', [business_id]);
+    if (bizRes.rows.length > 0) cache.del(`services:${bizRes.rows[0].slug}`);
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('[services] POST error:', err.message);
@@ -50,7 +53,13 @@ router.post('/', authenticate, requireFields('business_id', 'name', 'price', 'du
 // ─── DELETE /api/services/:id — Seller removes a service ──────────────────────
 router.delete('/:id', authenticate, async (req, res) => {
   try {
+    // Soft-delete and invalidate cache
+    const svcRes = await req.tenantDb.query(
+      'SELECT b.slug FROM services s JOIN businesses b ON s.business_id = b.id WHERE s.id = $1',
+      [req.params.id]
+    );
     await req.tenantDb.query('UPDATE services SET is_deleted = true WHERE id = $1', [req.params.id]);
+    if (svcRes.rows.length > 0) cache.del(`services:${svcRes.rows[0].slug}`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Server error' });

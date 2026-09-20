@@ -6,6 +6,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { requireFields } = require('../middleware/validate');
+const { sendPushToClient, sendPushToSeller } = require('./push');
 
 // GET /api/messages/threads/:business_id — All client threads for seller panel
 router.get('/threads/:business_id', async (req, res) => {
@@ -73,10 +74,31 @@ router.post('/', requireFields('business_id', 'client_id', 'sender', 'content'),
       const room = `chat-${business_id}-${client_id}`;
       io.to(room).emit('chat:message', msg);
       // Also emit to the seller room so seller sees messages from clients
-      const bizRes = await db.query('SELECT pusher_channel FROM businesses WHERE id = $1', [business_id]);
+      const bizRes = await db.query('SELECT pusher_channel, owner_id FROM businesses WHERE id = $1', [business_id]);
       if (bizRes.rows.length > 0) {
         const channel = bizRes.rows[0].pusher_channel || `biz-${business_id}`;
         io.to(`seller-${channel}`).emit('chat:message', msg);
+
+        // ── Push Notifications ──
+        if (sender === 'seller') {
+          // Notify the client that the seller replied
+          sendPushToClient(parseInt(client_id), {
+            title: '💬 New Message',
+            body: 'You have a new message from the seller.',
+            icon: '/img/logo.png',
+            url: `/c/${channel}`,
+            type: 'chat'
+          });
+        } else {
+          // Notify the seller that a client sent a message
+          sendPushToSeller(bizRes.rows[0].owner_id, {
+            title: '💬 Client Message',
+            body: `A client sent you a message. Tap to reply.`,
+            icon: '/img/logo.png',
+            url: '/seller',
+            type: 'chat'
+          });
+        }
       }
     }
 

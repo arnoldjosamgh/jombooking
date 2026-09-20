@@ -75,7 +75,7 @@ async function generateSlots(tenantDb, businessId, dateStr, serviceId, overrideD
      WHERE business_id = $1
        AND ($2::int IS NULL OR service_id = $2)
        AND DATE(booking_time) = $3::date
-       AND status = 'confirmed'
+       AND status IN ('confirmed', 'ready', 'completed')
      GROUP BY slot`,
     [businessId, serviceId || null, dateStr]
   );

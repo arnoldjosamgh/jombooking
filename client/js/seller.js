@@ -664,25 +664,44 @@ async function checkoutPos() {
 
   try {
     let result;
-    if (isService) {
-      // Walk-in service checkout — create a booking for "now"
-      const serviceIdsArray = items.map(i => i.id);
-      result = await apiFetch('/api/bookings', {
-        method: 'POST',
-        body: {
-          business_id: selectedBiz.id,
-          client_id: null,
-          booking_time: new Date().toISOString(),
-          service_ids: serviceIdsArray,
-        }
-      });
+    
+    // Check if we are completing an existing order from the Pending tab
+    if (window.posExistingOrderGroupId) {
+      const orderGroupId = window.posExistingOrderGroupId;
+      if (orderGroupId.includes(',')) {
+        const ids = orderGroupId.split(',');
+        await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'completed' }})));
+      } else {
+        await apiFetch(`/api/orders/group/${orderGroupId}/status`, { method: 'PATCH', body: { status: 'completed' }});
+      }
       const total = items.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0);
       result = { items: items.map(i => ({ product: i.name, qty: i.qty, price: i.price })), total };
+      
+      // Clear the flag so future POS sales create new orders
+      window.posExistingOrderGroupId = null;
+      pollPending(); // update badge
     } else {
-      result = await apiFetch('/api/orders/pos-checkout', {
-        method: 'POST',
-        body: { business_id: selectedBiz.id, items: items.map(i => ({ product_id: i.id, qty: i.qty })), customer_name: customerName }
-      });
+      // Normal walk-in POS checkout
+      if (isService) {
+        // Walk-in service checkout — create a booking for "now"
+        const serviceIdsArray = items.map(i => i.id);
+        result = await apiFetch('/api/bookings', {
+          method: 'POST',
+          body: {
+            business_id: selectedBiz.id,
+            client_id: null,
+            booking_time: new Date().toISOString(),
+            service_ids: serviceIdsArray,
+          }
+        });
+        const total = items.reduce((s, i) => s + parseFloat(i.price) * i.qty, 0);
+        result = { items: items.map(i => ({ product: i.name, qty: i.qty, price: i.price })), total };
+      } else {
+        result = await apiFetch('/api/orders/pos-checkout', {
+          method: 'POST',
+          body: { business_id: selectedBiz.id, items: items.map(i => ({ product_id: i.id, qty: i.qty })), customer_name: customerName }
+        });
+      }
     }
 
     toast('Checkout Complete', `Sale of ${formatCurrency(result.total)} recorded for ${customerName}`, 'success');
@@ -1537,16 +1556,21 @@ async function renderPending() {
               status: o.status,
               created_at: o.created_at,
               items: [],
-              total_price: 0
+              total_price: 0,
+              rawOrders: []
             });
           }
           const group = groupedMap.get(key);
           group.ids.push(o.id);
           group.items.push(`${o.product_title} (x${o.quantity})`);
           group.total_price += parseFloat(o.price || 0) * parseInt(o.quantity || 1);
+          group.rawOrders.push(o);
         });
 
+        pendingOrdersMap.clear();
+
         html += Array.from(groupedMap.values()).map(g => {
+          pendingOrdersMap.set(g.order_group_id || `${g.client_id}-${g.status}`, g);
           const isMomo = g.payment_method === 'momo' || g.table_number;
           const tableLabel = g.table_number ? `<span style="background:var(--accent-blue,#3b82f6);color:#fff;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;letter-spacing:1px;margin-left:6px;">TABLE ${g.table_number}</span>` : '';
           const momoLabel = isMomo ? `<span style="background:#f59e0b;color:#fff;padding:2px 8px;border-radius:12px;font-size:0.72rem;font-weight:700;margin-left:6px;">MOMO</span>` : '';
@@ -1601,9 +1625,8 @@ async function renderPending() {
     if (selectedBiz.type === 'service' || selectedBiz.type === 'both') {
       const confirmed = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
       const readyBooks = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=ready`);
-      const bookings = [...confirmed, ...readyBooks];
-      
-      const pendingBookings = bookings.filter(b => new Date(b.booking_time) > new Date(Date.now() - 86400000)); // Only show recent/upcoming
+      const pendingBookings = [...confirmed, ...readyBooks];
+      // Sort oldest bookings first
       pendingBookings.sort((a, b) => new Date(a.booking_time) - new Date(b.booking_time));
       
       if (pendingBookings.length > 0) {
@@ -1847,17 +1870,33 @@ async function completeOrder(orderId) {
 
 async function completeOrderGroup(orderGroupId) {
   try {
-    if (orderGroupId.includes(',')) {
-      // Legacy fallback
-      const ids = orderGroupId.split(',');
-      await Promise.all(ids.map(id => apiFetch(`/api/orders/${id}/status`, { method: 'PATCH', body: { status: 'completed' }})));
-    } else {
-      await apiFetch(`/api/orders/group/${orderGroupId}/status`, { method: 'PATCH', body: { status: 'completed' }});
+    const group = pendingOrdersMap.get(orderGroupId);
+    if (!group || !group.rawOrders.length) {
+      toast('Error', 'Order details not found. Please refresh.', 'error');
+      return;
     }
-    toast('Success', 'Order marked as delivered/completed.', 'success');
-    renderPending();
-    pollPending(); // update badge
-    renderPOS(); // Take user to POS
+    
+    // Clear POS Cart
+    posCart = {};
+    
+    // Populate POS Cart with these items
+    group.rawOrders.forEach(o => {
+      posCart[o.product_id] = {
+        id: o.product_id,
+        name: o.product_title,
+        price: o.price,
+        qty: parseInt(o.quantity) || 1
+      };
+    });
+    
+    // Set flag so checkoutPos knows it's an existing order
+    window.posExistingOrderGroupId = orderGroupId;
+    
+    // Redirect to POS
+    renderPOS();
+    updatePOSCart();
+    
+    toast('POS Ready', 'Tap Amount Given to calculate change, then hit Checkout.', 'info');
   } catch(e) {
     toast('Error', e.message, 'error');
   }
@@ -1913,6 +1952,8 @@ async function handleMomoNotExact(orderGroupId, currentBalance) {
 let currentBookingToComplete = null;
 // Map to store pending bookings for safe lookup (avoids JSON-in-HTML issues)
 const pendingBookingsMap = new Map();
+// Map to store pending orders for POS redirect
+const pendingOrdersMap = new Map();
 
 function completeBooking(bookingId) {
   const booking = pendingBookingsMap.get(Number(bookingId)) || pendingBookingsMap.get(bookingId);
@@ -2042,8 +2083,7 @@ async function pollPending() {
     if (selectedBiz.type === 'service' || selectedBiz.type === 'both') {
       const confirmedBookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
       const readyBookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=ready`);
-      const today = new Date();
-      count += confirmedBookings.filter(b => new Date(b.booking_time) < today).length;
+      count += confirmedBookings.length;
       count += readyBookings.length;
     }
     

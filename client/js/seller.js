@@ -86,7 +86,7 @@ function setupBiz(biz) {
   if (biz.logo_url) {
     const brandIconContainer = document.querySelector('.brand-icon');
     if (brandIconContainer) {
-      brandIconContainer.innerHTML = `<img src="${biz.logo_url}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`;
+      brandIconContainer.innerHTML = `<img src="${biz.logo_url}" alt="Logo" style="width:100%;height:100%;object-fit:cover;border-radius:10px" onerror="this.parentElement.innerHTML=''" >`;
     }
   }
 

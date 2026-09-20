@@ -15,7 +15,7 @@ const { sendPushToSeller, sendPushToClient } = require('./push');
  * Uses the service's duration_minutes if provided, else falls back to business default.
  * Filters out already-booked AND manually-blocked slots.
  */
-async function generateSlots(tenantDb, businessId, dateStr, serviceId) {
+async function generateSlots(tenantDb, businessId, dateStr, serviceId, overrideDuration) {
   // Get business hours
   const bizResult = await tenantDb.query(
     `SELECT open_time, close_time, session_duration_minutes, open_days, lunch_start, lunch_end, max_clients_per_slot
@@ -31,9 +31,9 @@ async function generateSlots(tenantDb, businessId, dateStr, serviceId) {
   const dayOfWeek = date.getDay();
   if (!open_days.includes(dayOfWeek)) return [];
 
-  // Use the service's own duration if we have a service, else the business default
-  let duration = session_duration_minutes;
-  if (serviceId) {
+  // Priority: client-supplied override (multi-service total) > service duration > business default
+  let duration = parseInt(overrideDuration) || session_duration_minutes;
+  if (!overrideDuration && serviceId) {
     const svcRes = await tenantDb.query('SELECT duration_minutes FROM services WHERE id = $1', [serviceId]);
     if (svcRes.rows.length > 0) duration = svcRes.rows[0].duration_minutes;
   }
@@ -108,14 +108,14 @@ async function generateSlots(tenantDb, businessId, dateStr, serviceId) {
 // ─── GET /api/slots/:business_slug?date=&service_id= ─────────────────────────
 router.get('/:business_slug', async (req, res) => {
   try {
-    const { date, service_id } = req.query;
+    const { date, service_id, duration } = req.query;
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return res.status(400).json({ error: 'Query param ?date=YYYY-MM-DD is required' });
     }
     const bizResult = await db.query('SELECT id FROM businesses WHERE slug = $1', [req.params.business_slug]);
     if (bizResult.rows.length === 0) return res.status(404).json({ error: 'Business not found' });
 
-    const slots = await generateSlots(req.tenantDb, bizResult.rows[0].id, date, service_id || null);
+    const slots = await generateSlots(req.tenantDb, bizResult.rows[0].id, date, service_id || null, duration || null);
     res.json({ date, slots });
   } catch (err) {
     console.error('[slots] GET error:', err.message);

@@ -9,19 +9,34 @@
   <meta charset="UTF-8">
   <title>Jomish Business Suite</title>
   <script>
-    // Handle direct path routes (e.g. /order/slug, /book/slug, /c/slug)
+    // Handle direct path routes (e.g. /order/slug, /book/slug, /c/slug, /seller, /tech)
     const pathSegments = window.location.pathname.split('/').filter(Boolean);
+    const search = window.location.search; // preserve query params (e.g. ?action=...)
     
     if (pathSegments.length >= 2) {
       const type = pathSegments[0];
       const slug = pathSegments[1];
       
       if (type === 'order') {
-        window.location.replace(`/order.html?slug=${slug}`);
+        window.location.replace(`/order.html?slug=${slug}${search ? '&' + search.slice(1) : ''}`);
       } else if (type === 'book') {
-        window.location.replace(`/book.html?slug=${slug}`);
+        window.location.replace(`/book.html?slug=${slug}${search ? '&' + search.slice(1) : ''}`);
       } else if (type === 'c') {
-        window.location.replace(`/c.html?slug=${slug}`);
+        window.location.replace(`/c.html?slug=${slug}${search ? '&' + search.slice(1) : ''}`);
+      } else {
+        window.location.replace('/login.html');
+      }
+    } else if (pathSegments.length === 1) {
+      // Single-segment routes — used by push notification click URLs
+      const page = pathSegments[0];
+      if (page === 'seller') {
+        window.location.replace('/seller.html');
+      } else if (page === 'tech') {
+        window.location.replace('/tech.html');
+      } else if (page === 'setup') {
+        window.location.replace('/setup.html');
+      } else if (page === 'login') {
+        window.location.replace('/login.html');
       } else {
         window.location.replace('/login.html');
       }

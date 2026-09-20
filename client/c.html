@@ -82,12 +82,18 @@
           return;
         }
 
-        // Redirect to the correct portal
-        const tableParam = params.get('table') ? `&table=${encodeURIComponent(params.get('table'))}` : '';
+        // Redirect to the correct portal — preserve all extra query params
+        const forwardParams = new URLSearchParams();
+        forwardParams.set('slug', biz.slug);
+        // Copy over all params except 'slug' itself
+        for (const [key, val] of params.entries()) {
+          if (key !== 'slug') forwardParams.set(key, val);
+        }
+        const queryStr = forwardParams.toString();
         if (biz.type === 'product') {
-          window.location.replace(`/order.html?slug=${biz.slug}${tableParam}`);
+          window.location.replace(`/order.html?${queryStr}`);
         } else {
-          window.location.replace(`/book.html?slug=${biz.slug}${tableParam}`);
+          window.location.replace(`/book.html?${queryStr}`);
         }
 
       } catch (err) {

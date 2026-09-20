@@ -1,6 +1,6 @@
 // Jomish Service Worker
 
-const CACHE_NAME = 'jomish-cache-v20';
+const CACHE_NAME = 'jomish-cache-v21';
 const STATIC_ASSETS = [
   '/css/style.css',
   '/js/app.js',
@@ -101,21 +101,49 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const { url } = event.notification.data;
+  let { url } = event.notification.data;
+  
+  // Resolve clean paths to actual .html files for direct navigation
+  // e.g. /seller -> /seller.html, /c/my-biz -> /c.html?slug=my-biz
+  function resolveUrl(rawUrl) {
+    const base = self.location.origin;
+    const parsed = new URL(rawUrl, base);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    
+    if (segments.length === 0) return rawUrl;
+    
+    const type = segments[0];
+    const slug = segments[1];
+    const search = parsed.search;
+    
+    if (type === 'seller') return `${base}/seller.html`;
+    if (type === 'tech')   return `${base}/tech.html`;
+    if (type === 'setup')  return `${base}/setup.html`;
+    if (type === 'login')  return `${base}/login.html`;
+    if (type === 'order' && slug) return `${base}/order.html?slug=${slug}${search ? '&' + search.slice(1) : ''}`;
+    if (type === 'book'  && slug) return `${base}/book.html?slug=${slug}${search ? '&' + search.slice(1) : ''}`;
+    if (type === 'c'     && slug) return `${base}/c.html?slug=${slug}${search ? '&' + search.slice(1) : ''}`;
+    
+    return rawUrl;
+  }
+  
+  const resolvedUrl = resolveUrl(url);
+  
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
-      // Focus existing tab if found
+      const targetUrl = new URL(resolvedUrl, self.location.origin);
+      
+      // Focus existing tab if its path matches
       for (const client of clientList) {
         const clientUrl = new URL(client.url);
-        const targetUrl = new URL(url, self.location.origin);
         if (clientUrl.pathname === targetUrl.pathname && 'focus' in client) {
-          // Post message to existing tab to trigger receipt download
+          // Post message to existing tab to trigger actions (e.g. receipt download)
           client.postMessage({ type: event.notification.data.type, url });
           return client.focus();
         }
       }
-      // Open new window
-      return clients.openWindow(url);
+      // Open new window with the resolved URL
+      return clients.openWindow(resolvedUrl);
     })
   );
 });

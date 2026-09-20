@@ -122,6 +122,12 @@ window.addEventListener('DOMContentLoaded', async () => {
       window.location.href = `/book.html?slug=${slug}`;
       return;
     }
+    
+    const savedCart = localStorage.getItem(`jomish_cart_${business.slug}`);
+    if (savedCart) {
+      try { cart = JSON.parse(savedCart); } catch (e) { cart = {}; }
+    }
+
     document.title = `Order — ${business.name} | Jomish`;
     renderHeader();
 
@@ -164,6 +170,7 @@ async function loadProducts() {
   try {
     products = await apiFetch(`/api/products/${business.slug}`);
     renderProducts();
+    updateCartBar();
     initSocket();
   } catch (err) {
     renderError('Could not load products. Please refresh.');
@@ -273,6 +280,9 @@ function addToCart() {
 
 // ─── Cart Bar ──────────────────────────────────────────────────
 function updateCartBar() {
+  if (business) {
+    localStorage.setItem(`jomish_cart_${business.slug}`, JSON.stringify(cart));
+  }
   const totalItems = Object.values(cart).reduce((a, b) => a + b, 0);
   const totalPrice = Object.entries(cart).reduce((sum, [id, qty]) => {
     const p = products.find(x => x.id === parseInt(id));
@@ -321,6 +331,7 @@ async function placeOrder() {
     await notifySeller(orders);
 
     cart = {};
+    if (business) localStorage.removeItem(`jomish_cart_${business.slug}`);
     document.getElementById('cart-bar').style.display = 'none';
     updateCartBar();
     showOrderSuccess(orders);

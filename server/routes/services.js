@@ -7,19 +7,24 @@ const router  = express.Router();
 const db      = require('../db');
 const { authenticate } = require('./auth');
 const { requireFields }  = require('../middleware/validate');
+const cache = require('../cache');
 
-// ─── GET /api/services/:business_slug — Public list for client booking ─────────
+// ─── GET /api/services/:business_slug — Public list for client booking (cached 5 min) ─────────
 router.get('/:business_slug', async (req, res) => {
   try {
-    const result = await req.tenantDb.query(
-      `SELECT s.id, s.name, s.price, s.duration_minutes
-       FROM services s
-       JOIN businesses b ON s.business_id = b.id
-       WHERE b.slug = $1 AND (s.is_deleted = false OR s.is_deleted IS NULL)
-       ORDER BY s.name`,
-      [req.params.business_slug]
-    );
-    res.json(result.rows);
+    const slug = req.params.business_slug;
+    const services = await cache.getOrSet(`services:${slug}`, async () => {
+      const result = await req.tenantDb.query(
+        `SELECT s.id, s.name, s.price, s.duration_minutes
+         FROM services s
+         JOIN businesses b ON s.business_id = b.id
+         WHERE b.slug = $1 AND (s.is_deleted = false OR s.is_deleted IS NULL)
+         ORDER BY s.name`,
+        [slug]
+      );
+      return result.rows;
+    }, 5 * 60 * 1000, [`services:${slug}`]);
+    res.json(services);
   } catch (err) {
     console.error('[services] GET error:', err.message);
     res.status(500).json({ error: 'Server error' });

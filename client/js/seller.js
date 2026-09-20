@@ -14,7 +14,8 @@ let currentWeekStart = null;
 // Format currency for receipts
 function formatCurrency2(amount) {
   if (amount == null) return 'N/A';
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(parseFloat(amount));
+  const symbol = selectedBiz?.currency_symbol || '$';
+  return `${symbol}${Number(amount).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
 // ─── INIT ──────────────────────────────────────────────────────────────────────
@@ -261,17 +262,20 @@ function generateTableQR() {
   qrEl.innerHTML = '';
   
   const drawTableQR = (logoStr) => {
-    const qrCode = new QRCodeStyling({
+    const options = {
       width: 130,
       height: 130,
       data: clientLink,
-      image: logoStr,
       dotsOptions: { color: "#1a2461", type: "dots" },
       cornersSquareOptions: { type: "extra-rounded", color: "#1a2461" },
       cornersDotOptions: { type: "dot", color: "#1a2461" },
-      backgroundOptions: { color: "#ffffff" },
-      imageOptions: { crossOrigin: "anonymous", margin: 5 }
-    });
+      backgroundOptions: { color: "#ffffff" }
+    };
+    if (logoStr) {
+      options.image = logoStr;
+      options.imageOptions = { crossOrigin: "anonymous", margin: 5 };
+    }
+    const qrCode = new QRCodeStyling(options);
     qrCode.append(qrEl);
   };
 
@@ -639,6 +643,11 @@ function calculatePOSChange() {
   let change = given - total;
   if (change < 0) change = 0;
   document.getElementById('pos-change-due').textContent = formatCurrency(change);
+}
+
+function setPOSCash(amount) {
+  const input = document.getElementById('pos-amount-given');
+  if (input) { input.value = amount; calculatePOSChange(); }
 }
 
 function calculateBookingChange() {
@@ -1440,7 +1449,7 @@ function urlBase64ToUint8Array(base64String) {
 // ─── HELPERS ───────────────────────────────────────────────────────────────────
 function formatCurrency(amount) {
   const symbol = selectedBiz?.currency_symbol || '$';
-  return `${symbol}${parseFloat(amount).toFixed(2)}`;
+  return `${symbol}${Number(amount).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
 function statusBadgeClass(status) {
@@ -2029,14 +2038,16 @@ async function pollPending() {
   try {
     let count = 0;
     if (selectedBiz.type === 'product' || selectedBiz.type === 'both') {
-      const orders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=pending`);
-      count += orders.length;
+      const pendingOrders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=pending`);
+      const readyOrders = await apiFetch(`/api/orders/list/${selectedBiz.slug}?status=ready`);
+      count += pendingOrders.length + readyOrders.length;
     }
     if (selectedBiz.type === 'service' || selectedBiz.type === 'both') {
-      const bookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
-      // Only count bookings that are in the past or today, not future days
+      const confirmedBookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=confirmed`);
+      const readyBookings = await apiFetch(`/api/bookings/list/${selectedBiz.slug}?status=ready`);
       const today = new Date();
-      count += bookings.filter(b => new Date(b.booking_time) < today).length;
+      count += confirmedBookings.filter(b => new Date(b.booking_time) < today).length;
+      count += readyBookings.length;
     }
     
     const fab = document.getElementById('fab-pending');

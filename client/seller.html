@@ -197,11 +197,17 @@
           </div>
           <div class="flex justify-between mb-8 text-sm items-center">
             <span>Amount Given:</span>
-            <input type="number" id="pos-amount-given" class="input" style="width: 100px; padding: 4px; text-align: right;" placeholder="0.00" oninput="calculatePOSChange()">
+            <input type="number" id="pos-amount-given" class="input" style="width: 100px; padding: 4px; text-align: right;" placeholder="0" oninput="calculatePOSChange()">
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
+            <button type="button" class="btn btn-outline" style="flex:1;min-width:48px;font-size:0.78rem;padding:5px 4px;" onclick="setPOSCash(5000)">5k</button>
+            <button type="button" class="btn btn-outline" style="flex:1;min-width:48px;font-size:0.78rem;padding:5px 4px;" onclick="setPOSCash(10000)">10k</button>
+            <button type="button" class="btn btn-outline" style="flex:1;min-width:48px;font-size:0.78rem;padding:5px 4px;" onclick="setPOSCash(20000)">20k</button>
+            <button type="button" class="btn btn-outline" style="flex:1;min-width:48px;font-size:0.78rem;padding:5px 4px;" onclick="setPOSCash(50000)">50k</button>
           </div>
           <div class="flex justify-between mb-16 text-sm font-bold text-green" style="color: var(--accent-green);">
             <span>Change Due:</span>
-            <span id="pos-change-due">0.00</span>
+            <span id="pos-change-due">0</span>
           </div>
           <button class="btn btn-primary btn-full btn-lg" id="pos-checkout-btn" onclick="checkoutPos()" disabled
             style="display:flex;align-items:center;justify-content:center;gap:8px">

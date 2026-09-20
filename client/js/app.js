@@ -174,12 +174,16 @@ async function apiFetch(path, options = {}) {
   } catch (err) {
     // Catch network/connection failures gently
     if (err instanceof TypeError && err.message.toLowerCase().includes('fetch')) {
-      showOfflineBanner();
-      if (options.method && options.method !== 'GET') {
-        OfflineQueue.add({ path, options });
-        throw new Error('No connection — saved locally and will sync when you\'re back.');
+      if (!navigator.onLine) {
+        showOfflineBanner();
+        if (options.method && options.method !== 'GET') {
+          OfflineQueue.add({ path, options });
+          throw new Error('No connection — saved locally and will sync when you\'re back.');
+        }
+        throw new Error('No connection — please check your internet and try again.');
+      } else {
+        throw new Error('Network error or server unreachable. Please try again.');
       }
-      throw new Error('No connection — please check your internet and try again.');
     }
     console.error('[API]', path, err.message);
     throw err;
@@ -279,7 +283,7 @@ function formatDateTime(isoStr) {
   return `${formatDate(isoStr)} · ${formatTime(isoStr)}`;
 }
 function formatCurrency(amount, symbol = '$') {
-  return `${symbol}${parseFloat(amount).toFixed(2)}`;
+  return `${symbol}${Number(amount).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 function initials(name = '') {
   return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);

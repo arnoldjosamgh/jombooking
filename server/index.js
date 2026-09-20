@@ -318,6 +318,8 @@ db.query(`ALTER TABLE bookings ADD COLUMN IF NOT EXISTS service_ids JSONB;`)
       console.log(`   Booking flow: http://localhost:${PORT}/book/jomish-salon`);
       console.log(`   Seller view:  http://localhost:${PORT}/seller\n`);
       scheduleMidnightReschedule();
+      const { startRetentionScheduler } = require('./retention');
+      startRetentionScheduler();
     });
   })
   .catch(err => {

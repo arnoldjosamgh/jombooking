@@ -31,6 +31,11 @@ window.addEventListener('DOMContentLoaded', async () => {
       window.location.href = `/order.html?slug=${slug}`;
       return;
     }
+    
+    const savedBookCart = localStorage.getItem(`jomish_book_cart_${business.slug}`);
+    if (savedBookCart) {
+      try { serviceCart = JSON.parse(savedBookCart); } catch (e) { serviceCart = {}; }
+    }
 
     document.title = `Book — ${business.name} | Jomish`;
     document.getElementById('biz-name').textContent = business.name;
@@ -165,6 +170,9 @@ function toggleServiceCart(svcObj) {
     delete serviceCart[svc.id];
   } else {
     serviceCart[svc.id] = svc;
+  }
+  if (business) {
+    localStorage.setItem(`jomish_book_cart_${business.slug}`, JSON.stringify(serviceCart));
   }
   renderServicesView();
 }
@@ -350,7 +358,8 @@ async function finalizeBooking() {
 
     await notifySeller();
     if (socket) socket.emit('slot:booked', { businessId: business.id, date: selectedDate, time: selectedSlot });
-
+    
+    if (business) localStorage.removeItem(`jomish_book_cart_${business.slug}`);
     showBookingSuccess();
   } catch (err) {
     toast('Order Failed', err.message, 'error');
@@ -750,7 +759,7 @@ function dateStr(d)  { return d.toISOString().split('T')[0]; }
 
 function formatCurrency2(amount) {
   const sym = business?.currency_symbol || '$';
-  return `${sym}${parseFloat(amount).toFixed(2)}`;
+  return `${sym}${Number(amount).toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
 }
 
 function renderError(msg) {

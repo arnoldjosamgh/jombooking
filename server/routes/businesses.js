@@ -5,6 +5,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { authenticate } = require('./auth');
+const cache = require('../cache');
 
 // GET /api/businesses/manifest/:slug — Get dynamic PWA manifest (must be BEFORE /:slug wildcard)
 router.get('/manifest/:slug', async (req, res) => {
@@ -47,21 +48,22 @@ router.get('/manifest/:slug', async (req, res) => {
   }
 });
 
-// GET /api/businesses/:slug — Get business config
+// GET /api/businesses/:slug — Get business config (cached 5 min)
 router.get('/:slug', async (req, res) => {
   try {
     const { slug } = req.params;
-    const result = await db.query(
-      `SELECT id, name, type, slug, logo_url, open_time, close_time,
-              open_days, session_duration_minutes, currency_symbol, pusher_channel,
-              lunch_start, lunch_end, status, phone_number, location, low_stock_threshold
-       FROM businesses WHERE slug = $1`,
-      [slug]
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Business not found' });
-    }
-    res.json(result.rows[0]);
+    const biz = await cache.getOrSet(`biz:${slug}`, async () => {
+      const result = await db.query(
+        `SELECT id, name, type, slug, logo_url, open_time, close_time,
+                open_days, session_duration_minutes, currency_symbol, pusher_channel,
+                lunch_start, lunch_end, status, phone_number, location, low_stock_threshold
+         FROM businesses WHERE slug = $1`,
+        [slug]
+      );
+      return result.rows[0] || null;
+    }, 5 * 60 * 1000, [`biz:${slug}`]);
+    if (!biz) return res.status(404).json({ error: 'Business not found' });
+    res.json(biz);
   } catch (err) {
     console.error('[businesses] GET /:slug error:', err.message);
     res.status(500).json({ error: 'Server error' });
@@ -80,6 +82,7 @@ router.put('/:slug/logo', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Business not found' });
     }
+    cache.invalidateTag(`biz:${slug}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[businesses] PUT /:slug/logo error:', err.message);
@@ -150,6 +153,7 @@ router.put('/:slug/settings', authenticate, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Business not found' });
     }
+    cache.invalidateTag(`biz:${slug}`);
     res.json({ success: true });
   } catch (err) {
     console.error('[businesses] PUT /:slug/settings error:', err.message);
